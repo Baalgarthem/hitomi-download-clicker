@@ -86,12 +86,16 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
   // ─────────────────────────────────────────────
   function obtenerIdPestana() {
     const CLAVE = "hitomi_clicker_identidad_pestana";
-    let id = sessionStorage.getItem(CLAVE);
-    if (!id) {
-      id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      sessionStorage.setItem(CLAVE, id);
+    try {
+      let id = sessionStorage.getItem(CLAVE);
+      if (!id) {
+        id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        sessionStorage.setItem(CLAVE, id);
+      }
+      return id;
+    } catch {
+      return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     }
-    return id;
   }
 
   const ID_PESTANA = obtenerIdPestana();
@@ -128,22 +132,27 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
 
   function elementoVisible(elemento) {
     if (!elemento) return false;
-    const estilo = getComputedStyle(elemento);
-    const rectangulo = elemento.getBoundingClientRect();
-    return (
-      estilo.display !== "none" &&
-      estilo.visibility !== "hidden" &&
-      rectangulo.width > 0 &&
-      rectangulo.height > 0
-    );
+    try {
+      const estilo = getComputedStyle(elemento);
+      const rectangulo = elemento.getBoundingClientRect();
+      return (
+        estilo.display !== "none" &&
+        estilo.visibility !== "hidden" &&
+        rectangulo.width > 0 &&
+        rectangulo.height > 0
+      );
+    } catch {
+      return false;
+    }
   }
 
   function ejecutarClick(elemento) {
-    if (elemento && typeof elemento.click === "function") {
-      elemento.click();
-      return true;
-    }
-    if (elemento) {
+    if (!elemento) return false;
+    try {
+      if (typeof elemento.click === "function") {
+        elemento.click();
+        return true;
+      }
       return elemento.dispatchEvent(
         new MouseEvent("click", {
           bubbles: true,
@@ -151,12 +160,14 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
           view: window
         })
       );
+    } catch (e) {
+      console.error("Error al simular clic en el elemento:", e);
+      return false;
     }
-    return false;
   }
 
   // ─────────────────────────────────────────────
-  // Memoria persistente
+  // Memoria persistente y Estado del Botón
   // ─────────────────────────────────────────────
   function obtenerPaginasProcesadas() {
     try {
@@ -174,13 +185,17 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
       memoria.add(url);
       GM_setValue(CLAVES.memoriaPaginas, Array.from(memoria));
     } catch (e) {
-      console.error("Error al guardar página procesada:", e);
+      console.error("Error al guardar página procesada en memoria:", e);
     }
   }
 
   function paginaYaProcesada(url, memoriaSet = null) {
-    const memoria = memoriaSet || obtenerPaginasProcesadas();
-    return memoria.has(url);
+    try {
+      const memoria = memoriaSet || obtenerPaginasProcesadas();
+      return memoria.has(url);
+    } catch {
+      return false;
+    }
   }
 
   function limpiarMemoriaProcesadas() {
@@ -191,6 +206,63 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
     }
   }
 
+  function marcarBotonComoProcesado(boton) {
+    if (!boton) return;
+    try {
+      boton.setAttribute("data-hitomi-procesado", "true");
+      boton.style.opacity = "0.75";
+      boton.style.cursor = "not-allowed";
+
+      if (!boton.querySelector(".hitomi-badge-procesado")) {
+        const badge = document.createElement("span");
+        badge.className = "hitomi-badge-procesado";
+        badge.textContent = " ✓ Descargado";
+        badge.style.cssText = "color: #12b886; font-weight: bold; margin-left: 6px; font-size: 0.88em;";
+        boton.appendChild(badge);
+      }
+    } catch (e) {
+      console.error("Error al aplicar estado procesado al botón:", e);
+    }
+  }
+
+  function resetearEstadoBotonDescarga() {
+    try {
+      const boton = document.querySelector(CONFIGURACION.selectorBotonDescarga);
+      if (boton) {
+        boton.removeAttribute("data-hitomi-procesado");
+        boton.style.opacity = "";
+        boton.style.cursor = "";
+        const badge = boton.querySelector(".hitomi-badge-procesado");
+        if (badge) badge.remove();
+      }
+    } catch (e) {
+      console.error("Error al resetear estado del botón:", e);
+    }
+  }
+
+  function vincularEventosBotonDescarga(boton) {
+    if (!boton || boton.dataset.hitomiListenerAttached) return;
+    boton.dataset.hitomiListenerAttached = "true";
+
+    boton.addEventListener("click", evento => {
+      if (paginaYaProcesada(location.href) || boton.getAttribute("data-hitomi-procesado") === "true") {
+        console.warn(obtenerHora(), "Clic evitado: La página ya ha sido descargada previamente.");
+        evento.preventDefault();
+        evento.stopImmediatePropagation();
+        marcarBotonComoProcesado(boton);
+        return false;
+      }
+
+      try {
+        guardarPaginaProcesada(location.href);
+        marcarBotonComoProcesado(boton);
+        publicarEstadoPestana();
+      } catch (e) {
+        console.error("Error al registrar clic en botón:", e);
+      }
+    }, true);
+  }
+
   // ─────────────────────────────────────────────
   // Detección del botón de descarga
   // ─────────────────────────────────────────────
@@ -199,9 +271,14 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
     const pausa = opciones.pausa ?? CONFIGURACION.intervaloBusquedaBoton;
 
     for (let intento = 0; intento < intentos; intento++) {
-      const boton = document.querySelector(CONFIGURACION.selectorBotonDescarga);
-      if (boton && elementoVisible(boton)) {
-        return boton;
+      try {
+        const boton = document.querySelector(CONFIGURACION.selectorBotonDescarga);
+        if (boton && elementoVisible(boton)) {
+          vincularEventosBotonDescarga(boton);
+          return boton;
+        }
+      } catch (e) {
+        console.error("Error en búsqueda de botón:", e);
       }
       await esperar(pausa);
     }
@@ -220,8 +297,13 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
     try {
       const boton = await buscarBotonDescarga({ intentos: 5, pausa: 100 });
       const paginasProcesadas = obtenerPaginasProcesadas();
-      const paginaPendiente = !paginaYaProcesada(location.href, paginasProcesadas);
-      const nuevoEstado = (boton && paginaPendiente) ? 1 : 0;
+      const yaProcesada = paginaYaProcesada(location.href, paginasProcesadas);
+
+      if (boton && yaProcesada) {
+        marcarBotonComoProcesado(boton);
+      }
+
+      const nuevoEstado = (boton && !yaProcesada) ? 1 : 0;
 
       if (ESTADO.ultimoEstadoPublicado !== nuevoEstado) {
         GM_setValue(CLAVES.presencia(ID_PESTANA), nuevoEstado);
@@ -229,7 +311,7 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
         ESTADO.ultimoEstadoPublicado = nuevoEstado;
       }
     } catch (e) {
-      console.error("Error al publicar estado:", e);
+      console.error("Error al publicar estado de pestaña:", e);
     } finally {
       publicandoEstado = false;
     }
@@ -274,17 +356,38 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
       return "orden_repetida";
     }
 
+    // Validación estricta de página ya procesada en memoria permanente
+    if (paginaYaProcesada(location.href)) {
+      const botonActual = await buscarBotonDescarga({ intentos: 3, pausa: 100 });
+      if (botonActual) marcarBotonComoProcesado(botonActual);
+      return "ya_procesada";
+    }
+
     const boton = await buscarBotonDescarga();
     if (!boton) {
       return "sin_boton";
     }
 
+    if (boton.getAttribute("data-hitomi-procesado") === "true") {
+      return "ya_procesada";
+    }
+
     try {
       ESTADO.ordenesEjecutadas.add(identificadorOrden);
-      ejecutarClick(boton);
+
+      const exitoClick = ejecutarClick(boton);
+      if (!exitoClick) {
+        return "error_click";
+      }
+
+      // Confirmación real: guardar en memoria y marcar el botón como procesado
+      guardarPaginaProcesada(location.href);
+      marcarBotonComoProcesado(boton);
+
       await esperar(400);
       return "correcto";
-    } catch {
+    } catch (error) {
+      console.error("Error al ejecutar orden de descarga en esta pestaña:", error);
       return "error";
     }
   }
@@ -309,7 +412,9 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
 
         try {
           GM_setValue(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
-        } catch { }
+        } catch (e) {
+          console.error("Error al devolver respuesta de orden:", e);
+        }
       }
     );
   } catch (e) {
@@ -446,6 +551,8 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
     pastilla.addEventListener("click", evento => {
       if (evento.shiftKey) {
         limpiarMemoriaProcesadas();
+        resetearEstadoBotonDescarga();
+        publicarEstadoPestana();
         mostrarEstado(pastilla, "Memoria limpiada", "correcto");
         return;
       }
@@ -525,17 +632,18 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
           if (respuesta) break;
         }
 
-        // Eliminar clave temporal de respuesta para liberar almacenamiento GM
         GM_deleteValue(claveRespuesta);
 
         console.info(obtenerHora(), `Pestaña ${idPestana}:`, respuesta);
 
-        if (respuesta === "correcto") {
+        if (respuesta === "correcto" || respuesta === "ya_procesada") {
           const url = GM_getValue(CLAVES.urlPestana(idPestana), "");
           if (url) {
             guardarPaginaProcesada(url);
           }
-          procesadas++;
+          if (respuesta === "correcto") {
+            procesadas++;
+          }
         }
 
         await esperar(CONFIGURACION.tiempoEntreOrdenes);
@@ -544,7 +652,7 @@ Después de éxito: URL ──► Memoria permanente ──► Ignorada en futur
       if (procesadas > 0) {
         mostrarEstado(pastilla, `${procesadas} completadas`, "correcto");
       } else {
-        mostrarEstado(pastilla, "Sin cambios", "error");
+        mostrarEstado(pastilla, "Sin pendientes", "error");
       }
     } finally {
       ESTADO.bloqueado = false;
