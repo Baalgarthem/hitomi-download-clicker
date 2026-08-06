@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.2.1
+// @version      1.2.2
 // @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación y modo forzado.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -51,6 +51,17 @@ FILOSOFÍA DE FUNCIONAMIENTO
   const CONFIGURACION = {
     dominio: "hitomi.la",
     selectorBotonDescarga: "#dl-button",
+    selectoresAlternativosBoton: [
+      "a#dl-button",
+      "button#dl-button",
+      "a[href*='download']",
+      "button[onclick*='download']",
+      ".download-button",
+      ".dl-button",
+      "[data-action='download']",
+      "a.btn-download",
+      "button.btn-download"
+    ],
     intervaloBusquedaBoton: 150,
     intentosBusquedaBoton: 40,
     tiempoEntreOrdenes: 120,
@@ -114,15 +125,16 @@ FILOSOFÍA DE FUNCIONAMIENTO
   const esPaginaHitomi = () => /^https?:\/\/(?:www\.)?hitomi\.la\//i.test(location.href);
 
   function elementoVisible(elemento) {
-    if (!elemento) return false;
+    if (!elemento || !document.body || !document.body.contains(elemento)) return false;
     try {
       const estilo = getComputedStyle(elemento);
       const rectangulo = elemento.getBoundingClientRect();
       return (
         estilo.display !== "none" &&
         estilo.visibility !== "hidden" &&
-        rectangulo.width > 0 &&
-        rectangulo.height > 0
+        estilo.opacity !== "0" &&
+        (rectangulo.width > 0 || elemento.offsetWidth > 0) &&
+        (rectangulo.height > 0 || elemento.offsetHeight > 0)
       );
     } catch {
       return false;
@@ -132,21 +144,95 @@ FILOSOFÍA DE FUNCIONAMIENTO
   function ejecutarClick(elemento) {
     if (!elemento) return false;
     try {
+      if (typeof elemento.focus === "function") {
+        try { elemento.focus(); } catch { }
+      }
+
       if (typeof elemento.click === "function") {
         elemento.click();
         return true;
       }
-      return elemento.dispatchEvent(
-        new MouseEvent("click", {
-          bubbles: true,
-          cancelable: true,
-          view: window
-        })
-      );
+
+      // Eventos sintéticos alternativos en cascada
+      const downEvent = new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window });
+      const upEvent = new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window });
+      const clickEvent = new MouseEvent("click", { bubbles: true, cancelable: true, view: window });
+
+      elemento.dispatchEvent(downEvent);
+      elemento.dispatchEvent(upEvent);
+      return elemento.dispatchEvent(clickEvent);
     } catch (e) {
       console.error("Error al simular clic en el elemento:", e);
       return false;
     }
+  }
+
+  // ─────────────────────────────────────────────
+  // Detección Multinivel del Botón de Descarga
+  // ─────────────────────────────────────────────
+  function obtenerElementoBotonDescarga() {
+    try {
+      // 1. Prioridad: Selector principal configurado
+      const botonPrincipal = document.querySelector(CONFIGURACION.selectorBotonDescarga);
+      if (botonPrincipal && elementoVisible(botonPrincipal)) {
+        return botonPrincipal;
+      }
+
+      // 2. Selectores secundarios de respaldo
+      for (const selector of CONFIGURACION.selectoresAlternativosBoton) {
+        const candidato = document.querySelector(selector);
+        if (candidato && elementoVisible(candidato)) {
+          return candidato;
+        }
+      }
+
+      // 3. Inspección semántica de elementos interactivos
+      const elementosInteractivos = document.querySelectorAll("button, a, div[role='button'], span[role='button']");
+      for (let i = 0; i < elementosInteractivos.length; i++) {
+        const el = elementosInteractivos[i];
+        if (!elementoVisible(el)) continue;
+
+        const id = (el.id || "").toLowerCase();
+        const clase = (el.className || "").toString().toLowerCase();
+        const texto = (el.textContent || "").toLowerCase();
+        const title = (el.getAttribute("title") || "").toLowerCase();
+        const ariaLabel = (el.getAttribute("aria-label") || "").toLowerCase();
+
+        if (
+          id.includes("dl-button") ||
+          id.includes("download") ||
+          clase.includes("download") ||
+          texto.includes("download") ||
+          texto.includes("descargar") ||
+          title.includes("download") ||
+          ariaLabel.includes("download")
+        ) {
+          return el;
+        }
+      }
+    } catch (e) {
+      console.error("Error al buscar elemento de botón de descarga:", e);
+    }
+    return null;
+  }
+
+  async function buscarBotonDescarga(opciones = {}) {
+    const intentos = opciones.intentos ?? CONFIGURACION.intentosBusquedaBoton;
+    const pausa = opciones.pausa ?? CONFIGURACION.intervaloBusquedaBoton;
+
+    for (let intento = 0; intento < intentos; intento++) {
+      try {
+        const boton = obtenerElementoBotonDescarga();
+        if (boton) {
+          vincularEventosBotonDescarga(boton);
+          return boton;
+        }
+      } catch (e) {
+        console.error("Error en búsqueda de botón:", e);
+      }
+      await esperar(pausa);
+    }
+    return null;
   }
 
   // ─────────────────────────────────────────────
@@ -218,7 +304,7 @@ FILOSOFÍA DE FUNCIONAMIENTO
 
   function resetearEstadoBotonDescarga() {
     try {
-      const boton = document.querySelector(CONFIGURACION.selectorBotonDescarga);
+      const boton = obtenerElementoBotonDescarga();
       if (boton) {
         boton.removeAttribute("data-hitomi-procesado");
         boton.style.opacity = "";
@@ -257,28 +343,6 @@ FILOSOFÍA DE FUNCIONAMIENTO
         console.error("Error al registrar clic en botón:", e);
       }
     }, true);
-  }
-
-  // ─────────────────────────────────────────────
-  // Detección del botón de descarga
-  // ─────────────────────────────────────────────
-  async function buscarBotonDescarga(opciones = {}) {
-    const intentos = opciones.intentos ?? CONFIGURACION.intentosBusquedaBoton;
-    const pausa = opciones.pausa ?? CONFIGURACION.intervaloBusquedaBoton;
-
-    for (let intento = 0; intento < intentos; intento++) {
-      try {
-        const boton = document.querySelector(CONFIGURACION.selectorBotonDescarga);
-        if (boton && elementoVisible(boton)) {
-          vincularEventosBotonDescarga(boton);
-          return boton;
-        }
-      } catch (e) {
-        console.error("Error en búsqueda de botón:", e);
-      }
-      await esperar(pausa);
-    }
-    return null;
   }
 
   // ─────────────────────────────────────────────
@@ -375,14 +439,12 @@ FILOSOFÍA DE FUNCIONAMIENTO
       ESTADO.ordenesEjecutadas.add(identificadorOrden);
 
       if (forzar) {
-        // Desbloquear temporalmente para permitir que la web reciba el clic
         ESTADO.permitirClicForzado = true;
       }
 
       const exitoClick = ejecutarClick(boton);
 
       if (forzar) {
-        // Volver a activar el bloqueo inmediatamente después del clic
         ESTADO.permitirClicForzado = false;
       }
 
