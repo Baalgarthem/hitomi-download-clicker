@@ -4,9 +4,9 @@
 // @version      1.0.0
 // @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas.
 // @author       Baalgarthem
-// @icon         https://images.steamusercontent.com/ugc/2425627755259938871/55D95C6201368AB8486B41664933004BC7737A53/?imw=512&imh=512&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=true
-// @downloadURL  PENDIENTE
-// @updateURL    PENDIENTE
+// @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
+// @downloadURL  https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/hitomi-clicker.user.js
+// @updateURL    https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/hitomi-clicker.user.js
 // @match        https://hitomi.la/*
 // @grant        GM_addStyle
 // @grant        GM_setValue
@@ -18,7 +18,6 @@
 // @noframes
 // @license      MIT
 // ==/UserScript==
-
 
 /*
 ╔══════════════════════════════════════════════════════════════════════╗
