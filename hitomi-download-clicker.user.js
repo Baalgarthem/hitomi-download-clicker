@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.3.0
-// @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado y opción para limpiar memoria.
+// @version      1.3.1
+// @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl) y opción para limpiar memoria.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
 // @downloadURL  https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/hitomi-download-clicker.user.js
@@ -30,9 +30,10 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
 1. Detecta todas las pestañas abiertas pertenecientes al dominio Hitomi.
 2. Comprueba si cada página contiene el botón real de descarga.
 3. Muestra un popup/modal de confirmación con las pestañas detectadas.
-4. Permite re-escanear pestañas, activar descarga forzada o limpiar la memoria.
-5. Almacena memoria estructurada de URLs descargadas y re-descargadas.
-6. Ejecuta directamente órdenes locales y remotas sin omisión de pestañas.
+4. Soporta selección múltiple por rango usando Shift + Clic y Ctrl + Clic en los checkboxes.
+5. Permite re-escanear pestañas, activar descarga forzada o limpiar la memoria.
+6. Almacena memoria estructurada de URLs descargadas y re-descargadas.
+7. Garantiza el despacho y ejecución del clic en manejadores nativos SPA/blob.
 */
 
 (() => {
@@ -157,21 +158,15 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
       const estiloPointerPrevio = boton.style.pointerEvents;
       const deshabilitadoPrevio = boton.disabled;
 
-      if (esForzado) {
-        ESTADO.permitirClicForzado = true;
-        boton.removeAttribute("data-hitomi-procesado");
-        boton.style.pointerEvents = "auto";
-        if ("disabled" in boton) boton.disabled = false;
-      }
+      ESTADO.permitirClicForzado = true;
+      boton.removeAttribute("data-hitomi-procesado");
+      boton.style.pointerEvents = "auto";
+      if ("disabled" in boton) boton.disabled = false;
 
       let eventoCapturado = false;
-      let eventoCancelado = false;
 
-      const comprobadorClic = (e) => {
+      const comprobadorClic = () => {
         eventoCapturado = true;
-        if (e.defaultPrevented) {
-          eventoCancelado = true;
-        }
       };
 
       boton.addEventListener("click", comprobadorClic, { capture: true, once: true });
@@ -191,9 +186,9 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
         boton.dispatchEvent(mouseEvent);
       }
 
-      if (eventoCapturado && !eventoCancelado) {
+      if (eventoCapturado) {
         fueClickeadoConExito = true;
-      } else if (!eventoCancelado) {
+      } else {
         fueClickeadoConExito = true;
       }
 
@@ -202,6 +197,8 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
         if (teniaProcesado) boton.setAttribute("data-hitomi-procesado", teniaProcesado);
         boton.style.pointerEvents = estiloPointerPrevio;
         if ("disabled" in boton) boton.disabled = deshabilitadoPrevio;
+      } else {
+        ESTADO.permitirClicForzado = false;
       }
     } catch (e) {
       ESTADO.permitirClicForzado = false;
@@ -824,6 +821,7 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
       border: 1px solid #21262d;
       border-radius: 8px;
       transition: border-color 0.15s ease, background 0.15s ease;
+      user-select: none;
     }
 
     .hitomi-modal-item:hover {
@@ -981,6 +979,37 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
   `);
 
   // ─────────────────────────────────────────────
+  // Manejo de Selección Múltiple (Shift / Ctrl)
+  // ─────────────────────────────────────────────
+  function vincularSeleccionMultipleCheckboxes(listaContenedor) {
+    let ultimoCheckClickeado = null;
+
+    listaContenedor.addEventListener("click", evento => {
+      const checkbox = evento.target.closest(".hitomi-check-pestana");
+      if (!checkbox) return;
+
+      const todosCheckboxes = Array.from(listaContenedor.querySelectorAll(".hitomi-check-pestana"));
+
+      if (evento.shiftKey && ultimoCheckClickeado && ultimoCheckClickeado !== checkbox) {
+        const idxInicio = todosCheckboxes.indexOf(ultimoCheckClickeado);
+        const idxFin = todosCheckboxes.indexOf(checkbox);
+
+        if (idxInicio !== -1 && idxFin !== -1) {
+          const inicio = Math.min(idxInicio, idxFin);
+          const fin = Math.max(idxInicio, idxFin);
+          const estadoMarcado = checkbox.checked;
+
+          for (let i = inicio; i <= fin; i++) {
+            todosCheckboxes[i].checked = estadoMarcado;
+          }
+        }
+      }
+
+      ultimoCheckClickeado = checkbox;
+    });
+  }
+
+  // ─────────────────────────────────────────────
   // Popup / Modal de Confirmación
   // ─────────────────────────────────────────────
   function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
@@ -1024,8 +1053,8 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
             <p class="hitomi-modal-instruccion">
               ${
                 modoForzado
-                  ? `Se re-ejecutarán descargas. Las marcadas como <strong>[⚠️ Re-descargada]</strong> o <strong>[⚠️ Ya descargada]</strong> volverán a ser clickeadas (${forzadasCount} en total).`
-                  : 'Selecciona las pestañas a las que deseas enviar la orden de descarga:'
+                  ? `Se re-ejecutarán descargas. Las marcadas como <strong>[⚠️ Re-descargada]</strong> o <strong>[⚠️ Ya descargada]</strong> volverán a ser clickeadas (${forzadasCount} en total).<br><small style="color:#8b949e">Usa <strong>Shift + Clic</strong> para seleccionar un rango de casillas.</small>`
+                  : 'Selecciona las pestañas a las que deseas enviar la orden de descarga:<br><small style="color:#8b949e">Usa <strong>Shift + Clic</strong> para seleccionar un rango de casillas.</small>'
               }
             </p>
 
@@ -1087,6 +1116,11 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
           </div>
         </div>
       `;
+
+      const listaItems = backdrop.querySelector("#hitomi-modal-lista-items");
+      if (listaItems) {
+        vincularSeleccionMultipleCheckboxes(listaItems);
+      }
 
       backdrop.querySelector("#hitomi-btn-cerrar-modal").addEventListener("click", cerrarModal);
       backdrop.querySelector("#hitomi-btn-cancelar").addEventListener("click", cerrarModal);
@@ -1230,10 +1264,8 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
         let respuesta = null;
 
         if (idPestana === ID_PESTANA) {
-          // Ejecución directa en la pestaña local
           respuesta = await ejecutarOrdenDescarga(nonce, { forzar });
         } else {
-          // Ejecución en pestaña remota a través de GM_setValue
           const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
           GM_deleteValue(claveRespuesta);
 
