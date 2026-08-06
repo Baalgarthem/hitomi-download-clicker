@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.2.2
+// @version      1.2.3
 // @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación y modo forzado.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -31,15 +31,8 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
 2. Comprueba si cada página contiene el botón real de descarga.
 3. Muestra un popup/modal de confirmación con las pestañas detectadas.
 4. Permite re-escanear pestañas o activar la descarga forzada.
-5. Marca visualmente las pestañas que ya fueron procesadas en descargas forzadas.
-6. Envía órdenes individuales y almacena memoria permanente de páginas procesadas.
-
-FILOSOFÍA DE FUNCIONAMIENTO
-───────────────────────────
-- Página disponible: Una pestaña donde existe un botón de descarga válido.
-- Página procesada: Una página donde se ejecutó la descarga previamente.
-- Página pendiente: Una página nueva que requiere ser procesada.
-- Página forzada: Una página previamente procesada que volverá a ser clickeada en Modo Forzado.
+5. Almacena memoria estructurada de URLs descargadas y re-descargadas.
+6. Mantiene el estado visual persistente (✓ Descargado / ✓ Re-descargado) en cada recarga.
 */
 
 (() => {
@@ -116,13 +109,23 @@ FILOSOFÍA DE FUNCIONAMIENTO
   };
 
   // ─────────────────────────────────────────────
-  // Herramientas generales
+  // Herramientas generales y Normalización
   // ─────────────────────────────────────────────
   const esperar = milisegundos => new Promise(resolver => setTimeout(resolver, milisegundos));
 
   const obtenerHora = () => `[${new Date().toTimeString().slice(0, 8)}]`;
 
   const esPaginaHitomi = () => /^https?:\/\/(?:www\.)?hitomi\.la\//i.test(location.href);
+
+  function normalizarUrl(url) {
+    if (!url || typeof url !== "string") return "";
+    try {
+      const urlObjeto = new URL(url.trim());
+      return `${urlObjeto.protocol}//${urlObjeto.host.toLowerCase()}${urlObjeto.pathname.replace(/\/+$/, "")}`;
+    } catch {
+      return url.trim().split("#")[0].split("?")[0].replace(/\/+$/, "");
+    }
+  }
 
   function elementoVisible(elemento) {
     if (!elemento || !document.body || !document.body.contains(elemento)) return false;
@@ -153,7 +156,6 @@ FILOSOFÍA DE FUNCIONAMIENTO
         return true;
       }
 
-      // Eventos sintéticos alternativos en cascada
       const downEvent = new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window });
       const upEvent = new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window });
       const clickEvent = new MouseEvent("click", { bubbles: true, cancelable: true, view: window });
@@ -172,13 +174,11 @@ FILOSOFÍA DE FUNCIONAMIENTO
   // ─────────────────────────────────────────────
   function obtenerElementoBotonDescarga() {
     try {
-      // 1. Prioridad: Selector principal configurado
       const botonPrincipal = document.querySelector(CONFIGURACION.selectorBotonDescarga);
       if (botonPrincipal && elementoVisible(botonPrincipal)) {
         return botonPrincipal;
       }
 
-      // 2. Selectores secundarios de respaldo
       for (const selector of CONFIGURACION.selectoresAlternativosBoton) {
         const candidato = document.querySelector(selector);
         if (candidato && elementoVisible(candidato)) {
@@ -186,7 +186,6 @@ FILOSOFÍA DE FUNCIONAMIENTO
         }
       }
 
-      // 3. Inspección semántica de elementos interactivos
       const elementosInteractivos = document.querySelectorAll("button, a, div[role='button'], span[role='button']");
       for (let i = 0; i < elementosInteractivos.length; i++) {
         const el = elementosInteractivos[i];
@@ -236,35 +235,85 @@ FILOSOFÍA DE FUNCIONAMIENTO
   }
 
   // ─────────────────────────────────────────────
-  // Memoria persistente y Estado del Botón
+  // Memoria Persistente Estructurada
   // ─────────────────────────────────────────────
-  function obtenerPaginasProcesadas() {
+  function obtenerMemoriaPaginasProcesadas() {
     try {
-      const paginas = GM_getValue(CLAVES.memoriaPaginas, []);
-      return new Set(Array.isArray(paginas) ? paginas : []);
-    } catch {
-      return new Set();
+      const datosBrutos = GM_getValue(CLAVES.memoriaPaginas, {});
+      const memoria = new Map();
+
+      if (Array.isArray(datosBrutos)) {
+        // Migración transparente de arreglos planos a Mapa estructurado
+        for (const url of datosBrutos) {
+          if (typeof url === "string" && url.trim()) {
+            const urlLimpia = normalizarUrl(url);
+            memoria.set(urlLimpia, { esForzada: false, timestamp: Date.now() });
+          }
+        }
+      } else if (datosBrutos && typeof datosBrutos === "object") {
+        for (const [url, info] of Object.entries(datosBrutos)) {
+          const urlLimpia = normalizarUrl(url);
+          if (typeof info === "object" && info !== null) {
+            memoria.set(urlLimpia, {
+              esForzada: !!info.esForzada,
+              timestamp: info.timestamp || Date.now()
+            });
+          } else {
+            memoria.set(urlLimpia, { esForzada: !!info, timestamp: Date.now() });
+          }
+        }
+      }
+
+      return memoria;
+    } catch (e) {
+      console.error("Error al leer memoria de páginas procesadas:", e);
+      return new Map();
     }
   }
 
-  function guardarPaginaProcesada(url) {
-    if (!url) return;
+  function guardarPaginaProcesada(url, esForzada = false) {
+    const urlLimpia = normalizarUrl(url);
+    if (!urlLimpia) return;
+
     try {
-      const memoria = obtenerPaginasProcesadas();
-      memoria.add(url);
-      GM_setValue(CLAVES.memoriaPaginas, Array.from(memoria));
+      const memoria = obtenerMemoriaPaginasProcesadas();
+      const registroExistente = memoria.get(urlLimpia);
+
+      // Preservar estado forzado previo si ya había sido re-descargado
+      const estaForzada = esForzada || (registroExistente ? registroExistente.esForzada : false);
+
+      memoria.set(urlLimpia, {
+        esForzada: estaForzada,
+        timestamp: Date.now()
+      });
+
+      const objetoSerializable = {};
+      for (const [u, info] of memoria.entries()) {
+        objetoSerializable[u] = info;
+      }
+
+      GM_setValue(CLAVES.memoriaPaginas, objetoSerializable);
     } catch (e) {
       console.error("Error al guardar página procesada en memoria:", e);
     }
   }
 
-  function paginaYaProcesada(url, memoriaSet = null) {
+  function obtenerEstadoPaginaProcesada(url, memoriaMap = null) {
+    const urlLimpia = normalizarUrl(url);
+    if (!urlLimpia) return { procesada: false, esForzada: false };
+
     try {
-      const memoria = memoriaSet || obtenerPaginasProcesadas();
-      return memoria.has(url);
+      const memoria = memoriaMap || obtenerMemoriaPaginasProcesadas();
+      const info = memoria.get(urlLimpia);
+      if (!info) return { procesada: false, esForzada: false };
+      return { procesada: true, esForzada: !!info.esForzada };
     } catch {
-      return false;
+      return { procesada: false, esForzada: false };
     }
+  }
+
+  function paginaYaProcesada(url, memoriaMap = null) {
+    return obtenerEstadoPaginaProcesada(url, memoriaMap).procesada;
   }
 
   function limpiarMemoriaProcesadas() {
@@ -275,9 +324,15 @@ FILOSOFÍA DE FUNCIONAMIENTO
     }
   }
 
+  // ─────────────────────────────────────────────
+  // Estado Visual del Botón de Descarga
+  // ─────────────────────────────────────────────
   function marcarBotonComoProcesado(boton, esForzado = false) {
     if (!boton) return;
     try {
+      const estadoMemoria = obtenerEstadoPaginaProcesada(location.href);
+      const debeSerForzado = esForzado || estadoMemoria.esForzada;
+
       boton.setAttribute("data-hitomi-procesado", "true");
       boton.style.opacity = "0.75";
       boton.style.cursor = "not-allowed";
@@ -290,7 +345,7 @@ FILOSOFÍA DE FUNCIONAMIENTO
         boton.appendChild(badge);
       }
 
-      if (esForzado) {
+      if (debeSerForzado) {
         badge.textContent = " ✓ Re-descargado";
         badge.style.color = "#f59e0b";
       } else {
@@ -322,7 +377,6 @@ FILOSOFÍA DE FUNCIONAMIENTO
     boton.dataset.hitomiListenerAttached = "true";
 
     boton.addEventListener("click", evento => {
-      // Si se está ejecutando una orden forzada explícita, desbloquear temporalmente el clic
       if (ESTADO.permitirClicForzado) {
         return;
       }
@@ -331,13 +385,14 @@ FILOSOFÍA DE FUNCIONAMIENTO
         console.warn(obtenerHora(), "Clic evitado: La página ya ha sido descargada previamente.");
         evento.preventDefault();
         evento.stopImmediatePropagation();
-        marcarBotonComoProcesado(boton);
+        const estadoLocal = obtenerEstadoPaginaProcesada(location.href);
+        marcarBotonComoProcesado(boton, estadoLocal.esForzada);
         return false;
       }
 
       try {
-        guardarPaginaProcesada(location.href);
-        marcarBotonComoProcesado(boton);
+        guardarPaginaProcesada(location.href, false);
+        marcarBotonComoProcesado(boton, false);
         publicarEstadoPestana();
       } catch (e) {
         console.error("Error al registrar clic en botón:", e);
@@ -356,11 +411,11 @@ FILOSOFÍA DE FUNCIONAMIENTO
 
     try {
       const boton = await buscarBotonDescarga({ intentos: 5, pausa: 100 });
-      const paginasProcesadas = obtenerPaginasProcesadas();
-      const yaProcesada = paginaYaProcesada(location.href, paginasProcesadas);
+      const memoria = obtenerMemoriaPaginasProcesadas();
+      const estadoActual = obtenerEstadoPaginaProcesada(location.href, memoria);
 
-      if (boton && yaProcesada) {
-        marcarBotonComoProcesado(boton);
+      if (boton && estadoActual.procesada) {
+        marcarBotonComoProcesado(boton, estadoActual.esForzada);
       }
 
       const tieneBoton = (boton && elementoVisible(boton)) ? 1 : 0;
@@ -420,9 +475,11 @@ FILOSOFÍA DE FUNCIONAMIENTO
       return "orden_repetida";
     }
 
-    if (!forzar && paginaYaProcesada(location.href)) {
+    const estadoPagina = obtenerEstadoPaginaProcesada(location.href);
+
+    if (!forzar && estadoPagina.procesada) {
       const botonActual = await buscarBotonDescarga({ intentos: 3, pausa: 100 });
-      if (botonActual) marcarBotonComoProcesado(botonActual);
+      if (botonActual) marcarBotonComoProcesado(botonActual, estadoPagina.esForzada);
       return "ya_procesada";
     }
 
@@ -452,7 +509,7 @@ FILOSOFÍA DE FUNCIONAMIENTO
         return "error_click";
       }
 
-      guardarPaginaProcesada(location.href);
+      guardarPaginaProcesada(location.href, forzar);
       marcarBotonComoProcesado(boton, forzar);
 
       await esperar(400);
@@ -499,7 +556,7 @@ FILOSOFÍA DE FUNCIONAMIENTO
   function obtenerInformacionPestanas(incluirProcesadas = false) {
     try {
       const prefijo = "hitomi_presencia_";
-      const paginasProcesadas = obtenerPaginasProcesadas();
+      const memoria = obtenerMemoriaPaginasProcesadas();
       const todasLasClaves = GM_listValues();
       const resultado = [];
 
@@ -514,22 +571,23 @@ FILOSOFÍA DE FUNCIONAMIENTO
         const url = GM_getValue(CLAVES.urlPestana(id), "");
         if (!url) continue;
 
-        const yaProcesada = paginasProcesadas.has(url);
+        const estado = obtenerEstadoPaginaProcesada(url, memoria);
         const titulo = GM_getValue(CLAVES.tituloPestana(id), url);
 
-        if (!yaProcesada || incluirProcesadas) {
+        if (!estado.procesada || incluirProcesadas) {
           resultado.push({
             id,
             url,
             titulo,
-            yaProcesada
+            yaProcesada: estado.procesada,
+            esForzada: estado.esForzada
           });
         }
       }
 
       return resultado.sort((a, b) => a.id.localeCompare(b.id));
     } catch (e) {
-      console.error("Error al consultar pestañas:", e);
+      console.error("Error al consultar información de pestañas:", e);
       return [];
     }
   }
@@ -920,7 +978,7 @@ FILOSOFÍA DE FUNCIONAMIENTO
             <p class="hitomi-modal-instruccion">
               ${
                 modoForzado
-                  ? `Se re-ejecutarán descargas. Las marcadas como <strong>[⚠️ Ya descargada]</strong> volverán a ser clickeadas (${forzadasCount} en total).`
+                  ? `Se re-ejecutarán descargas. Las marcadas como <strong>[⚠️ Re-descargada]</strong> o <strong>[⚠️ Ya descargada]</strong> volverán a ser clickeadas (${forzadasCount} en total).`
                   : 'Selecciona las pestañas a las que deseas enviar la orden de descarga:'
               }
             </p>
@@ -942,7 +1000,7 @@ FILOSOFÍA DE FUNCIONAMIENTO
                          </div>
                          ${
                            p.yaProcesada
-                             ? `<span class="hitomi-item-tag hitomi-tag-forzada">⚠️ Ya descargada (Forzada)</span>`
+                             ? `<span class="hitomi-item-tag hitomi-tag-forzada">${p.esForzada ? '⚠️ Re-descargada (Forzada)' : '⚠️ Ya descargada (Forzada)'}</span>`
                              : `<span class="hitomi-item-tag hitomi-tag-nueva">Nueva</span>`
                          }
                        </div>
@@ -1138,7 +1196,7 @@ FILOSOFÍA DE FUNCIONAMIENTO
         if (respuesta === "correcto" || respuesta === "ya_procesada") {
           const url = GM_getValue(CLAVES.urlPestana(idPestana), "");
           if (url) {
-            guardarPaginaProcesada(url);
+            guardarPaginaProcesada(url, forzar);
           }
           if (respuesta === "correcto") {
             procesadas++;
