@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.2.0
+// @version      1.2.1
 // @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación y modo forzado.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -98,6 +98,7 @@ FILOSOFÍA DE FUNCIONAMIENTO
   // ─────────────────────────────────────────────
   const ESTADO = {
     bloqueado: false,
+    permitirClicForzado: false,
     ordenesEjecutadas: new Set(),
     botonPastilla: null,
     ultimoEstadoPublicado: null
@@ -204,7 +205,7 @@ FILOSOFÍA DE FUNCIONAMIENTO
       }
 
       if (esForzado) {
-        badge.textContent = " ✓ Descargado (Re-ejecutado)";
+        badge.textContent = " ✓ Re-descargado";
         badge.style.color = "#f59e0b";
       } else {
         badge.textContent = " ✓ Descargado";
@@ -235,6 +236,11 @@ FILOSOFÍA DE FUNCIONAMIENTO
     boton.dataset.hitomiListenerAttached = "true";
 
     boton.addEventListener("click", evento => {
+      // Si se está ejecutando una orden forzada explícita, desbloquear temporalmente el clic
+      if (ESTADO.permitirClicForzado) {
+        return;
+      }
+
       if (paginaYaProcesada(location.href) || boton.getAttribute("data-hitomi-procesado") === "true") {
         console.warn(obtenerHora(), "Clic evitado: La página ya ha sido descargada previamente.");
         evento.preventDefault();
@@ -368,7 +374,18 @@ FILOSOFÍA DE FUNCIONAMIENTO
     try {
       ESTADO.ordenesEjecutadas.add(identificadorOrden);
 
+      if (forzar) {
+        // Desbloquear temporalmente para permitir que la web reciba el clic
+        ESTADO.permitirClicForzado = true;
+      }
+
       const exitoClick = ejecutarClick(boton);
+
+      if (forzar) {
+        // Volver a activar el bloqueo inmediatamente después del clic
+        ESTADO.permitirClicForzado = false;
+      }
+
       if (!exitoClick) {
         return "error_click";
       }
@@ -379,6 +396,7 @@ FILOSOFÍA DE FUNCIONAMIENTO
       await esperar(400);
       return "correcto";
     } catch (error) {
+      ESTADO.permitirClicForzado = false;
       console.error("Error al ejecutar orden de descarga en esta pestaña:", error);
       return "error";
     }
