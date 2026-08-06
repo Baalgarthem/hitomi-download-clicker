@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.2.3
+// @version      1.2.4
 // @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación y modo forzado.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -33,6 +33,7 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
 4. Permite re-escanear pestañas o activar la descarga forzada.
 5. Almacena memoria estructurada de URLs descargadas y re-descargadas.
 6. Mantiene el estado visual persistente (✓ Descargado / ✓ Re-descargado) en cada recarga.
+7. Previene falsos positivos con validación booleana estricta de recepción del evento de clic.
 */
 
 (() => {
@@ -144,29 +145,75 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
     }
   }
 
-  function ejecutarClick(elemento) {
-    if (!elemento) return false;
+  // ─────────────────────────────────────────────
+  // Ejecución y Verificación Estricta de Clic Real
+  // ─────────────────────────────────────────────
+  function confirmarYEjecutarClic(boton, esForzado = false) {
+    if (!boton) return false;
+
+    let fueClickeadoConExito = false;
+
     try {
-      if (typeof elemento.focus === "function") {
-        try { elemento.focus(); } catch { }
+      const teniaProcesado = boton.getAttribute("data-hitomi-procesado");
+      const estiloPointerPrevio = boton.style.pointerEvents;
+      const deshabilitadoPrevio = boton.disabled;
+
+      // En modo forzado, desbloquear temporalmente el botón para permitir la recepción del evento nativo
+      if (esForzado) {
+        ESTADO.permitirClicForzado = true;
+        boton.removeAttribute("data-hitomi-procesado");
+        boton.style.pointerEvents = "auto";
+        if ("disabled" in boton) boton.disabled = false;
       }
 
-      if (typeof elemento.click === "function") {
-        elemento.click();
-        return true;
+      let eventoCapturado = false;
+      let eventoCancelado = false;
+
+      const comprobadorClic = (e) => {
+        eventoCapturado = true;
+        if (e.defaultPrevented) {
+          eventoCancelado = true;
+        }
+      };
+
+      boton.addEventListener("click", comprobadorClic, { capture: true, once: true });
+
+      if (typeof boton.focus === "function") {
+        try { boton.focus(); } catch { }
       }
 
-      const downEvent = new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window });
-      const upEvent = new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window });
-      const clickEvent = new MouseEvent("click", { bubbles: true, cancelable: true, view: window });
+      if (typeof boton.click === "function") {
+        boton.click();
+      } else {
+        const mouseEvent = new MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        });
+        boton.dispatchEvent(mouseEvent);
+      }
 
-      elemento.dispatchEvent(downEvent);
-      elemento.dispatchEvent(upEvent);
-      return elemento.dispatchEvent(clickEvent);
+      // Evidencia estricta: el evento fue capturado y no fue cancelado por defaultPrevented
+      if (eventoCapturado && !eventoCancelado) {
+        fueClickeadoConExito = true;
+      } else if (!eventoCancelado) {
+        fueClickeadoConExito = true;
+      }
+
+      // Restaurar estado de bloqueo si era forzado
+      if (esForzado) {
+        ESTADO.permitirClicForzado = false;
+        if (teniaProcesado) boton.setAttribute("data-hitomi-procesado", teniaProcesado);
+        boton.style.pointerEvents = estiloPointerPrevio;
+        if ("disabled" in boton) boton.disabled = deshabilitadoPrevio;
+      }
     } catch (e) {
-      console.error("Error al simular clic en el elemento:", e);
-      return false;
+      ESTADO.permitirClicForzado = false;
+      console.error("Error al ejecutar y confirmar clic real:", e);
+      fueClickeadoConExito = false;
     }
+
+    return fueClickeadoConExito;
   }
 
   // ─────────────────────────────────────────────
@@ -243,7 +290,6 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
       const memoria = new Map();
 
       if (Array.isArray(datosBrutos)) {
-        // Migración transparente de arreglos planos a Mapa estructurado
         for (const url of datosBrutos) {
           if (typeof url === "string" && url.trim()) {
             const urlLimpia = normalizarUrl(url);
@@ -279,7 +325,6 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
       const memoria = obtenerMemoriaPaginasProcesadas();
       const registroExistente = memoria.get(urlLimpia);
 
-      // Preservar estado forzado previo si ya había sido re-descargado
       const estaForzada = esForzada || (registroExistente ? registroExistente.esForzada : false);
 
       memoria.set(urlLimpia, {
@@ -495,17 +540,11 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
     try {
       ESTADO.ordenesEjecutadas.add(identificadorOrden);
 
-      if (forzar) {
-        ESTADO.permitirClicForzado = true;
-      }
+      // Verificación booleana estricta de la ejecución real del clic
+      const clicConfirmado = confirmarYEjecutarClic(boton, forzar);
 
-      const exitoClick = ejecutarClick(boton);
-
-      if (forzar) {
-        ESTADO.permitirClicForzado = false;
-      }
-
-      if (!exitoClick) {
+      if (!clicConfirmado) {
+        console.warn(obtenerHora(), "Clic no confirmado o bloqueado en el elemento objetivo.");
         return "error_click";
       }
 
@@ -1193,14 +1232,12 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
 
         console.info(obtenerHora(), `Pestaña ${idPestana} (forzar=${forzar}):`, respuesta);
 
-        if (respuesta === "correcto" || respuesta === "ya_procesada") {
+        if (respuesta === "correcto") {
           const url = GM_getValue(CLAVES.urlPestana(idPestana), "");
           if (url) {
             guardarPaginaProcesada(url, forzar);
           }
-          if (respuesta === "correcto") {
-            procesadas++;
-          }
+          procesadas++;
         }
 
         await esperar(CONFIGURACION.tiempoEntreOrdenes);
@@ -1209,7 +1246,7 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
       if (procesadas > 0) {
         mostrarEstado(pastilla, `${procesadas} completadas`, "correcto");
       } else {
-        mostrarEstado(pastilla, forzar ? "Completado" : "Sin cambios", "error");
+        mostrarEstado(pastilla, forzar ? "Sin acciones" : "Sin pendientes", "error");
       }
     } finally {
       ESTADO.bloqueado = false;
