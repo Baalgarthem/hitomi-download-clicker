@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.2.4
-// @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación y modo forzado.
+// @version      1.3.0
+// @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado y opción para limpiar memoria.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
 // @downloadURL  https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/hitomi-download-clicker.user.js
@@ -30,10 +30,9 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
 1. Detecta todas las pestañas abiertas pertenecientes al dominio Hitomi.
 2. Comprueba si cada página contiene el botón real de descarga.
 3. Muestra un popup/modal de confirmación con las pestañas detectadas.
-4. Permite re-escanear pestañas o activar la descarga forzada.
+4. Permite re-escanear pestañas, activar descarga forzada o limpiar la memoria.
 5. Almacena memoria estructurada de URLs descargadas y re-descargadas.
-6. Mantiene el estado visual persistente (✓ Descargado / ✓ Re-descargado) en cada recarga.
-7. Previene falsos positivos con validación booleana estricta de recepción del evento de clic.
+6. Ejecuta directamente órdenes locales y remotas sin omisión de pestañas.
 */
 
 (() => {
@@ -158,7 +157,6 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
       const estiloPointerPrevio = boton.style.pointerEvents;
       const deshabilitadoPrevio = boton.disabled;
 
-      // En modo forzado, desbloquear temporalmente el botón para permitir la recepción del evento nativo
       if (esForzado) {
         ESTADO.permitirClicForzado = true;
         boton.removeAttribute("data-hitomi-procesado");
@@ -193,14 +191,12 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
         boton.dispatchEvent(mouseEvent);
       }
 
-      // Evidencia estricta: el evento fue capturado y no fue cancelado por defaultPrevented
       if (eventoCapturado && !eventoCancelado) {
         fueClickeadoConExito = true;
       } else if (!eventoCancelado) {
         fueClickeadoConExito = true;
       }
 
-      // Restaurar estado de bloqueo si era forzado
       if (esForzado) {
         ESTADO.permitirClicForzado = false;
         if (teniaProcesado) boton.setAttribute("data-hitomi-procesado", teniaProcesado);
@@ -540,7 +536,6 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
     try {
       ESTADO.ordenesEjecutadas.add(identificadorOrden);
 
-      // Verificación booleana estricta de la ejecución real del clic
       const clicConfirmado = confirmarYEjecutarClic(boton, forzar);
 
       if (!clicConfirmado) {
@@ -735,7 +730,7 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
       border: 1px solid #30363d;
       border-radius: 16px;
       width: 100%;
-      max-width: 620px;
+      max-width: 640px;
       max-height: 85vh;
       display: flex;
       flex-direction: column;
@@ -910,6 +905,7 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
     .hitomi-modal-acciones-principales {
@@ -941,6 +937,17 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
     .hitomi-btn-secundario:hover {
       background: #30363d;
       color: #f0f6fc;
+    }
+
+    .hitomi-btn-peligro {
+      background: rgba(176, 0, 32, 0.15);
+      color: #f87171;
+      border-color: rgba(176, 0, 32, 0.4);
+    }
+
+    .hitomi-btn-peligro:hover {
+      background: rgba(176, 0, 32, 0.3);
+      color: #fca5a5;
     }
 
     .hitomi-btn-advertencia {
@@ -1055,6 +1062,9 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
               <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-reescanear" title="Volver a escanear pestañas abiertas">
                 🔄 Re-escanear
               </button>
+              <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar historial y olvidar todas las páginas procesadas">
+                🗑️ Limpiar Memoria
+              </button>
               ${
                 !modoForzado
                   ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Forzar descarga en todas las pestañas">
@@ -1082,6 +1092,13 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
       backdrop.querySelector("#hitomi-btn-cancelar").addEventListener("click", cerrarModal);
 
       backdrop.querySelector("#hitomi-btn-reescanear").addEventListener("click", async () => {
+        await publicarEstadoPestana();
+        renderizarContenidoModal();
+      });
+
+      backdrop.querySelector("#hitomi-btn-limpiar-memoria").addEventListener("click", async () => {
+        limpiarMemoriaProcesadas();
+        resetearEstadoBotonDescarga();
         await publicarEstadoPestana();
         renderizarContenidoModal();
       });
@@ -1210,30 +1227,36 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
 
       for (const idPestana of pestañas) {
         const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
-
-        GM_deleteValue(claveRespuesta);
-        GM_setValue(CLAVES.orden, {
-          pestañaDestino: idPestana,
-          nonce,
-          forzar
-        });
-
-        const inicio = Date.now();
         let respuesta = null;
 
-        while (Date.now() - inicio < CONFIGURACION.tiempoRespuestaPestana) {
-          await esperar(100);
-          respuesta = GM_getValue(claveRespuesta, null);
-          if (respuesta) break;
+        if (idPestana === ID_PESTANA) {
+          // Ejecución directa en la pestaña local
+          respuesta = await ejecutarOrdenDescarga(nonce, { forzar });
+        } else {
+          // Ejecución en pestaña remota a través de GM_setValue
+          const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
+          GM_deleteValue(claveRespuesta);
+
+          GM_setValue(CLAVES.orden, {
+            pestañaDestino: idPestana,
+            nonce,
+            forzar
+          });
+
+          const inicio = Date.now();
+          while (Date.now() - inicio < CONFIGURACION.tiempoRespuestaPestana) {
+            await esperar(100);
+            respuesta = GM_getValue(claveRespuesta, null);
+            if (respuesta) break;
+          }
+
+          GM_deleteValue(claveRespuesta);
         }
 
-        GM_deleteValue(claveRespuesta);
-
-        console.info(obtenerHora(), `Pestaña ${idPestana} (forzar=${forzar}):`, respuesta);
+        console.info(obtenerHora(), `Pestaña ${idPestana} (forzar=${forzar}, local=${idPestana === ID_PESTANA}):`, respuesta);
 
         if (respuesta === "correcto") {
-          const url = GM_getValue(CLAVES.urlPestana(idPestana), "");
+          const url = GM_getValue(CLAVES.urlPestana(idPestana), location.href);
           if (url) {
             guardarPaginaProcesada(url, forzar);
           }
