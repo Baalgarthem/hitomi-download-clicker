@@ -138,3 +138,62 @@ export function sanearNombreArchivoFileSystem(nombre = "") {
 
   return saneado;
 }
+
+/**
+ * Lee un valor del almacenamiento persistente de Tampermonkey/Violentmonkey (GM_getValue)
+ * con fallback automático a localStorage para compatibilidad multiplataforma.
+ * @param {string} clave - Clave de almacenamiento.
+ * @param {any} valorDefecto - Valor predeterminado en caso de no existir la clave.
+ * @returns {any} Valor guardado o valor por defecto.
+ */
+export function leerValorGM(clave, valorDefecto = null) {
+  try {
+    if (typeof GM_getValue !== "undefined") {
+      const valor = GM_getValue(clave, valorDefecto);
+      if (valor !== undefined && valor !== null) return valor;
+    }
+    if (typeof localStorage !== "undefined") {
+      const item = localStorage.getItem(clave);
+      if (item !== null) return JSON.parse(item);
+    }
+  } catch { }
+  return valorDefecto;
+}
+
+/**
+ * Guarda un valor en el almacenamiento persistente de Tampermonkey/Violentmonkey (GM_setValue)
+ * con fallback a localStorage para compatibilidad multiplataforma.
+ * @param {string} clave - Clave de almacenamiento.
+ * @param {any} valor - Valor a guardar.
+ */
+export function guardarValorGM(clave, valor) {
+  try {
+    if (typeof GM_setValue !== "undefined") {
+      GM_setValue(clave, valor);
+    }
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(clave, typeof valor === "string" ? valor : JSON.stringify(valor));
+    }
+  } catch (e) {
+    console.error(`Error al guardar clave persistente ${clave}:`, e);
+  }
+}
+
+/**
+ * Elimina una clave del almacenamiento persistente de Tampermonkey/Violentmonkey (GM_deleteValue)
+ * con fallback a localStorage para compatibilidad multiplataforma.
+ * @param {string} clave - Clave de almacenamiento.
+ */
+export function eliminarValorGM(clave) {
+  try {
+    if (typeof GM_deleteValue !== "undefined") {
+      GM_deleteValue(clave);
+    }
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(clave);
+    }
+  } catch (e) {
+    console.error(`Error al eliminar clave persistente ${clave}:`, e);
+  }
+}
+

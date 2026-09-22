@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.0.0
+// @version      2.1.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -127,7 +127,8 @@
         tagsPestana: (id) => `hitomi_tags_${id}`,
         estiloSeparador: "hitomi_estilo_separador_tags",
         usarCbz: "hitomi_usar_extension_cbz",
-        cerrarPestana: "hitomi_cerrar_pestana_al_descargar"
+        cerrarPestana: "hitomi_cerrar_pestana_al_descargar",
+        modoForzado: "hitomi_modo_forzado"
       };
       ESTADO = {
         bloqueado: false,
@@ -219,6 +220,44 @@
     }
     return saneado;
   }
+  function leerValorGM(clave, valorDefecto = null) {
+    try {
+      if (typeof GM_getValue !== "undefined") {
+        const valor = GM_getValue(clave, valorDefecto);
+        if (valor !== void 0 && valor !== null) return valor;
+      }
+      if (typeof localStorage !== "undefined") {
+        const item = localStorage.getItem(clave);
+        if (item !== null) return JSON.parse(item);
+      }
+    } catch {
+    }
+    return valorDefecto;
+  }
+  function guardarValorGM(clave, valor) {
+    try {
+      if (typeof GM_setValue !== "undefined") {
+        GM_setValue(clave, valor);
+      }
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(clave, typeof valor === "string" ? valor : JSON.stringify(valor));
+      }
+    } catch (e) {
+      console.error(`Error al guardar clave persistente ${clave}:`, e);
+    }
+  }
+  function eliminarValorGM(clave) {
+    try {
+      if (typeof GM_deleteValue !== "undefined") {
+        GM_deleteValue(clave);
+      }
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(clave);
+      }
+    } catch (e) {
+      console.error(`Error al eliminar clave persistente ${clave}:`, e);
+    }
+  }
   var esperar, obtenerHora, esPaginaHitomi;
   var init_dom = __esm({
     "src/utils/dom.js"() {
@@ -233,7 +272,7 @@
 /* ════════════════════════════════════════════════════════════ */
   function obtenerMemoriaPaginasProcesadas() {
     try {
-      const datosBrutos = GM_getValue(CLAVES.memoriaPaginas, {});
+      const datosBrutos = leerValorGM(CLAVES.memoriaPaginas, {});
       const memoria = /* @__PURE__ */ new Map();
       if (Array.isArray(datosBrutos)) {
         for (const url of datosBrutos) {
@@ -276,7 +315,7 @@
       for (const [u, info] of memoria.entries()) {
         objetoSerializable[u] = info;
       }
-      GM_setValue(CLAVES.memoriaPaginas, objetoSerializable);
+      guardarValorGM(CLAVES.memoriaPaginas, objetoSerializable);
     } catch (e) {
       console.error("Error al guardar p\xE1gina procesada en memoria:", e);
     }
@@ -298,7 +337,7 @@
   }
   function limpiarMemoriaProcesadas() {
     try {
-      GM_deleteValue(CLAVES.memoriaPaginas);
+      eliminarValorGM(CLAVES.memoriaPaginas);
     } catch (e) {
       console.error("Error al limpiar memoria:", e);
     }
@@ -544,7 +583,7 @@
     }
     const tagsValidos = tagsSeleccionados.map((t) => typeof t === "string" ? limpiarNombreTag(t) : typeof t === "object" && t ? limpiarNombreTag(t.clean || t.raw) : "").filter(Boolean);
     if (tagsValidos.length === 0) return "";
-    const estiloFinal = estiloId || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
+    const estiloFinal = estiloId || leerValorGM(CLAVES.estiloSeparador, "pipe");
     const configEstilo = ESTILOS_SEPARADOR[estiloFinal] || ESTILOS_SEPARADOR.pipe;
     return `${configEstilo.prefijo}${tagsValidos.join(" ")}${configEstilo.sufijo}`;
   }
@@ -629,7 +668,7 @@
       const autor = ESTADO.autoresEditadosPorPestana.get(ID_PESTANA) || obtenerAutorOEstadoInicial();
       const tituloBase = ESTADO.titulosEditadosPorPestana.get(ID_PESTANA) || document.title || "";
       const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(ID_PESTANA) || [];
-      const estiloSeparador = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe";
+      const estiloSeparador = leerValorGM(CLAVES.estiloSeparador, "pipe");
       nombreBase = obtenerNombreFinalCompleto({
         tituloOriginal: tituloBase,
         autor,
@@ -638,7 +677,7 @@
       });
     }
     if (!nombreBase) return "";
-    const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
+    const usarCbz = leerValorGM(CLAVES.usarCbz, false);
     const baseLimpia = nombreBase.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
     if (usarCbz) {
       return `${baseLimpia}.cbz`;
@@ -831,7 +870,7 @@
       const teniaProcesado = boton.getAttribute("data-hitomi-procesado");
       const estiloPointerPrevio = boton.style.pointerEvents;
       const deshabilitadoPrevio = boton.disabled;
-      const estiloActivo = estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
+      const estiloActivo = estiloSeparador || leerValorGM(CLAVES.estiloSeparador, "pipe");
       const autorTarget = autorPersonalizado && typeof autorPersonalizado === "string" && autorPersonalizado.trim() ? autorPersonalizado.trim() : ESTADO.autoresEditadosPorPestana.get(ID_PESTANA) || obtenerAutorOEstadoInicial();
       const tituloBase = tituloPersonalizado && typeof tituloPersonalizado === "string" && tituloPersonalizado.trim() ? tituloPersonalizado.trim() : ESTADO.titulosEditadosPorPestana.get(ID_PESTANA) || document.title;
       const tagsEfectivos = Array.isArray(tagsSeleccionados) && tagsSeleccionados.length > 0 ? tagsSeleccionados : ESTADO.tagsSeleccionadosPorPestana.get(ID_PESTANA) || [];
@@ -939,7 +978,7 @@
       }
       guardarPaginaProcesada(location.href, forzar);
       marcarBotonComoProcesado(boton, forzar);
-      const cerrarPestana = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.cerrarPestana, false) : false;
+      const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
       if (cerrarPestana) {
         setTimeout(() => {
           try {
@@ -1461,7 +1500,7 @@
     tagsSeleccionadosSet.forEach((t) => {
       if (t) todosLosTagsDisponibles.add(t);
     });
-    let estiloActual = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe";
+    let estiloActual = leerValorGM(CLAVES.estiloSeparador, "pipe");
     function generarHtmlPills() {
       const listaOrdenada = Array.from(todosLosTagsDisponibles);
       if (listaOrdenada.length === 0) {
@@ -1605,9 +1644,7 @@
         const btnEstilo = ev.target.closest(".hitomi-btn-estilo-tag");
         if (!btnEstilo) return;
         const nuevoEstilo = btnEstilo.getAttribute("data-estilo");
-        if (typeof GM_setValue !== "undefined") {
-          GM_setValue(CLAVES.estiloSeparador, nuevoEstilo);
-        }
+        guardarValorGM(CLAVES.estiloSeparador, nuevoEstilo);
         selectorEstilos.querySelectorAll(".hitomi-btn-estilo-tag").forEach((b) => b.classList.remove("activo"));
         btnEstilo.classList.add("activo");
       });
@@ -1652,8 +1689,8 @@
       if (typeof callbackGuardar === "function") callbackGuardar(listaFinal);
     });
   }
-  function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
-    let modoForzado = modoForzadoInicial;
+  function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
+    let modoForzado = modoForzadoInicial !== null ? modoForzadoInicial : leerValorGM(CLAVES.modoForzado, false);
     const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
     const modalExistente = document.getElementById(CONFIGURACION.ids.modalBackdrop);
     if (modalExistente) modalExistente.remove();
@@ -1666,8 +1703,8 @@
       const pestanasInfo = obtenerInformacionPestanas(modoForzado);
       const totalPestanas = pestanasInfo.length;
       const forzadasCount = pestanasInfo.filter((p) => p.yaProcesada).length;
-      const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
-      const cerrarPestana = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.cerrarPestana, false) : false;
+      const usarCbz = leerValorGM(CLAVES.usarCbz, false);
+      const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
       if (!pestanasInicializadas) {
         pestanasInfo.forEach((p) => pestanasMarcadasSet.add(p.id));
         pestanasInicializadas = true;
@@ -1797,17 +1834,13 @@
       const checkCbz = backdrop.querySelector("#hitomi-check-usar-cbz");
       if (checkCbz) {
         checkCbz.addEventListener("change", () => {
-          if (typeof GM_setValue !== "undefined") {
-            GM_setValue(CLAVES.usarCbz, checkCbz.checked);
-          }
+          guardarValorGM(CLAVES.usarCbz, checkCbz.checked);
         });
       }
       const checkCerrarPestana = backdrop.querySelector("#hitomi-check-cerrar-pestana");
       if (checkCerrarPestana) {
         checkCerrarPestana.addEventListener("change", () => {
-          if (typeof GM_setValue !== "undefined") {
-            GM_setValue(CLAVES.cerrarPestana, checkCerrarPestana.checked);
-          }
+          guardarValorGM(CLAVES.cerrarPestana, checkCerrarPestana.checked);
         });
       }
       const checkMaster = backdrop.querySelector("#hitomi-check-master-pestanas");
@@ -1909,6 +1942,7 @@
       if (btnForzado) {
         btnForzado.addEventListener("click", () => {
           modoForzado = true;
+          guardarValorGM(CLAVES.modoForzado, true);
           sincronizarEstadoCheckboxes();
           renderizarContenidoModal();
         });
@@ -1917,6 +1951,7 @@
       if (btnNormal) {
         btnNormal.addEventListener("click", () => {
           modoForzado = false;
+          guardarValorGM(CLAVES.modoForzado, false);
           sincronizarEstadoCheckboxes();
           renderizarContenidoModal();
         });
@@ -2084,42 +2119,6 @@
 /* ════════════════════════════════════════════════════════════ */
 /*                MÓDULO: src/core/presence.js                */
 /* ════════════════════════════════════════════════════════════ */
-  function leerValorGM(clave, valorDefecto = null) {
-    try {
-      if (typeof GM_getValue !== "undefined") {
-        return GM_getValue(clave, valorDefecto);
-      }
-      const val = localStorage.getItem(clave);
-      if (val === null) return valorDefecto;
-      try {
-        return JSON.parse(val);
-      } catch {
-        return val;
-      }
-    } catch {
-      return valorDefecto;
-    }
-  }
-  function guardarValorGM(clave, valor) {
-    try {
-      if (typeof GM_setValue !== "undefined") {
-        GM_setValue(clave, valor);
-      } else {
-        localStorage.setItem(clave, typeof valor === "string" ? valor : JSON.stringify(valor));
-      }
-    } catch {
-    }
-  }
-  function eliminarValorGM(clave) {
-    try {
-      if (typeof GM_deleteValue !== "undefined") {
-        GM_deleteValue(clave);
-      } else {
-        localStorage.removeItem(clave);
-      }
-    } catch {
-    }
-  }
   async function publicarEstadoPestana() {
     if (!esPaginaHitomi() || publicandoEstado) return;
     publicandoEstado = true;

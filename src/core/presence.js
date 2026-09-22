@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────
 
 import { CONFIGURACION, CLAVES, ID_PESTANA, ESTADO } from '../config/constants.js';
-import { esPaginaHitomi, elementoVisible, esperar, obtenerHora } from '../utils/dom.js';
+import { esPaginaHitomi, elementoVisible, esperar, obtenerHora, leerValorGM, guardarValorGM, eliminarValorGM } from '../utils/dom.js';
 import { obtenerMemoriaPaginasProcesadas, obtenerEstadoPaginaProcesada, guardarPaginaProcesada } from './memory.js';
 import { buscarBotonDescarga, ejecutarOrdenDescarga } from './download.js';
 import { marcarBotonComoProcesado } from '../ui/badge.js';
@@ -11,38 +11,6 @@ import { mostrarEstado } from '../ui/pill.js';
 import { extraerNombreAutor, obtenerAutorOEstadoInicial } from './author.js';
 import { extraerTagsPagina, limpiarTituloBase } from './tags.js';
 
-function leerValorGM(clave, valorDefecto = null) {
-  try {
-    if (typeof GM_getValue !== "undefined") {
-      return GM_getValue(clave, valorDefecto);
-    }
-    const val = localStorage.getItem(clave);
-    if (val === null) return valorDefecto;
-    try { return JSON.parse(val); } catch { return val; }
-  } catch {
-    return valorDefecto;
-  }
-}
-
-function guardarValorGM(clave, valor) {
-  try {
-    if (typeof GM_setValue !== "undefined") {
-      GM_setValue(clave, valor);
-    } else {
-      localStorage.setItem(clave, typeof valor === "string" ? valor : JSON.stringify(valor));
-    }
-  } catch { }
-}
-
-function eliminarValorGM(clave) {
-  try {
-    if (typeof GM_deleteValue !== "undefined") {
-      GM_deleteValue(clave);
-    } else {
-      localStorage.removeItem(clave);
-    }
-  } catch { }
-}
 
 let publicandoEstado = false;
 

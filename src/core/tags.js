@@ -3,8 +3,9 @@
 // ─────────────────────────────────────────────
 
 import { CONFIGURACION, ESTILOS_SEPARADOR, CLAVES } from '../config/constants.js';
-import { sanearNombreArchivoFileSystem } from '../utils/dom.js';
+import { sanearNombreArchivoFileSystem, leerValorGM } from '../utils/dom.js';
 import { extraerNombreAutor, formatearNombreAutor, obtenerAutorOEstadoInicial } from './author.js';
+
 
 /**
  * Limpia el texto de un tag removiendo símbolos de género (♀, ♂) y prefijos de categoría.
@@ -113,7 +114,8 @@ export function formatearCadenaTags(tagsSeleccionados = [], estiloId = null) {
 
   if (tagsValidos.length === 0) return "";
 
-  const estiloFinal = estiloId || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
+  const estiloFinal = estiloId || leerValorGM(CLAVES.estiloSeparador, "pipe");
+
   const configEstilo = ESTILOS_SEPARADOR[estiloFinal] || ESTILOS_SEPARADOR.pipe;
   return `${configEstilo.prefijo}${tagsValidos.join(" ")}${configEstilo.sufijo}`;
 }

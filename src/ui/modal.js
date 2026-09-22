@@ -6,7 +6,7 @@ import { CONFIGURACION, ESTADO, CLAVES } from '../config/constants.js';
 import { obtenerInformacionPestanas, publicarEstadoPestana, recorrerPestanasDescarga } from '../core/presence.js';
 import { limpiarMemoriaProcesadas } from '../core/memory.js';
 import { resetearEstadoBotonDescarga } from './badge.js';
-import { obtenerOCrearAnfitrionUI, escapeHtml, inyectarEstilos } from '../utils/dom.js';
+import { obtenerOCrearAnfitrionUI, escapeHtml, inyectarEstilos, leerValorGM, guardarValorGM } from '../utils/dom.js';
 import { capitalizarNombre } from '../core/author.js';
 import { limpiarNombreTag } from '../core/tags.js';
 
@@ -513,7 +513,8 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
     if (t) todosLosTagsDisponibles.add(t);
   });
 
-  let estiloActual = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe";
+  let estiloActual = leerValorGM(CLAVES.estiloSeparador, "pipe");
+
 
   function generarHtmlPills() {
     const listaOrdenada = Array.from(todosLosTagsDisponibles);
@@ -681,10 +682,9 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
       if (!btnEstilo) return;
 
       const nuevoEstilo = btnEstilo.getAttribute("data-estilo");
-      if (typeof GM_setValue !== "undefined") {
-        GM_setValue(CLAVES.estiloSeparador, nuevoEstilo);
-      }
+      guardarValorGM(CLAVES.estiloSeparador, nuevoEstilo);
       selectorEstilos.querySelectorAll(".hitomi-btn-estilo-tag").forEach(b => b.classList.remove("activo"));
+
       btnEstilo.classList.add("activo");
     });
   }
@@ -736,8 +736,8 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
   });
 }
 
-export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
-  let modoForzado = modoForzadoInicial;
+export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
+  let modoForzado = modoForzadoInicial !== null ? modoForzadoInicial : leerValorGM(CLAVES.modoForzado, false);
   const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
 
   const modalExistente = document.getElementById(CONFIGURACION.ids.modalBackdrop);
@@ -755,8 +755,9 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     const pestanasInfo = obtenerInformacionPestanas(modoForzado);
     const totalPestanas = pestanasInfo.length;
     const forzadasCount = pestanasInfo.filter(p => p.yaProcesada).length;
-    const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
-    const cerrarPestana = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.cerrarPestana, false) : false;
+    const usarCbz = leerValorGM(CLAVES.usarCbz, false);
+    const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
+
 
     // Inicializar la selección por defecto solo la primera vez que se abre la ventana
     if (!pestanasInicializadas) {
@@ -911,20 +912,17 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     const checkCbz = backdrop.querySelector("#hitomi-check-usar-cbz");
     if (checkCbz) {
       checkCbz.addEventListener("change", () => {
-        if (typeof GM_setValue !== "undefined") {
-          GM_setValue(CLAVES.usarCbz, checkCbz.checked);
-        }
+        guardarValorGM(CLAVES.usarCbz, checkCbz.checked);
       });
     }
 
     const checkCerrarPestana = backdrop.querySelector("#hitomi-check-cerrar-pestana");
     if (checkCerrarPestana) {
       checkCerrarPestana.addEventListener("change", () => {
-        if (typeof GM_setValue !== "undefined") {
-          GM_setValue(CLAVES.cerrarPestana, checkCerrarPestana.checked);
-        }
+        guardarValorGM(CLAVES.cerrarPestana, checkCerrarPestana.checked);
       });
     }
+
 
     const checkMaster = backdrop.querySelector("#hitomi-check-master-pestanas");
     const labelMaster = backdrop.querySelector("#hitomi-label-master-pestanas");
@@ -1046,6 +1044,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     if (btnForzado) {
       btnForzado.addEventListener("click", () => {
         modoForzado = true;
+        guardarValorGM(CLAVES.modoForzado, true);
         sincronizarEstadoCheckboxes();
         renderizarContenidoModal();
       });
@@ -1055,10 +1054,12 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     if (btnNormal) {
       btnNormal.addEventListener("click", () => {
         modoForzado = false;
+        guardarValorGM(CLAVES.modoForzado, false);
         sincronizarEstadoCheckboxes();
         renderizarContenidoModal();
       });
     }
+
 
     const btnConfirmar = backdrop.querySelector("#hitomi-btn-confirmar");
     if (btnConfirmar && totalPestanas > 0) {

@@ -2,7 +2,17 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.1.0 (Persistencia 100% Permanente de Configuración, Storage Wrappers y Guía Pedagógica)
+- **Persistencia Permanente de Opciones (`src/ui/modal.js`, `src/config/constants.js` & `src/utils/dom.js`)**:
+  - Implementación de almacenamiento 100% persistente para todas las elecciones y configuraciones del usuario (`usarCbz`, `cerrarPestana`, `modoForzado` y `estiloSeparador`).
+  - Incorporación de la constante `CLAVES.modoForzado` (`hitomi_modo_forzado`) para recordar la preferencia de modo normal vs forzado entre sesiones y reinicios.
+- **Unificación de Wrappers de Almacenamiento con Fallback Multiplataforma (`src/utils/dom.js`, `src/core/memory.js`, `src/core/presence.js`, `src/core/download.js` & `src/core/tags.js`)**:
+  - Centralización de `leerValorGM`, `guardarValorGM` y `eliminarValorGM` con fallback transparente a `localStorage` para total compatibilidad en Tampermonkey, Violentmonkey, Greasemonkey, entornos Chromium y navegadores en Linux/Windows.
+- **Guía Pedagógica de Persistencia (`docs/guia-persistencia-configuracion.md`)**:
+  - Creación del documento didáctico explicativo con la "Analogía de la Pizarra vs el Cuaderno", la API de almacenamiento de Userscripts, cabecera `@grant`, manejo de fallbacks y buenas prácticas de desarrollo.
+
 ## Versión 2.0.0 (Rediseño Estructural de Opciones vs Acciones, Cierre Automático de Pestañas y Tooltips Informativos Completo)
+
 - **Cierre Automático de Pestañas Descargadas (`src/config/constants.js`, `src/ui/modal.js` & `src/core/download.js`)**:
   - Incorporación de la casilla `🚪 Cerrar pestañas al descargar` en el panel de opciones de la interfaz.
   - Al estar activa, cada pestaña abierta que completa el disparo de descarga ejecuta de forma segura `window.close()` tras un intervalo prudencial de 1.8 segundos, reduciendo la carga del navegador.

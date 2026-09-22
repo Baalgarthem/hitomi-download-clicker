@@ -72,8 +72,10 @@ No necesitas ir pestaña por pestaña. Desde cualquier pestaña abierta puedes p
 
 Para desarrolladores, programadores novatos o interesados en la arquitectura del proyecto:
 - 🍩 **[Guía Pedagógica: Intercepción y Renombrado de Descargas](docs/guia-intercepcion-descargas.md)**: Explicación didáctica con analogías simples sobre la intercepción en 8 capas, resolución del error de extensión `.cbz`/`.zip` y el flujo estandarizado en 4 pasos.
+- 💾 **[Guía Pedagógica: Persistencia de Configuración](docs/guia-persistencia-configuracion.md)**: Explicación de almacenamiento persistente (`GM_getValue`/`GM_setValue`), la analogía de la pizarra vs el cuaderno y wrappers con fallback a `localStorage`.
 - 🛠️ **[Documentación de Funciones](docs/funciones.md)**: Desglose por módulos de todas las funciones de `download.js`, `tags.js`, `author.js`, `dom.js` y `presence.js`.
 - 🏗️ **[Diario de Desarrollo y Changelog](docs/desarrollo.md)**: Historial completo de versiones y decisiones de diseño.
+
 
 ---
 

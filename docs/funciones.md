@@ -1,6 +1,10 @@
 # Documentación de Funciones del Sistema
 
-Este documento describe las funciones clave organizadas por módulos en la arquitectura modular de Hitomi Clicker. Para comprender en detalle los conceptos pedagógicos de intercepción de descargas, renombrado y manejo de extensiones `.cbz`/`.zip`, consulta la [Guía Pedagógica de Intercepción de Descargas](guia-intercepcion-descargas.md).
+Este documento describe las funciones clave organizadas por módulos en la arquitectura modular de Hitomi Clicker.
+
+Para comprender en detalle las guías pedagógicas del sistema:
+- [Guía Pedagógica de Intercepción de Descargas](guia-intercepcion-descargas.md)
+- [Guía Pedagógica de Persistencia de Configuración](guia-persistencia-configuracion.md)
 
 ---
 
@@ -37,4 +41,8 @@ Este documento describe las funciones clave organizadas por módulos en la arqui
 - **`inyectarEstilos(css)`**: Inyecta estilos CSS de forma segura con fallback a `<style>` si `GM_addStyle` no está disponible.
 - **`elementoVisible(elemento)`**: Verifica visibilidad real en el viewport (display, visibility, opacity, dimensions).
 - **`escapeHtml(texto)`**: Sanitiza entidades HTML para prevenir inyecciones XSS en la UI.
+- **`leerValorGM(clave, valorDefecto)`**: Lee valores del almacenamiento de Tampermonkey/Violentmonkey con fallback automático a `localStorage`.
+- **`guardarValorGM(clave, valor)`**: Guarda valores en el almacenamiento de Tampermonkey/Violentmonkey con fallback automático a `localStorage`.
+- **`eliminarValorGM(clave)`**: Elimina valores del almacenamiento de Tampermonkey/Violentmonkey con fallback automático a `localStorage`.
+
 

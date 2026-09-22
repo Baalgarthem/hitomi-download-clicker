@@ -3,7 +3,8 @@
 // ─────────────────────────────────────────────
 
 import { CONFIGURACION, ESTADO, CLAVES, ID_PESTANA } from '../config/constants.js';
-import { elementoVisible, esperar, obtenerHora } from '../utils/dom.js';
+import { elementoVisible, esperar, obtenerHora, leerValorGM } from '../utils/dom.js';
+
 import { obtenerEstadoPaginaProcesada, guardarPaginaProcesada } from './memory.js';
 import { vincularEventosBotonDescarga, marcarBotonComoProcesado } from '../ui/badge.js';
 import { extraerNombreAutor, obtenerAutorOEstadoInicial } from './author.js';
@@ -88,7 +89,7 @@ export function generarNombreFinalConExtension(referenciaUrl = "") {
     const autor = ESTADO.autoresEditadosPorPestana.get(ID_PESTANA) || obtenerAutorOEstadoInicial();
     const tituloBase = ESTADO.titulosEditadosPorPestana.get(ID_PESTANA) || document.title || "";
     const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(ID_PESTANA) || [];
-    const estiloSeparador = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe";
+    const estiloSeparador = leerValorGM(CLAVES.estiloSeparador, "pipe");
     nombreBase = obtenerNombreFinalCompleto({
       tituloOriginal: tituloBase,
       autor,
@@ -99,8 +100,9 @@ export function generarNombreFinalConExtension(referenciaUrl = "") {
 
   if (!nombreBase) return "";
 
-  const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
+  const usarCbz = leerValorGM(CLAVES.usarCbz, false);
   const baseLimpia = nombreBase.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
+
 
   if (usarCbz) {
     return `${baseLimpia}.cbz`;
@@ -327,7 +329,8 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
     const estiloPointerPrevio = boton.style.pointerEvents;
     const deshabilitadoPrevio = boton.disabled;
 
-    const estiloActivo = estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
+    const estiloActivo = estiloSeparador || leerValorGM(CLAVES.estiloSeparador, "pipe");
+
     const autorTarget = (autorPersonalizado && typeof autorPersonalizado === "string" && autorPersonalizado.trim())
       ? autorPersonalizado.trim()
       : (ESTADO.autoresEditadosPorPestana.get(ID_PESTANA) || obtenerAutorOEstadoInicial());
@@ -465,8 +468,9 @@ export async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
     marcarBotonComoProcesado(boton, forzar);
 
     // Verificar si el usuario activó la opción de cerrar pestaña automáticamente al descargar
-    const cerrarPestana = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.cerrarPestana, false) : false;
+    const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
     if (cerrarPestana) {
+
       setTimeout(() => {
         try {
           console.log(obtenerHora(), "Cerrando pestaña automáticamente tras completar descarga...");

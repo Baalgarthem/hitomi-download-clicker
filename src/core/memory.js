@@ -3,11 +3,11 @@
 // ─────────────────────────────────────────────
 
 import { CLAVES } from '../config/constants.js';
-import { normalizarUrl } from '../utils/dom.js';
+import { normalizarUrl, leerValorGM, guardarValorGM, eliminarValorGM } from '../utils/dom.js';
 
 export function obtenerMemoriaPaginasProcesadas() {
   try {
-    const datosBrutos = GM_getValue(CLAVES.memoriaPaginas, {});
+    const datosBrutos = leerValorGM(CLAVES.memoriaPaginas, {});
     const memoria = new Map();
 
     if (Array.isArray(datosBrutos)) {
@@ -58,7 +58,7 @@ export function guardarPaginaProcesada(url, esForzada = false) {
       objetoSerializable[u] = info;
     }
 
-    GM_setValue(CLAVES.memoriaPaginas, objetoSerializable);
+    guardarValorGM(CLAVES.memoriaPaginas, objetoSerializable);
   } catch (e) {
     console.error("Error al guardar página procesada en memoria:", e);
   }
@@ -84,8 +84,9 @@ export function paginaYaProcesada(url, memoriaMap = null) {
 
 export function limpiarMemoriaProcesadas() {
   try {
-    GM_deleteValue(CLAVES.memoriaPaginas);
+    eliminarValorGM(CLAVES.memoriaPaginas);
   } catch (e) {
     console.error("Error al limpiar memoria:", e);
   }
 }
+

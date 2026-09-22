@@ -89,7 +89,8 @@ export const CLAVES = {
   tagsPestana: id => `hitomi_tags_${id}`,
   estiloSeparador: "hitomi_estilo_separador_tags",
   usarCbz: "hitomi_usar_extension_cbz",
-  cerrarPestana: "hitomi_cerrar_pestana_al_descargar"
+  cerrarPestana: "hitomi_cerrar_pestana_al_descargar",
+  modoForzado: "hitomi_modo_forzado"
 };
 
 export const ESTADO = {
