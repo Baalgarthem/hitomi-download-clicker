@@ -2,6 +2,15 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.9.0 (Integración de GM_download para Subcarpetas y Saneamiento de a.download)
+- **Corrección de Ruta Personalizada con Subcarpetas (`src/core/download.js`)**:
+  - Solución al problema en Windows y navegadores nativos donde los separadores `/` en atributos HTML `a.download` causaban que el archivo se guardara en la carpeta predeterminada de descargas usando la ruta como prefijo con guiones bajos (ej. `Hitomi_Comics_「Autor」 Título.cbz`).
+  - Implementación de `generarNombreFinalConExtension(referenciaUrl, incluirRutaSubcarpeta)`:
+    - Retorna el nombre limpio sin barras (`「Autor」 Título ┃ tags.cbz`) para inyectar en atributos del DOM (`a.download`, `title`, `document.title`).
+    - Retorna el nombre formateado con subcarpeta (`Hitomi/Comics/「Autor」 Título ┃ tags.cbz`) exclusivamente para la API de descargas de Userscript (`GM_download`).
+  - Ejecución de `GM_download({ url: downloadUrl, name: nombreConRutaSubcarpeta, saveAs: false })` cuando la API de Userscript Manager está disponible, guardando directamente en la subcarpeta real `Descargas/Hitomi/Comics/`.
+  - Invocación de fallback a clic nativo únicamente en caso de error o ausencia de `GM_download`, manteniendo `a.download` libre de barras para evitar nombres rotos.
+
 ## Versión 2.8.0 (Reubicación de Casilla 'Incluir Serie' dentro del Sub-Modal de Tags)
 - **Reubicación de Interfaz (`src/ui/modal.js`)**:
   - Traslado de la casilla de verificación `📺 Incluir Serie 【...】` desde el panel principal de opciones (`mostrarPopupConfirmacion`) hacia el interior del sub-modal de selección de etiquetas (`mostrarModalSeleccionTags`).

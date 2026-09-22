@@ -1,6 +1,6 @@
 {
   "name": "hitomi-download-clicker",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "description": "Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback a grupo/Unknown, selección de delimitadores, extensión .cbz, sufijos 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal con IPC.",
   "main": "dist/hitomi-download-clicker.user.js",
   "directories": {
