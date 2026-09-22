@@ -114,6 +114,10 @@ let interceptorRegistrado = false;
  * 2. Sobrescritura del método HTMLAnchorElement.prototype.click.
  * 3. Intercepción de asignaciones a la propiedad HTMLAnchorElement.prototype.download.
  * 4. Intercepción del método HTMLAnchorElement.prototype.setAttribute para 'download'.
+ * 5. Intercepción de asignaciones a la propiedad HTMLAnchorElement.prototype.href.
+ * 6. Intercepción de URL.createObjectURL para asociar nombres personalizados a Object URLs.
+ * 7. Intercepción de la API global window.fetch para solicitudes dinámicas de descarga.
+ * 8. Intercepción de XMLHttpRequest.prototype.open para solicitudes XHR de descarga.
  */
 export function interceptarDescargasNativas() {
   if (interceptorRegistrado) return;
@@ -204,6 +208,102 @@ export function interceptarDescargasNativas() {
             return originalSetAttribute.call(this, nombreAtributo, nombreConExt || valorAtributo, ...restoArgs);
           }
           return originalSetAttribute.call(this, nombreAtributo, valorAtributo, ...restoArgs);
+        };
+      } catch { }
+
+      // 5. Property descriptor setter override for .href
+      try {
+        const descriptorHref = Object.getOwnPropertyDescriptor(HTMLAnchorElement.prototype, "href");
+        if (descriptorHref && descriptorHref.set) {
+          const originalSetHref = descriptorHref.set;
+          Object.defineProperty(HTMLAnchorElement.prototype, "href", {
+            set: function (valor) {
+              const res = originalSetHref.call(this, valor);
+              try {
+                const ref = valor || this.getAttribute("download") || this.download || "";
+                const nombreConExt = generarNombreFinalConExtension(ref);
+                if (nombreConExt) {
+                  this.setAttribute("download", nombreConExt);
+                  this.download = nombreConExt;
+                }
+              } catch { }
+              return res;
+            },
+            get: descriptorHref.get,
+            configurable: true,
+            enumerable: true
+          });
+        }
+      } catch { }
+    }
+
+    // 6. Intercepción de URL.createObjectURL
+    if (typeof window !== "undefined" && window.URL && typeof window.URL.createObjectURL === "function") {
+      try {
+        const originalCreateObjectURL = window.URL.createObjectURL;
+        window.URL.createObjectURL = function (object) {
+          const url = originalCreateObjectURL.call(this, object);
+          try {
+            if (url && typeof url === "string") {
+              const nombreConExt = generarNombreFinalConExtension(url);
+              if (nombreConExt && typeof document !== "undefined") {
+                setTimeout(() => {
+                  try {
+                    const enlacesConBlob = document.querySelectorAll(`a[href="${url}"]`);
+                    enlacesConBlob.forEach(a => {
+                      a.setAttribute("download", nombreConExt);
+                      a.download = nombreConExt;
+                    });
+                  } catch { }
+                }, 0);
+              }
+            }
+          } catch { }
+          return url;
+        };
+      } catch { }
+    }
+
+    // 7. Intercepción de Fetch API
+    if (typeof window !== "undefined" && typeof window.fetch === "function") {
+      try {
+        const originalFetch = window.fetch;
+        window.fetch = async function (input, init) {
+          try {
+            const urlStr = typeof input === "string" ? input : (input && input.url ? input.url : "");
+            if (urlStr && (urlStr.includes("download") || urlStr.includes(".zip") || urlStr.includes(".cbz") || urlStr.includes("hitomi.la"))) {
+              const nombreConExt = generarNombreFinalConExtension(urlStr);
+              if (nombreConExt) {
+                try {
+                  const baseTitle = nombreConExt.replace(/\.cbz$/i, "").replace(/\.zip$/i, "");
+                  document.title = baseTitle;
+                } catch { }
+              }
+            }
+          } catch { }
+          return originalFetch.apply(this, arguments);
+        };
+      } catch { }
+    }
+
+    // 8. Intercepción de XMLHttpRequest (XHR)
+    if (typeof XMLHttpRequest !== "undefined" && XMLHttpRequest.prototype && typeof XMLHttpRequest.prototype.open === "function") {
+      try {
+        const originalXhrOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function (method, url, ...resto) {
+          try {
+            const urlStr = typeof url === "string" ? url : (url ? url.toString() : "");
+            if (urlStr && (urlStr.includes("download") || urlStr.includes(".zip") || urlStr.includes(".cbz") || urlStr.includes("hitomi.la"))) {
+              const nombreConExt = generarNombreFinalConExtension(urlStr);
+              if (nombreConExt) {
+                try {
+                  const baseTitle = nombreConExt.replace(/\.cbz$/i, "").replace(/\.zip$/i, "");
+                  document.title = baseTitle;
+                } catch { }
+              }
+            }
+          } catch { }
+          return originalXhrOpen.call(this, method, url, ...resto);
         };
       } catch { }
     }

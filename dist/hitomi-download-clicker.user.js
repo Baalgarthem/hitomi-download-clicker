@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.7.4
+// @version      1.7.5
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -683,6 +683,105 @@
               return originalSetAttribute.call(this, nombreAtributo, nombreConExt || valorAtributo, ...restoArgs);
             }
             return originalSetAttribute.call(this, nombreAtributo, valorAtributo, ...restoArgs);
+          };
+        } catch {
+        }
+        try {
+          const descriptorHref = Object.getOwnPropertyDescriptor(HTMLAnchorElement.prototype, "href");
+          if (descriptorHref && descriptorHref.set) {
+            const originalSetHref = descriptorHref.set;
+            Object.defineProperty(HTMLAnchorElement.prototype, "href", {
+              set: function(valor) {
+                const res = originalSetHref.call(this, valor);
+                try {
+                  const ref = valor || this.getAttribute("download") || this.download || "";
+                  const nombreConExt = generarNombreFinalConExtension(ref);
+                  if (nombreConExt) {
+                    this.setAttribute("download", nombreConExt);
+                    this.download = nombreConExt;
+                  }
+                } catch {
+                }
+                return res;
+              },
+              get: descriptorHref.get,
+              configurable: true,
+              enumerable: true
+            });
+          }
+        } catch {
+        }
+      }
+      if (typeof window !== "undefined" && window.URL && typeof window.URL.createObjectURL === "function") {
+        try {
+          const originalCreateObjectURL = window.URL.createObjectURL;
+          window.URL.createObjectURL = function(object) {
+            const url = originalCreateObjectURL.call(this, object);
+            try {
+              if (url && typeof url === "string") {
+                const nombreConExt = generarNombreFinalConExtension(url);
+                if (nombreConExt && typeof document !== "undefined") {
+                  setTimeout(() => {
+                    try {
+                      const enlacesConBlob = document.querySelectorAll(`a[href="${url}"]`);
+                      enlacesConBlob.forEach((a) => {
+                        a.setAttribute("download", nombreConExt);
+                        a.download = nombreConExt;
+                      });
+                    } catch {
+                    }
+                  }, 0);
+                }
+              }
+            } catch {
+            }
+            return url;
+          };
+        } catch {
+        }
+      }
+      if (typeof window !== "undefined" && typeof window.fetch === "function") {
+        try {
+          const originalFetch = window.fetch;
+          window.fetch = async function(input, init) {
+            try {
+              const urlStr = typeof input === "string" ? input : input && input.url ? input.url : "";
+              if (urlStr && (urlStr.includes("download") || urlStr.includes(".zip") || urlStr.includes(".cbz") || urlStr.includes("hitomi.la"))) {
+                const nombreConExt = generarNombreFinalConExtension(urlStr);
+                if (nombreConExt) {
+                  try {
+                    const baseTitle = nombreConExt.replace(/\.cbz$/i, "").replace(/\.zip$/i, "");
+                    document.title = baseTitle;
+                  } catch {
+                  }
+                }
+              }
+            } catch {
+            }
+            return originalFetch.apply(this, arguments);
+          };
+        } catch {
+        }
+      }
+      if (typeof XMLHttpRequest !== "undefined" && XMLHttpRequest.prototype && typeof XMLHttpRequest.prototype.open === "function") {
+        try {
+          const originalXhrOpen = XMLHttpRequest.prototype.open;
+          XMLHttpRequest.prototype.open = function(method, url, ...resto) {
+            try {
+              const urlStr = typeof url === "string" ? url : url ? url.toString() : "";
+              if (urlStr && (urlStr.includes("download") || urlStr.includes(".zip") || urlStr.includes(".cbz") || urlStr.includes("hitomi.la"))) {
+                const nombreConExt = generarNombreFinalConExtension(urlStr);
+                if (nombreConExt) {
+                  try {
+                    const baseTitle = nombreConExt.replace(/\.cbz$/i, "").replace(/\.zip$/i, "");
+                    document.title = baseTitle;
+                  } catch {
+                  }
+                }
+              }
+            } catch {
+            }
+            return originalXhrOpen.call(this, method, url, ...resto);
           };
         } catch {
         }

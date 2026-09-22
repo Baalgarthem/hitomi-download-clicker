@@ -2,6 +2,14 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.7.5 (Interceptación Dinámica de Red y Objetos Blob URL)
+- **Intercepción de Objetos Blob y Atributos Dinámicos (`URL.createObjectURL` & `HTMLAnchorElement.prototype.href`)**:
+  - Parcheo de `HTMLAnchorElement.prototype.href` setter para detectar cuando el sitio actualiza dinámicamente el enlace de descarga e inyectar automáticamente el atributo `download` personalizado.
+  - Sobrescritura de `URL.createObjectURL` para rastrear URLs de objetos Blob generadas dinámicamente y vincularlas a los elementos `<a>` correspondientes en el DOM.
+- **Intercepción de Red Network-Level (`window.fetch` & `XMLHttpRequest.prototype.open`)**:
+  - Intercepción de `window.fetch` y `XMLHttpRequest.prototype.open` para solicitudes HTTP orientadas a endpoints de descarga (`download`, `.zip`, `.cbz`, `hitomi.la`).
+  - Actualización preventiva del título del documento y estado de nombre final para garantizar que las descargas asíncronas respeten la nomenclatura personalizada.
+
 ## Versión 1.7.4 (Interceptación Multinivel de Descargas en Fase de Captura)
 - **Escuchador Global en Fase de Captura (`document.addEventListener("click", ..., true)`)**:
   - Intercepción preventiva de clics en fase de captura antes de que los manejadores de eventos propios de Hitomi o Firefox procesen el evento.
