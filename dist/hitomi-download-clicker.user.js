@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.7.6
+// @version      1.7.7
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -181,6 +181,41 @@
       (document.body || document.documentElement).appendChild(anfitrion);
     }
     return anfitrion;
+  }
+  function inyectarEstilos(css = "") {
+    if (!css || typeof css !== "string") return;
+    try {
+      if (typeof GM_addStyle !== "undefined") {
+        GM_addStyle(css);
+      } else {
+        const estilo = document.createElement("style");
+        estilo.textContent = css;
+        (document.head || document.documentElement).appendChild(estilo);
+      }
+    } catch {
+      try {
+        const estilo = document.createElement("style");
+        estilo.textContent = css;
+        (document.head || document.documentElement).appendChild(estilo);
+      } catch (e) {
+        console.error("Error al inyectar estilos CSS:", e);
+      }
+    }
+  }
+  function sanearNombreArchivoFileSystem(nombre = "") {
+    if (!nombre || typeof nombre !== "string") return "";
+    let saneado = nombre.trim();
+    saneado = saneado.replace(/[\/\\]/g, "-");
+    saneado = saneado.replace(/:/g, " -");
+    saneado = saneado.replace(/[\x00-\x1F\*\?"<>\|]/g, "");
+    saneado = saneado.replace(/[\u201C\u201D]/g, "'");
+    saneado = saneado.replace(/\s+/g, " ");
+    saneado = saneado.replace(/-{2,}/g, "-");
+    saneado = saneado.replace(/[\.\s]+$/, "");
+    if (saneado.length > 200) {
+      saneado = saneado.slice(0, 200).trim();
+    }
+    return saneado;
   }
   var esperar, obtenerHora, esPaginaHitomi;
   var init_dom = __esm({
@@ -526,11 +561,12 @@
     if (seccionTags) {
       nombreFinal = `${nombreFinal}${seccionTags}`;
     }
-    return nombreFinal;
+    return sanearNombreArchivoFileSystem(nombreFinal);
   }
   var init_tags = __esm({
     "src/core/tags.js"() {
       init_constants();
+      init_dom();
       init_author();
     }
   });
@@ -926,7 +962,7 @@
 /*                  MÓDULO: src/ui/modal.js                   */
 /* ════════════════════════════════════════════════════════════ */
   function aplicarEstilosModal() {
-    GM_addStyle(`
+    inyectarEstilos(`
     .hitomi-modal-backdrop, .hitomi-tag-modal-backdrop {
       position: fixed;
       inset: 0;
@@ -1728,7 +1764,7 @@
 /*                   MÓDULO: src/ui/pill.js                   */
 /* ════════════════════════════════════════════════════════════ */
   function aplicarEstilosPastilla() {
-    GM_addStyle(`
+    inyectarEstilos(`
     #${CONFIGURACION.ids.pastilla} {
       position: fixed;
       right: 15px;
@@ -1839,6 +1875,42 @@
 /* ════════════════════════════════════════════════════════════ */
 /*                MÓDULO: src/core/presence.js                */
 /* ════════════════════════════════════════════════════════════ */
+  function leerValorGM(clave, valorDefecto = null) {
+    try {
+      if (typeof GM_getValue !== "undefined") {
+        return GM_getValue(clave, valorDefecto);
+      }
+      const val = localStorage.getItem(clave);
+      if (val === null) return valorDefecto;
+      try {
+        return JSON.parse(val);
+      } catch {
+        return val;
+      }
+    } catch {
+      return valorDefecto;
+    }
+  }
+  function guardarValorGM(clave, valor) {
+    try {
+      if (typeof GM_setValue !== "undefined") {
+        GM_setValue(clave, valor);
+      } else {
+        localStorage.setItem(clave, typeof valor === "string" ? valor : JSON.stringify(valor));
+      }
+    } catch {
+    }
+  }
+  function eliminarValorGM(clave) {
+    try {
+      if (typeof GM_deleteValue !== "undefined") {
+        GM_deleteValue(clave);
+      } else {
+        localStorage.removeItem(clave);
+      }
+    } catch {
+    }
+  }
   async function publicarEstadoPestana() {
     if (!esPaginaHitomi() || publicandoEstado) return;
     publicandoEstado = true;
@@ -1854,11 +1926,11 @@
         const autorDetectado = obtenerAutorOEstadoInicial();
         const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
         const tagsDisponibles = extraerTagsPagina();
-        GM_setValue(CLAVES.presencia(ID_PESTANA), tieneBoton);
-        GM_setValue(CLAVES.urlPestana(ID_PESTANA), location.href);
-        GM_setValue(CLAVES.tituloPestana(ID_PESTANA), tituloLimpio);
-        GM_setValue(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
-        GM_setValue(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
+        guardarValorGM(CLAVES.presencia(ID_PESTANA), tieneBoton);
+        guardarValorGM(CLAVES.urlPestana(ID_PESTANA), location.href);
+        guardarValorGM(CLAVES.tituloPestana(ID_PESTANA), tituloLimpio);
+        guardarValorGM(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
+        guardarValorGM(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
         ESTADO.ultimoEstadoPublicado = tieneBoton;
       }
     } catch (e) {
@@ -1869,11 +1941,11 @@
   }
   function eliminarPresenciaPestana() {
     try {
-      GM_deleteValue(CLAVES.presencia(ID_PESTANA));
-      GM_deleteValue(CLAVES.urlPestana(ID_PESTANA));
-      GM_deleteValue(CLAVES.tituloPestana(ID_PESTANA));
-      GM_deleteValue(CLAVES.autorPestana(ID_PESTANA));
-      GM_deleteValue(CLAVES.tagsPestana(ID_PESTANA));
+      eliminarValorGM(CLAVES.presencia(ID_PESTANA));
+      eliminarValorGM(CLAVES.urlPestana(ID_PESTANA));
+      eliminarValorGM(CLAVES.tituloPestana(ID_PESTANA));
+      eliminarValorGM(CLAVES.autorPestana(ID_PESTANA));
+      eliminarValorGM(CLAVES.tagsPestana(ID_PESTANA));
     } catch {
     }
   }
@@ -1881,20 +1953,20 @@
     try {
       const prefijo = "hitomi_presencia_";
       const memoria = obtenerMemoriaPaginasProcesadas();
-      const todasLasClaves = GM_listValues();
+      const todasLasClaves = typeof GM_listValues !== "undefined" ? GM_listValues() : Object.keys(localStorage);
       const resultado = [];
       for (let i = 0; i < todasLasClaves.length; i++) {
         const clave = todasLasClaves[i];
         if (!clave.startsWith(prefijo)) continue;
         const id = clave.slice(prefijo.length);
-        const tieneBoton = Number(GM_getValue(clave, 0)) > 0;
+        const tieneBoton = Number(leerValorGM(clave, 0)) > 0;
         if (!tieneBoton) continue;
-        const url = GM_getValue(CLAVES.urlPestana(id), "");
+        const url = leerValorGM(CLAVES.urlPestana(id), "");
         if (!url) continue;
         const estado = obtenerEstadoPaginaProcesada(url, memoria);
-        const titulo = GM_getValue(CLAVES.tituloPestana(id), url);
-        const autor = GM_getValue(CLAVES.autorPestana(id), "");
-        const tagsDisponibles = GM_getValue(CLAVES.tagsPestana(id), []);
+        const titulo = leerValorGM(CLAVES.tituloPestana(id), url);
+        const autor = leerValorGM(CLAVES.autorPestana(id), "");
+        const tagsDisponibles = leerValorGM(CLAVES.tagsPestana(id), []);
         if (!estado.procesada || incluirProcesadas) {
           resultado.push({
             id,
@@ -1926,7 +1998,7 @@
         return;
       }
       let procesadas = 0;
-      const estiloSeparador = GM_getValue(CLAVES.estiloSeparador, "pipe");
+      const estiloSeparador = leerValorGM(CLAVES.estiloSeparador, "pipe");
       for (const idPestana of pesta\u00F1as) {
         const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(idPestana) || [];
@@ -1937,8 +2009,8 @@
           respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado });
         } else {
           const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
-          GM_deleteValue(claveRespuesta);
-          GM_setValue(CLAVES.orden, {
+          eliminarValorGM(claveRespuesta);
+          guardarValorGM(CLAVES.orden, {
             pesta\u00F1aDestino: idPestana,
             nonce,
             forzar,
@@ -1950,14 +2022,14 @@
           const inicio = Date.now();
           while (Date.now() - inicio < CONFIGURACION.tiempoRespuestaPestana) {
             await esperar(100);
-            respuesta = GM_getValue(claveRespuesta, null);
+            respuesta = leerValorGM(claveRespuesta, null);
             if (respuesta) break;
           }
-          GM_deleteValue(claveRespuesta);
+          eliminarValorGM(claveRespuesta);
         }
         console.info(obtenerHora(), `Pesta\xF1a ${idPestana} (forzar=${forzar}, local=${idPestana === ID_PESTANA}):`, respuesta);
         if (respuesta === "correcto") {
-          const url = GM_getValue(CLAVES.urlPestana(idPestana), location.href);
+          const url = leerValorGM(CLAVES.urlPestana(idPestana), location.href);
           if (url) {
             guardarPaginaProcesada(url, forzar);
           }
@@ -1978,15 +2050,16 @@
   function limpiarRegistrosPestanasAntiguas() {
     try {
       const prefijo = "hitomi_url_";
-      const claves = GM_listValues().filter((clave) => clave.startsWith(prefijo));
+      const todasLasClaves = typeof GM_listValues !== "undefined" ? GM_listValues() : Object.keys(localStorage);
+      const claves = todasLasClaves.filter((clave) => clave.startsWith(prefijo));
       for (const clave of claves) {
         const id = clave.replace(prefijo, "");
-        const presencia = GM_getValue(CLAVES.presencia(id), null);
+        const presencia = leerValorGM(CLAVES.presencia(id), null);
         if (presencia === null) {
-          GM_deleteValue(clave);
-          GM_deleteValue(CLAVES.tituloPestana(id));
-          GM_deleteValue(CLAVES.autorPestana(id));
-          GM_deleteValue(CLAVES.tagsPestana(id));
+          eliminarValorGM(clave);
+          eliminarValorGM(CLAVES.tituloPestana(id));
+          eliminarValorGM(CLAVES.autorPestana(id));
+          eliminarValorGM(CLAVES.tagsPestana(id));
         }
       }
     } catch {
@@ -2036,30 +2109,58 @@
       }
       function registrarEscuchadorOrdenesIPC() {
         try {
-          GM_addValueChangeListener(
-            CLAVES.orden,
-            async (_clave, _valorAnterior, valorNuevo, cambioRemoto) => {
-              if (!cambioRemoto || !valorNuevo || typeof valorNuevo !== "object") {
-                return;
+          if (typeof GM_addValueChangeListener !== "undefined") {
+            GM_addValueChangeListener(
+              CLAVES.orden,
+              async (_clave, _valorAnterior, valorNuevo, cambioRemoto) => {
+                if (!cambioRemoto || !valorNuevo || typeof valorNuevo !== "object") {
+                  return;
+                }
+                const { pesta\u00F1aDestino, nonce, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
+                if (pesta\u00F1aDestino !== ID_PESTANA) {
+                  return;
+                }
+                const resultado = await ejecutarOrdenDescarga(nonce, {
+                  forzar: !!forzar,
+                  tagsSeleccionados: tagsSeleccionados || [],
+                  estiloSeparador: estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe"),
+                  tituloPersonalizado: tituloPersonalizado || null,
+                  autorPersonalizado: autorPersonalizado || null
+                });
+                try {
+                  if (typeof GM_setValue !== "undefined") {
+                    GM_setValue(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
+                  }
+                } catch (e) {
+                  console.error("Error al devolver respuesta de orden:", e);
+                }
               }
-              const { pesta\u00F1aDestino, nonce, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
-              if (pesta\u00F1aDestino !== ID_PESTANA) {
-                return;
+            );
+          } else if (typeof window !== "undefined" && window.addEventListener) {
+            window.addEventListener("storage", async (e) => {
+              if (e.key === CLAVES.orden && e.newValue) {
+                try {
+                  const valorNuevo = JSON.parse(e.newValue);
+                  if (valorNuevo && typeof valorNuevo === "object" && valorNuevo.pesta\u00F1aDestino === ID_PESTANA) {
+                    const { nonce, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
+                    const resultado = await ejecutarOrdenDescarga(nonce, {
+                      forzar: !!forzar,
+                      tagsSeleccionados: tagsSeleccionados || [],
+                      estiloSeparador: estiloSeparador || "pipe",
+                      tituloPersonalizado: tituloPersonalizado || null,
+                      autorPersonalizado: autorPersonalizado || null
+                    });
+                    if (typeof GM_setValue !== "undefined") {
+                      GM_setValue(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
+                    } else {
+                      localStorage.setItem(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
+                    }
+                  }
+                } catch {
+                }
               }
-              const resultado = await ejecutarOrdenDescarga(nonce, {
-                forzar: !!forzar,
-                tagsSeleccionados: tagsSeleccionados || [],
-                estiloSeparador: estiloSeparador || GM_getValue(CLAVES.estiloSeparador, "pipe"),
-                tituloPersonalizado: tituloPersonalizado || null,
-                autorPersonalizado: autorPersonalizado || null
-              });
-              try {
-                GM_setValue(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
-              } catch (e) {
-                console.error("Error al devolver respuesta de orden:", e);
-              }
-            }
-          );
+            });
+          }
         } catch (e) {
           console.error("Error en escuchador de \xF3rdenes:", e);
         }

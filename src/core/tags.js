@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────
 
 import { CONFIGURACION, ESTILOS_SEPARADOR, CLAVES } from '../config/constants.js';
+import { sanearNombreArchivoFileSystem } from '../utils/dom.js';
 import { extraerNombreAutor, formatearNombreAutor, obtenerAutorOEstadoInicial } from './author.js';
 
 /**
@@ -150,13 +151,13 @@ export function obtenerNombreFinalCompleto(opciones = {}) {
   // Elemento 3 (Sufijo): Tags con su respectivo separador/envolvente (ej. ┃ tags / ⟨tags⟩)
   const seccionTags = formatearCadenaTags(tagsSeleccionados, estiloSeparador);
 
-  // Construcción desacoplada de los 3 elementos
+  // Construcción desacoplada de los 3 elementos y saneamiento estricto para Chromium/Linux/Windows
   let nombreFinal = `${autorFormateado} ${tituloLimpio}`.trim();
   if (seccionTags) {
     nombreFinal = `${nombreFinal}${seccionTags}`;
   }
 
-  return nombreFinal;
+  return sanearNombreArchivoFileSystem(nombreFinal);
 }
 
 /**

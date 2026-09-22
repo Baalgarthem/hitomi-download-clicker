@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.7.6
+// @version      1.7.7
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -65,33 +65,60 @@ function registrarObservadorDOM() {
 
 function registrarEscuchadorOrdenesIPC() {
   try {
-    GM_addValueChangeListener(
-      CLAVES.orden,
-      async (_clave, _valorAnterior, valorNuevo, cambioRemoto) => {
-        if (!cambioRemoto || !valorNuevo || typeof valorNuevo !== "object") {
-          return;
-        }
+    if (typeof GM_addValueChangeListener !== "undefined") {
+      GM_addValueChangeListener(
+        CLAVES.orden,
+        async (_clave, _valorAnterior, valorNuevo, cambioRemoto) => {
+          if (!cambioRemoto || !valorNuevo || typeof valorNuevo !== "object") {
+            return;
+          }
 
-        const { pestañaDestino, nonce, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
-        if (pestañaDestino !== ID_PESTANA) {
-          return;
-        }
+          const { pestañaDestino, nonce, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
+          if (pestañaDestino !== ID_PESTANA) {
+            return;
+          }
 
-        const resultado = await ejecutarOrdenDescarga(nonce, {
-          forzar: !!forzar,
-          tagsSeleccionados: tagsSeleccionados || [],
-          estiloSeparador: estiloSeparador || GM_getValue(CLAVES.estiloSeparador, "pipe"),
-          tituloPersonalizado: tituloPersonalizado || null,
-          autorPersonalizado: autorPersonalizado || null
-        });
+          const resultado = await ejecutarOrdenDescarga(nonce, {
+            forzar: !!forzar,
+            tagsSeleccionados: tagsSeleccionados || [],
+            estiloSeparador: estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe"),
+            tituloPersonalizado: tituloPersonalizado || null,
+            autorPersonalizado: autorPersonalizado || null
+          });
 
-        try {
-          GM_setValue(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
-        } catch (e) {
-          console.error("Error al devolver respuesta de orden:", e);
+          try {
+            if (typeof GM_setValue !== "undefined") {
+              GM_setValue(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
+            }
+          } catch (e) {
+            console.error("Error al devolver respuesta de orden:", e);
+          }
         }
-      }
-    );
+      );
+    } else if (typeof window !== "undefined" && window.addEventListener) {
+      window.addEventListener("storage", async (e) => {
+        if (e.key === CLAVES.orden && e.newValue) {
+          try {
+            const valorNuevo = JSON.parse(e.newValue);
+            if (valorNuevo && typeof valorNuevo === "object" && valorNuevo.pestañaDestino === ID_PESTANA) {
+              const { nonce, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
+              const resultado = await ejecutarOrdenDescarga(nonce, {
+                forzar: !!forzar,
+                tagsSeleccionados: tagsSeleccionados || [],
+                estiloSeparador: estiloSeparador || "pipe",
+                tituloPersonalizado: tituloPersonalizado || null,
+                autorPersonalizado: autorPersonalizado || null
+              });
+              if (typeof GM_setValue !== "undefined") {
+                GM_setValue(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
+              } else {
+                localStorage.setItem(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
+              }
+            }
+          } catch { }
+        }
+      });
+    }
   } catch (e) {
     console.error("Error en escuchador de órdenes:", e);
   }

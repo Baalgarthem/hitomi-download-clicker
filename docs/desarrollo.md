@@ -2,6 +2,14 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.7.7 (Compatibilidad Multiplataforma Linux y Navegadores Chromium)
+- **Saneamiento Universal de Nombres de Archivo (`src/utils/dom.js` & `src/core/tags.js`)**:
+  - Implementación de `sanearNombreArchivoFileSystem()` para neutralizar caracteres prohibidos en sistemas de archivos de Linux (ext4/btrfs) y Windows (NTFS/FAT32), así como en gestores de descarga de Chromium (Chrome, Brave, Edge, Opera) y Firefox.
+  - Reemplaza barras `/` y `\` por guiones, dos puntos `:` por ` -`, y remueve caracteres nulos y de control, comillas dobles y corchetes angulares ilícitos, limitando nombres a un máximo seguro de 200 caracteres.
+- **Inyección de Estilos y Storage Fallbacks Cross-Browser (`src/utils/dom.js`, `src/core/presence.js` & `src/index.js`)**:
+  - Implementación de `inyectarEstilos()` con fallback a elementos `<style>` en el DOM cuando `GM_addStyle` no está disponible en ciertos motores de Chromium o scripts aislados.
+  - Creación de wrappers seguros `leerValorGM`, `guardarValorGM`, `eliminarValorGM` con fallback a `localStorage` y evento `window.onstorage` cuando `GM_addValueChangeListener` o `GM_listValues` no están presentes en motores reducidos.
+
 ## Versión 1.7.6 (Corrección de Compresión .cbz/.zip y Propagación de Tags)
 - **Prevención de Doble Compresión y Gestión Limpia de `document.title` (`src/core/download.js`)**:
   - Eliminación de la modificación de `document.title` con extensiones de archivo (`.zip` / `.cbz`) en los interceptores de red y clics.

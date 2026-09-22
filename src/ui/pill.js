@@ -3,14 +3,14 @@
 // ─────────────────────────────────────────────
 
 import { CONFIGURACION, ESTADO } from '../config/constants.js';
-import { esPaginaHitomi, obtenerOCrearAnfitrionUI } from '../utils/dom.js';
+import { esPaginaHitomi, obtenerOCrearAnfitrionUI, inyectarEstilos } from '../utils/dom.js';
 import { limpiarMemoriaProcesadas } from '../core/memory.js';
 import { resetearEstadoBotonDescarga } from './badge.js';
 import { publicarEstadoPestana } from '../core/presence.js';
 import { mostrarPopupConfirmacion } from './modal.js';
 
 export function aplicarEstilosPastilla() {
-  GM_addStyle(`
+  inyectarEstilos(`
     #${CONFIGURACION.ids.pastilla} {
       position: fixed;
       right: 15px;

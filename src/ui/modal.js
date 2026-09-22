@@ -6,11 +6,11 @@ import { CONFIGURACION, ESTADO, CLAVES } from '../config/constants.js';
 import { obtenerInformacionPestanas, publicarEstadoPestana, recorrerPestanasDescarga } from '../core/presence.js';
 import { limpiarMemoriaProcesadas } from '../core/memory.js';
 import { resetearEstadoBotonDescarga } from './badge.js';
-import { obtenerOCrearAnfitrionUI, escapeHtml } from '../utils/dom.js';
+import { obtenerOCrearAnfitrionUI, escapeHtml, inyectarEstilos } from '../utils/dom.js';
 import { capitalizarNombre } from '../core/author.js';
 
 export function aplicarEstilosModal() {
-  GM_addStyle(`
+  inyectarEstilos(`
     .hitomi-modal-backdrop, .hitomi-tag-modal-backdrop {
       position: fixed;
       inset: 0;

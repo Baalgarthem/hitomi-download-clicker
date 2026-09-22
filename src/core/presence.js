@@ -11,6 +11,39 @@ import { mostrarEstado } from '../ui/pill.js';
 import { extraerNombreAutor, obtenerAutorOEstadoInicial } from './author.js';
 import { extraerTagsPagina, limpiarTituloBase } from './tags.js';
 
+function leerValorGM(clave, valorDefecto = null) {
+  try {
+    if (typeof GM_getValue !== "undefined") {
+      return GM_getValue(clave, valorDefecto);
+    }
+    const val = localStorage.getItem(clave);
+    if (val === null) return valorDefecto;
+    try { return JSON.parse(val); } catch { return val; }
+  } catch {
+    return valorDefecto;
+  }
+}
+
+function guardarValorGM(clave, valor) {
+  try {
+    if (typeof GM_setValue !== "undefined") {
+      GM_setValue(clave, valor);
+    } else {
+      localStorage.setItem(clave, typeof valor === "string" ? valor : JSON.stringify(valor));
+    }
+  } catch { }
+}
+
+function eliminarValorGM(clave) {
+  try {
+    if (typeof GM_deleteValue !== "undefined") {
+      GM_deleteValue(clave);
+    } else {
+      localStorage.removeItem(clave);
+    }
+  } catch { }
+}
+
 let publicandoEstado = false;
 
 export async function publicarEstadoPestana() {
@@ -33,11 +66,11 @@ export async function publicarEstadoPestana() {
       const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
       const tagsDisponibles = extraerTagsPagina();
 
-      GM_setValue(CLAVES.presencia(ID_PESTANA), tieneBoton);
-      GM_setValue(CLAVES.urlPestana(ID_PESTANA), location.href);
-      GM_setValue(CLAVES.tituloPestana(ID_PESTANA), tituloLimpio);
-      GM_setValue(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
-      GM_setValue(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
+      guardarValorGM(CLAVES.presencia(ID_PESTANA), tieneBoton);
+      guardarValorGM(CLAVES.urlPestana(ID_PESTANA), location.href);
+      guardarValorGM(CLAVES.tituloPestana(ID_PESTANA), tituloLimpio);
+      guardarValorGM(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
+      guardarValorGM(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
       ESTADO.ultimoEstadoPublicado = tieneBoton;
     }
   } catch (e) {
@@ -49,11 +82,11 @@ export async function publicarEstadoPestana() {
 
 export function eliminarPresenciaPestana() {
   try {
-    GM_deleteValue(CLAVES.presencia(ID_PESTANA));
-    GM_deleteValue(CLAVES.urlPestana(ID_PESTANA));
-    GM_deleteValue(CLAVES.tituloPestana(ID_PESTANA));
-    GM_deleteValue(CLAVES.autorPestana(ID_PESTANA));
-    GM_deleteValue(CLAVES.tagsPestana(ID_PESTANA));
+    eliminarValorGM(CLAVES.presencia(ID_PESTANA));
+    eliminarValorGM(CLAVES.urlPestana(ID_PESTANA));
+    eliminarValorGM(CLAVES.tituloPestana(ID_PESTANA));
+    eliminarValorGM(CLAVES.autorPestana(ID_PESTANA));
+    eliminarValorGM(CLAVES.tagsPestana(ID_PESTANA));
   } catch { }
 }
 
@@ -61,7 +94,7 @@ export function obtenerInformacionPestanas(incluirProcesadas = false) {
   try {
     const prefijo = "hitomi_presencia_";
     const memoria = obtenerMemoriaPaginasProcesadas();
-    const todasLasClaves = GM_listValues();
+    const todasLasClaves = (typeof GM_listValues !== "undefined") ? GM_listValues() : Object.keys(localStorage);
     const resultado = [];
 
     for (let i = 0; i < todasLasClaves.length; i++) {
@@ -69,16 +102,16 @@ export function obtenerInformacionPestanas(incluirProcesadas = false) {
       if (!clave.startsWith(prefijo)) continue;
 
       const id = clave.slice(prefijo.length);
-      const tieneBoton = Number(GM_getValue(clave, 0)) > 0;
+      const tieneBoton = Number(leerValorGM(clave, 0)) > 0;
       if (!tieneBoton) continue;
 
-      const url = GM_getValue(CLAVES.urlPestana(id), "");
+      const url = leerValorGM(CLAVES.urlPestana(id), "");
       if (!url) continue;
 
       const estado = obtenerEstadoPaginaProcesada(url, memoria);
-      const titulo = GM_getValue(CLAVES.tituloPestana(id), url);
-      const autor = GM_getValue(CLAVES.autorPestana(id), "");
-      const tagsDisponibles = GM_getValue(CLAVES.tagsPestana(id), []);
+      const titulo = leerValorGM(CLAVES.tituloPestana(id), url);
+      const autor = leerValorGM(CLAVES.autorPestana(id), "");
+      const tagsDisponibles = leerValorGM(CLAVES.tagsPestana(id), []);
 
       if (!estado.procesada || incluirProcesadas) {
         resultado.push({
@@ -118,7 +151,7 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
     }
 
     let procesadas = 0;
-    const estiloSeparador = GM_getValue(CLAVES.estiloSeparador, "pipe");
+    const estiloSeparador = leerValorGM(CLAVES.estiloSeparador, "pipe");
 
     for (const idPestana of pestañas) {
       const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -131,9 +164,9 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
         respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado });
       } else {
         const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
-        GM_deleteValue(claveRespuesta);
+        eliminarValorGM(claveRespuesta);
 
-        GM_setValue(CLAVES.orden, {
+        guardarValorGM(CLAVES.orden, {
           pestañaDestino: idPestana,
           nonce,
           forzar,
@@ -146,17 +179,17 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
         const inicio = Date.now();
         while (Date.now() - inicio < CONFIGURACION.tiempoRespuestaPestana) {
           await esperar(100);
-          respuesta = GM_getValue(claveRespuesta, null);
+          respuesta = leerValorGM(claveRespuesta, null);
           if (respuesta) break;
         }
 
-        GM_deleteValue(claveRespuesta);
+        eliminarValorGM(claveRespuesta);
       }
 
       console.info(obtenerHora(), `Pestaña ${idPestana} (forzar=${forzar}, local=${idPestana === ID_PESTANA}):`, respuesta);
 
       if (respuesta === "correcto") {
-        const url = GM_getValue(CLAVES.urlPestana(idPestana), location.href);
+        const url = leerValorGM(CLAVES.urlPestana(idPestana), location.href);
         if (url) {
           guardarPaginaProcesada(url, forzar);
         }
@@ -180,16 +213,17 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
 export function limpiarRegistrosPestanasAntiguas() {
   try {
     const prefijo = "hitomi_url_";
-    const claves = GM_listValues().filter(clave => clave.startsWith(prefijo));
+    const todasLasClaves = (typeof GM_listValues !== "undefined") ? GM_listValues() : Object.keys(localStorage);
+    const claves = todasLasClaves.filter(clave => clave.startsWith(prefijo));
 
     for (const clave of claves) {
       const id = clave.replace(prefijo, "");
-      const presencia = GM_getValue(CLAVES.presencia(id), null);
+      const presencia = leerValorGM(CLAVES.presencia(id), null);
       if (presencia === null) {
-        GM_deleteValue(clave);
-        GM_deleteValue(CLAVES.tituloPestana(id));
-        GM_deleteValue(CLAVES.autorPestana(id));
-        GM_deleteValue(CLAVES.tagsPestana(id));
+        eliminarValorGM(clave);
+        eliminarValorGM(CLAVES.tituloPestana(id));
+        eliminarValorGM(CLAVES.autorPestana(id));
+        eliminarValorGM(CLAVES.tagsPestana(id));
       }
     }
   } catch { }
