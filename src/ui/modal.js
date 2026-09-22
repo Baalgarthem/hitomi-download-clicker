@@ -104,27 +104,28 @@ export function aplicarEstilosModal() {
       color: #f0f6fc;
     }
 
-    .hitomi-modal-btn-cerrar-procesadas {
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.35);
+    .hitomi-btn-cerrar-procesadas-icono {
+      background: rgba(176, 0, 32, 0.18);
       color: #f87171;
-      font-size: 16px;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      padding: 6px 10px;
+      font-size: 13px;
       font-weight: 700;
-      cursor: pointer;
-      padding: 3px 8px;
       border-radius: 6px;
-      line-height: 1;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+      line-height: 1;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, color 0.15s ease;
+      user-select: none;
     }
 
-    .hitomi-modal-btn-cerrar-procesadas:hover {
-      background: rgba(239, 68, 68, 0.3);
-      border-color: #ef4444;
+    .hitomi-btn-cerrar-procesadas-icono:hover {
+      background: rgba(176, 0, 32, 0.35);
       color: #ffffff;
-      transform: scale(1.05);
+      border-color: rgba(239, 68, 68, 0.7);
+      transform: translateY(-1px);
     }
 
     .hitomi-modal-body {
@@ -1021,14 +1022,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
               ${modoForzado ? '⚡ Modo Forzado' : '✓ Modo Normal'}
             </span>
           </h3>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            ${
-              totalPestanas === 0
-                ? `<button class="hitomi-modal-btn-cerrar-procesadas" id="hitomi-btn-cerrar-procesadas-header" title="Cerrar todas las pestañas de Hitomi descargadas o re-descargadas (procesadas)">✕ Cerrar Procesadas</button>`
-                : ''
-            }
-            <button class="hitomi-modal-cerrar" id="hitomi-btn-cerrar-modal" title="Cerrar esta ventana">✕</button>
-          </div>
+          <button class="hitomi-modal-cerrar" id="hitomi-btn-cerrar-modal" title="Cerrar esta ventana">✕</button>
         </div>
 
         <div class="hitomi-modal-body">
@@ -1043,10 +1037,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
           ${
             totalPestanas === 0
               ? `<div class="hitomi-modal-vacio">
-                   <p style="margin-bottom: 12px;">No se encontraron pestañas de Hitomi ${modoForzado ? 'disponibles' : 'pendientes'}.</p>
-                   <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-cerrar-procesadas-vacio" title="Cerrar todas las pestañas de Hitomi descargadas o re-descargadas (procesadas)" style="margin: 0 auto; display: inline-flex; align-items: center; gap: 6px;">
-                     ✕ Cerrar pestañas descargadas/procesadas
-                   </button>
+                   <p>No se encontraron pestañas de Hitomi ${modoForzado ? 'disponibles' : 'pendientes'}.</p>
                  </div>`
               : `
                  <!-- SECCIÓN DE OPCIONES Y CONFIGURACIÓN (CHECKBOXES Y RUTAS) -->
@@ -1167,6 +1158,11 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
             <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar el registro de descargas realizadas para volver a empezar desde cero">
               🗑️ Limpiar Memoria
             </button>
+            ${
+              totalPestanas === 0
+                ? `<button class="hitomi-btn-cerrar-procesadas-icono" id="hitomi-btn-cerrar-procesadas-icono" title="Cerrar todas aquellas pestañas que tengan la etiqueta de descargadas o re-descargadas">✕</button>`
+                : ''
+            }
           </div>
 
           <div class="hitomi-modal-acciones-principales">
@@ -1316,14 +1312,9 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
       }
     };
 
-    const btnCerrarHeader = backdrop.querySelector("#hitomi-btn-cerrar-procesadas-header");
-    if (btnCerrarHeader) {
-      btnCerrarHeader.addEventListener("click", ejecutarCierreProcesadas);
-    }
-
-    const btnCerrarVacio = backdrop.querySelector("#hitomi-btn-cerrar-procesadas-vacio");
-    if (btnCerrarVacio) {
-      btnCerrarVacio.addEventListener("click", ejecutarCierreProcesadas);
+    const btnCerrarIcono = backdrop.querySelector("#hitomi-btn-cerrar-procesadas-icono");
+    if (btnCerrarIcono) {
+      btnCerrarIcono.addEventListener("click", ejecutarCierreProcesadas);
     }
 
     backdrop.querySelector("#hitomi-btn-reescanear").addEventListener("click", async () => {

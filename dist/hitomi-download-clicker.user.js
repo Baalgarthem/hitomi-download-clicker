@@ -1336,27 +1336,28 @@
       color: #f0f6fc;
     }
 
-    .hitomi-modal-btn-cerrar-procesadas {
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.35);
+    .hitomi-btn-cerrar-procesadas-icono {
+      background: rgba(176, 0, 32, 0.18);
       color: #f87171;
-      font-size: 16px;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      padding: 6px 10px;
+      font-size: 13px;
       font-weight: 700;
-      cursor: pointer;
-      padding: 3px 8px;
       border-radius: 6px;
-      line-height: 1;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+      line-height: 1;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, color 0.15s ease;
+      user-select: none;
     }
 
-    .hitomi-modal-btn-cerrar-procesadas:hover {
-      background: rgba(239, 68, 68, 0.3);
-      border-color: #ef4444;
+    .hitomi-btn-cerrar-procesadas-icono:hover {
+      background: rgba(176, 0, 32, 0.35);
       color: #ffffff;
-      transform: scale(1.05);
+      border-color: rgba(239, 68, 68, 0.7);
+      transform: translateY(-1px);
     }
 
     .hitomi-modal-body {
@@ -2047,10 +2048,7 @@
               ${modoForzado ? "\u26A1 Modo Forzado" : "\u2713 Modo Normal"}
             </span>
           </h3>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            ${totalPestanas === 0 ? `<button class="hitomi-modal-btn-cerrar-procesadas" id="hitomi-btn-cerrar-procesadas-header" title="Cerrar todas las pesta\xF1as de Hitomi descargadas o re-descargadas (procesadas)">\u2715 Cerrar Procesadas</button>` : ""}
-            <button class="hitomi-modal-cerrar" id="hitomi-btn-cerrar-modal" title="Cerrar esta ventana">\u2715</button>
-          </div>
+          <button class="hitomi-modal-cerrar" id="hitomi-btn-cerrar-modal" title="Cerrar esta ventana">\u2715</button>
         </div>
 
         <div class="hitomi-modal-body">
@@ -2059,10 +2057,7 @@
           </p>
 
           ${totalPestanas === 0 ? `<div class="hitomi-modal-vacio">
-                   <p style="margin-bottom: 12px;">No se encontraron pesta\xF1as de Hitomi ${modoForzado ? "disponibles" : "pendientes"}.</p>
-                   <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-cerrar-procesadas-vacio" title="Cerrar todas las pesta\xF1as de Hitomi descargadas o re-descargadas (procesadas)" style="margin: 0 auto; display: inline-flex; align-items: center; gap: 6px;">
-                     \u2715 Cerrar pesta\xF1as descargadas/procesadas
-                   </button>
+                   <p>No se encontraron pesta\xF1as de Hitomi ${modoForzado ? "disponibles" : "pendientes"}.</p>
                  </div>` : `
                  <!-- SECCI\xD3N DE OPCIONES Y CONFIGURACI\xD3N (CHECKBOXES Y RUTAS) -->
                  <div class="hitomi-seccion-opciones" style="margin-bottom: 12px; padding: 10px 14px; background: #192028; border: 1px solid #2d3748; border-radius: 10px;">
@@ -2169,6 +2164,7 @@
             <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar el registro de descargas realizadas para volver a empezar desde cero">
               \u{1F5D1}\uFE0F Limpiar Memoria
             </button>
+            ${totalPestanas === 0 ? `<button class="hitomi-btn-cerrar-procesadas-icono" id="hitomi-btn-cerrar-procesadas-icono" title="Cerrar todas aquellas pesta\xF1as que tengan la etiqueta de descargadas o re-descargadas">\u2715</button>` : ""}
           </div>
 
           <div class="hitomi-modal-acciones-principales">
@@ -2294,13 +2290,9 @@
           });
         }
       };
-      const btnCerrarHeader = backdrop.querySelector("#hitomi-btn-cerrar-procesadas-header");
-      if (btnCerrarHeader) {
-        btnCerrarHeader.addEventListener("click", ejecutarCierreProcesadas);
-      }
-      const btnCerrarVacio = backdrop.querySelector("#hitomi-btn-cerrar-procesadas-vacio");
-      if (btnCerrarVacio) {
-        btnCerrarVacio.addEventListener("click", ejecutarCierreProcesadas);
+      const btnCerrarIcono = backdrop.querySelector("#hitomi-btn-cerrar-procesadas-icono");
+      if (btnCerrarIcono) {
+        btnCerrarIcono.addEventListener("click", ejecutarCierreProcesadas);
       }
       backdrop.querySelector("#hitomi-btn-reescanear").addEventListener("click", async () => {
         const btnReescanear = backdrop.querySelector("#hitomi-btn-reescanear");

@@ -3,10 +3,10 @@
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
 ## Versión 2.10.0 (Botón de Cierre Masivo de Pestañas Procesadas cuando Detectadas = 0)
-- **Botón Extra de Cierre Rápido de Pestañas Procesadas (`src/ui/modal.js`)**:
-  - Cuando el número de pestañas detectadas es 0 (sin pestañas nuevas pendientes de descargar), se habilita un botón extra destacado con una `✕` tanto en el encabezado del modal junto al botón de cerrar como en el área central vacía (`hitomi-modal-vacio`).
-  - Al posar el cursor sobre el botón (hover), muestra el texto explicativo: *"Cerrar todas las pestañas de Hitomi descargadas o re-descargadas (procesadas)"*.
-  - Al hacer clic, ejecuta la función masiva de cierre, cerrando inmediatamente todas las pestañas que tengan la etiqueta de descargadas o re-descargadas.
+- **Botón Extra de Icono ✕ al lado de 'Limpiar Memoria' (`src/ui/modal.js`)**:
+  - Cuando el número de pestañas detectadas es 0 (sin pestañas nuevas pendientes de descargar), se muestra un único botón extra al lado de "🗑️ Limpiar Memoria" que contiene exclusivamente el ícono `✕` sin texto innecesario.
+  - Al posar el cursor sobre el botón (hover), muestra el texto explicativo: *"Cerrar todas aquellas pestañas que tengan la etiqueta de descargadas o re-descargadas"*.
+  - Al hacer clic sobre el botón, ejecuta la función de cierre masivo, cerrando inmediatamente todas las pestañas que tengan la etiqueta de descargadas o re-descargadas.
 - **Comunicación IPC Global para Cierre Masivo (`src/core/presence.js` y `src/index.js`)**:
   - Implementada `cerrarPestanasProcesadas()` que recopila las pestañas con `yaProcesada === true` y emite una orden IPC `CLAVES.ordenCerrarPestanas`.
   - Las pestañas remotas escuchan la orden vía `GM_addValueChangeListener` (y fallback `storage`) y se cierran automáticamente con `window.close()`.
