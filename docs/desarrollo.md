@@ -2,6 +2,15 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.7.0 (Sufijo de Personajes 【Personaje1 Personaje2】 en Title Case y Selección Integrada en Sub-Modal)
+- **Inclusión y Selección de Personajes (`src/config/constants.js`, `src/core/tags.js`, `src/core/presence.js`, `src/core/download.js` & `src/ui/modal.js`)**:
+  - Extracción automática de personajes desde la lista `<ul id="characters" class="tags">` mediante `CONFIGURACION.selectoresPersonajes`.
+  - Capitalización estricta Title Case de nombres de personajes (`capitalizarPersonaje()`, ej. `"dermail catalonia"` -> `"Dermail Catalonia"`, `"relena peacecraft"` -> `"Relena Peacecraft"`).
+  - Sub-modal `🏷️ Tags` ampliado con la sección `👤 Personajes Detectados` conteniendo pills conmutables interactivas que permiten al usuario elegir individualmente cuántos y cuáles personajes incluir.
+  - Mensaje de reemplazo didáctico `No hay personajes por añadir` cuando el cómic no posee la etiqueta de personajes.
+  - Anexo del sufijo de personajes entre corchetes japoneses `【Personaje1 Personaje2】` posicionado estrictamente después del sufijo de la serie al final del archivo (`「Autor」 Título ┃ tags 【Serie】 【Personaje1 Personaje2】.cbz`).
+  - Almacenamiento y sincronización IPC persistente de la selección por pestaña (`ESTADO.personajesSeleccionadosPorPestana`).
+
 ## Versión 2.6.0 (Sufijo Persistente de Serie 【Serie】 en Mayúsculas y Verificación de Tags Custom)
 - **Inclusión General y Persistente de Serie (`src/config/constants.js`, `src/core/tags.js`, `src/core/presence.js` & `src/ui/modal.js`)**:
   - Incorporación de la casilla de verificación `📺 Incluir Serie 【...】` en el panel `⚙️ OPCIONES DE DESCARGA` (almacenada persistentemente en `CLAVES.incluirSerie`).

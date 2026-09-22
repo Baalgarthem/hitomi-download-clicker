@@ -54,6 +54,13 @@ export const CONFIGURACION = {
     "a[href*='/series/']",
     ".series-list a"
   ],
+  selectoresPersonajes: [
+    "#characters ul.tags li a",
+    "#characters li a",
+    "#characters a",
+    ".tags li a[href*='/character/']",
+    "a[href*='/character/']"
+  ],
   intervaloBusquedaBoton: 150,
   intentosBusquedaBoton: 40,
   tiempoEntreOrdenes: 120,
@@ -98,6 +105,7 @@ export const CLAVES = {
   autorPestana: id => `hitomi_autor_${id}`,
   tagsPestana: id => `hitomi_tags_${id}`,
   seriePestana: id => `hitomi_serie_${id}`,
+  personajesPestana: id => `hitomi_personajes_${id}`,
   timestampPestana: id => `hitomi_timestamp_${id}`,
   pingPresencia: "hitomi_ping_presencia_global",
   estiloSeparador: "hitomi_estilo_separador_tags",
@@ -117,6 +125,7 @@ export const ESTADO = {
   botonPastilla: null,
   ultimoEstadoPublicado: null,
   tagsSeleccionadosPorPestana: new Map(),
+  personajesSeleccionadosPorPestana: new Map(),
   titulosEditadosPorPestana: new Map(),
   autoresEditadosPorPestana: new Map(),
   ultimoNombreFinal: null

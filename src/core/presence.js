@@ -9,7 +9,7 @@ import { buscarBotonDescarga, ejecutarOrdenDescarga } from './download.js';
 import { marcarBotonComoProcesado } from '../ui/badge.js';
 import { mostrarEstado } from '../ui/pill.js';
 import { extraerNombreAutor, obtenerAutorOEstadoInicial } from './author.js';
-import { extraerTagsPagina, limpiarTituloBase, extraerSeriePagina } from './tags.js';
+import { extraerTagsPagina, limpiarTituloBase, extraerSeriePagina, extraerPersonajesPagina } from './tags.js';
 
 
 let publicandoEstado = false;
@@ -32,6 +32,7 @@ export async function publicarEstadoPestana(forzar = false) {
     const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
     const tagsDisponibles = extraerTagsPagina();
     const serieDetectada = extraerSeriePagina();
+    const personajesDetectados = extraerPersonajesPagina();
     const ahora = Date.now();
 
     guardarValorGM(CLAVES.presencia(ID_PESTANA), tieneBoton);
@@ -40,6 +41,7 @@ export async function publicarEstadoPestana(forzar = false) {
     guardarValorGM(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
     guardarValorGM(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
     guardarValorGM(CLAVES.seriePestana(ID_PESTANA), serieDetectada);
+    guardarValorGM(CLAVES.personajesPestana(ID_PESTANA), personajesDetectados);
     guardarValorGM(CLAVES.timestampPestana(ID_PESTANA), ahora);
 
     ESTADO.ultimoEstadoPublicado = tieneBoton;
@@ -58,6 +60,7 @@ export function eliminarPresenciaPestana() {
     eliminarValorGM(CLAVES.autorPestana(ID_PESTANA));
     eliminarValorGM(CLAVES.tagsPestana(ID_PESTANA));
     eliminarValorGM(CLAVES.seriePestana(ID_PESTANA));
+    eliminarValorGM(CLAVES.personajesPestana(ID_PESTANA));
     eliminarValorGM(CLAVES.timestampPestana(ID_PESTANA));
   } catch { }
 }
@@ -85,6 +88,7 @@ export function obtenerInformacionPestanas(incluirProcesadas = false) {
       const autor = leerValorGM(CLAVES.autorPestana(id), "");
       const tagsDisponibles = leerValorGM(CLAVES.tagsPestana(id), []);
       const serie = leerValorGM(CLAVES.seriePestana(id), "");
+      const personajesDisponibles = leerValorGM(CLAVES.personajesPestana(id), []);
 
       if (!estado.procesada || incluirProcesadas) {
         resultado.push({
@@ -94,6 +98,7 @@ export function obtenerInformacionPestanas(incluirProcesadas = false) {
           autor,
           tagsDisponibles,
           serie,
+          personajesDisponibles,
           yaProcesada: estado.procesada,
           esForzada: estado.esForzada
         });
@@ -130,12 +135,13 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
     for (const idPestana of pestañas) {
       const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(idPestana) || [];
+      const personajesSeleccionados = ESTADO.personajesSeleccionadosPorPestana.get(idPestana) || [];
       const tituloPersonalizado = ESTADO.titulosEditadosPorPestana.get(idPestana) || null;
       const autorPersonalizado = ESTADO.autoresEditadosPorPestana.get(idPestana) || null;
       let respuesta = null;
 
       if (idPestana === ID_PESTANA) {
-        respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado });
+        respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, personajesSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado });
       } else {
         const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
         eliminarValorGM(claveRespuesta);
@@ -145,6 +151,7 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
           nonce,
           forzar,
           tagsSeleccionados,
+          personajesSeleccionados,
           estiloSeparador,
           tituloPersonalizado,
           autorPersonalizado

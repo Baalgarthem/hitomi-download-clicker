@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.6.0
-// @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
+// @version      2.7.0
+// @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz, sufijo de serie 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
 // @downloadURL  https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/dist/hitomi-download-clicker.user.js
@@ -74,7 +74,7 @@ function registrarEscuchadorOrdenesIPC() {
             return;
           }
 
-          const { pestañaDestino, nonce, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
+          const { pestañaDestino, nonce, forzar, tagsSeleccionados, personajesSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
           if (pestañaDestino !== ID_PESTANA) {
             return;
           }
@@ -82,6 +82,7 @@ function registrarEscuchadorOrdenesIPC() {
           const resultado = await ejecutarOrdenDescarga(nonce, {
             forzar: !!forzar,
             tagsSeleccionados: tagsSeleccionados || [],
+            personajesSeleccionados: personajesSeleccionados || [],
             estiloSeparador: estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe"),
             tituloPersonalizado: tituloPersonalizado || null,
             autorPersonalizado: autorPersonalizado || null
@@ -115,10 +116,11 @@ function registrarEscuchadorOrdenesIPC() {
           try {
             const valorNuevo = JSON.parse(e.newValue);
             if (valorNuevo && typeof valorNuevo === "object" && valorNuevo.pestañaDestino === ID_PESTANA) {
-              const { nonce, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
+              const { nonce, forzar, tagsSeleccionados, personajesSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
               const resultado = await ejecutarOrdenDescarga(nonce, {
                 forzar: !!forzar,
                 tagsSeleccionados: tagsSeleccionados || [],
+                personajesSeleccionados: personajesSeleccionados || [],
                 estiloSeparador: estiloSeparador || "pipe",
                 tituloPersonalizado: tituloPersonalizado || null,
                 autorPersonalizado: autorPersonalizado || null

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.6.0
-// @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
+// @version      2.7.0
+// @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz, sufijo de serie 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
 // @downloadURL  https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/dist/hitomi-download-clicker.user.js
@@ -109,6 +109,13 @@
           "a[href*='/series/']",
           ".series-list a"
         ],
+        selectoresPersonajes: [
+          "#characters ul.tags li a",
+          "#characters li a",
+          "#characters a",
+          ".tags li a[href*='/character/']",
+          "a[href*='/character/']"
+        ],
         intervaloBusquedaBoton: 150,
         intentosBusquedaBoton: 40,
         tiempoEntreOrdenes: 120,
@@ -136,6 +143,7 @@
         autorPestana: (id) => `hitomi_autor_${id}`,
         tagsPestana: (id) => `hitomi_tags_${id}`,
         seriePestana: (id) => `hitomi_serie_${id}`,
+        personajesPestana: (id) => `hitomi_personajes_${id}`,
         timestampPestana: (id) => `hitomi_timestamp_${id}`,
         pingPresencia: "hitomi_ping_presencia_global",
         estiloSeparador: "hitomi_estilo_separador_tags",
@@ -153,6 +161,7 @@
         botonPastilla: null,
         ultimoEstadoPublicado: null,
         tagsSeleccionadosPorPestana: /* @__PURE__ */ new Map(),
+        personajesSeleccionadosPorPestana: /* @__PURE__ */ new Map(),
         titulosEditadosPorPestana: /* @__PURE__ */ new Map(),
         autoresEditadosPorPestana: /* @__PURE__ */ new Map(),
         ultimoNombreFinal: null
@@ -695,6 +704,7 @@
       tituloOriginal = "",
       autor = null,
       tagsSeleccionados = [],
+      personajesSeleccionados = [],
       estiloSeparador = null,
       serie = null,
       incluirSerie = null
@@ -712,6 +722,7 @@
         seccionSerie = ` \u3010${serieLimpia}\u3011`;
       }
     }
+    const seccionPersonajes = formatearCadenaPersonajes(personajesSeleccionados);
     let nombreFinal = `${autorFormateado} ${tituloLimpio}`.trim();
     if (seccionTags) {
       nombreFinal = `${nombreFinal}${seccionTags}`;
@@ -719,7 +730,53 @@
     if (seccionSerie) {
       nombreFinal = `${nombreFinal}${seccionSerie}`;
     }
+    if (seccionPersonajes) {
+      nombreFinal = `${nombreFinal}${seccionPersonajes}`;
+    }
     return sanearNombreArchivoFileSystem(nombreFinal);
+  }
+  function capitalizarPersonaje(str = "") {
+    if (!str || typeof str !== "string") return "";
+    let texto = str.trim();
+    texto = texto.replace(/\s*-\s*all$/i, "").trim();
+    texto = texto.replace(/^character:/i, "").trim();
+    texto = texto.replace(/[♀♂]/g, "").trim();
+    if (/^(?:n\/?a|none)$/i.test(texto)) return "";
+    return texto.replace(/\b[a-zA-ZáéíóúÁÉÍÓÚñÑ]+/g, (word) => {
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    });
+  }
+  function extraerPersonajesPagina() {
+    const listaPersonajes = [];
+    const procesadosSet = /* @__PURE__ */ new Set();
+    try {
+      if (typeof document === "undefined") return [];
+      for (const selector of CONFIGURACION.selectoresPersonajes) {
+        const elementos = document.querySelectorAll(selector);
+        if (elementos && elementos.length > 0) {
+          elementos.forEach((el) => {
+            const raw = (el.textContent || "").trim();
+            const clean = capitalizarPersonaje(raw);
+            if (clean && !procesadosSet.has(clean)) {
+              procesadosSet.add(clean);
+              listaPersonajes.push(clean);
+            }
+          });
+          if (listaPersonajes.length > 0) break;
+        }
+      }
+    } catch (e) {
+      console.error("Error al extraer personajes de la p\xE1gina:", e);
+    }
+    return listaPersonajes;
+  }
+  function formatearCadenaPersonajes(personajesSeleccionados = []) {
+    if (!Array.isArray(personajesSeleccionados) || personajesSeleccionados.length === 0) {
+      return "";
+    }
+    const limpios = personajesSeleccionados.map((p) => capitalizarPersonaje(p)).filter(Boolean);
+    if (limpios.length === 0) return "";
+    return ` \u3010${limpios.join(" ")}\u3011`;
   }
   var init_tags = __esm({
     "src/core/tags.js"() {
@@ -785,11 +842,13 @@
       const autor = ESTADO.autoresEditadosPorPestana.get(ID_PESTANA) || obtenerAutorOEstadoInicial();
       const tituloBase = ESTADO.titulosEditadosPorPestana.get(ID_PESTANA) || document.title || "";
       const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(ID_PESTANA) || [];
+      const personajesSeleccionados = ESTADO.personajesSeleccionadosPorPestana.get(ID_PESTANA) || [];
       const estiloSeparador = leerValorGM(CLAVES.estiloSeparador, "pipe");
       nombreBase = obtenerNombreFinalCompleto({
         tituloOriginal: tituloBase,
         autor,
         tagsSeleccionados,
+        personajesSeleccionados,
         estiloSeparador
       });
     }
@@ -1038,13 +1097,16 @@
       console.error("Error al registrar interceptor multinivel de descargas:", e);
     }
   }
-  function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null, autorPersonalizado = null) {
+  function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], personajesSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null, autorPersonalizado = null) {
     if (!boton) return false;
     let fueClickeadoConExito = false;
     try {
       interceptarDescargasNativas();
       if (Array.isArray(tagsSeleccionados)) {
         ESTADO.tagsSeleccionadosPorPestana.set(ID_PESTANA, tagsSeleccionados);
+      }
+      if (Array.isArray(personajesSeleccionados)) {
+        ESTADO.personajesSeleccionadosPorPestana.set(ID_PESTANA, personajesSeleccionados);
       }
       if (tituloPersonalizado && typeof tituloPersonalizado === "string" && tituloPersonalizado.trim()) {
         ESTADO.titulosEditadosPorPestana.set(ID_PESTANA, tituloPersonalizado.trim());
@@ -1059,10 +1121,12 @@
       const autorTarget = autorPersonalizado && typeof autorPersonalizado === "string" && autorPersonalizado.trim() ? autorPersonalizado.trim() : ESTADO.autoresEditadosPorPestana.get(ID_PESTANA) || obtenerAutorOEstadoInicial();
       const tituloBase = tituloPersonalizado && typeof tituloPersonalizado === "string" && tituloPersonalizado.trim() ? tituloPersonalizado.trim() : ESTADO.titulosEditadosPorPestana.get(ID_PESTANA) || document.title;
       const tagsEfectivos = Array.isArray(tagsSeleccionados) && tagsSeleccionados.length > 0 ? tagsSeleccionados : ESTADO.tagsSeleccionadosPorPestana.get(ID_PESTANA) || [];
+      const personajesEfectivos = Array.isArray(personajesSeleccionados) && personajesSeleccionados.length > 0 ? personajesSeleccionados : ESTADO.personajesSeleccionadosPorPestana.get(ID_PESTANA) || [];
       const nombreFinalCompleto = obtenerNombreFinalCompleto({
         tituloOriginal: tituloBase,
         autor: autorTarget,
         tagsSeleccionados: tagsEfectivos,
+        personajesSeleccionados: personajesEfectivos,
         estiloSeparador: estiloActivo
       });
       if (nombreFinalCompleto) {
@@ -1128,9 +1192,12 @@
     return fueClickeadoConExito;
   }
   async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
-    const { forzar = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null, autorPersonalizado = null } = opciones;
+    const { forzar = false, tagsSeleccionados = [], personajesSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null, autorPersonalizado = null } = opciones;
     if (Array.isArray(tagsSeleccionados)) {
       ESTADO.tagsSeleccionadosPorPestana.set(ID_PESTANA, tagsSeleccionados);
+    }
+    if (Array.isArray(personajesSeleccionados)) {
+      ESTADO.personajesSeleccionadosPorPestana.set(ID_PESTANA, personajesSeleccionados);
     }
     if (tituloPersonalizado) {
       ESTADO.titulosEditadosPorPestana.set(ID_PESTANA, tituloPersonalizado);
@@ -1156,7 +1223,7 @@
     }
     try {
       ESTADO.ordenesEjecutadas.add(identificadorOrden);
-      const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado);
+      const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados, personajesSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado);
       if (!clicConfirmado) {
         console.warn(obtenerHora(), "Clic no confirmado o bloqueado en el elemento objetivo.");
         return "error_click";
@@ -1670,12 +1737,15 @@
       ultimoCheckClickeado = checkbox;
     });
   }
-  function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponibles = [], tagsPreseleccionados = [], callbackGuardar) {
+  function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponibles = [], tagsPreseleccionados = [], callbackGuardar, personajesDisponibles = [], personajesPreseleccionados = []) {
     const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
     const backdropTag = document.createElement("div");
     backdropTag.className = "hitomi-tag-modal-backdrop";
     const tagsSeleccionadosSet = new Set(
       Array.isArray(tagsPreseleccionados) && tagsPreseleccionados.length > 0 ? tagsPreseleccionados : ESTADO.tagsSeleccionadosPorPestana.get(pestanaId) || []
+    );
+    const personajesSeleccionadosSet = new Set(
+      Array.isArray(personajesPreseleccionados) && personajesPreseleccionados.length > 0 ? personajesPreseleccionados : ESTADO.personajesSeleccionadosPorPestana.get(pestanaId) || []
     );
     const todosLosTagsDisponibles = /* @__PURE__ */ new Set();
     (tagsDisponibles || []).forEach((t) => {
@@ -1707,6 +1777,20 @@
       </div>
 
       <div class="hitomi-modal-body">
+        <!-- SECCI\xD3N DE PERSONAJES DETECTADOS -->
+        <div class="hitomi-custom-tags-contenedor" style="margin-bottom: 12px;">
+          <div style="font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+            <span>\u{1F464} Personajes Detectados:</span>
+            ${personajesDisponibles && personajesDisponibles.length > 0 ? `<span id="hitomi-personajes-count-badge" style="font-size: 11px; color: #3fb950; font-weight: 600;">(${personajesSeleccionadosSet.size} de ${personajesDisponibles.length} seleccionados)</span>` : ""}
+          </div>
+          ${!personajesDisponibles || personajesDisponibles.length === 0 ? `<div style="font-size: 12px; color: #768390; font-style: italic;">No hay personajes por a\xF1adir</div>` : `<div class="hitomi-grid-tags" id="hitomi-contenedor-pills-personajes">
+                   ${personajesDisponibles.map((pName) => {
+      const estaActivo = personajesSeleccionadosSet.has(pName);
+      return `<div class="hitomi-pill-tag ${estaActivo ? "activa" : ""}" data-personaje="${escapeHtml(pName)}" title="Clic para ${estaActivo ? "desmarcar" : "seleccionar"} el personaje '${escapeHtml(pName)}'">${escapeHtml(pName)}</div>`;
+    }).join("")}
+                 </div>`}
+        </div>
+
         <div class="hitomi-estilo-separador-contenedor">
           <div style="font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 8px;">
             \u{1F4D0} Estilo del Separador de Tags:
@@ -1766,6 +1850,25 @@
     const btnAddCustom = backdropTag.querySelector("#hitomi-btn-add-custom-tag");
     const warningCustom = backdropTag.querySelector("#hitomi-custom-tag-warning");
     const contenedorPills = backdropTag.querySelector("#hitomi-contenedor-pills");
+    const contenedorPersonajes = backdropTag.querySelector("#hitomi-contenedor-pills-personajes");
+    if (contenedorPersonajes) {
+      contenedorPersonajes.addEventListener("click", (ev) => {
+        const pill = ev.target.closest(".hitomi-pill-tag");
+        if (!pill) return;
+        const pName = pill.getAttribute("data-personaje");
+        if (personajesSeleccionadosSet.has(pName)) {
+          personajesSeleccionadosSet.delete(pName);
+          pill.classList.remove("activa");
+        } else {
+          personajesSeleccionadosSet.add(pName);
+          pill.classList.add("activa");
+        }
+        const countBadge = backdropTag.querySelector("#hitomi-personajes-count-badge");
+        if (countBadge) {
+          countBadge.textContent = `(${personajesSeleccionadosSet.size} de ${personajesDisponibles.length} seleccionados)`;
+        }
+      });
+    }
     let timerWarningTag = null;
     function validarYLimpiarEntradaCustomTag() {
       if (!inputCustom) return;
@@ -1884,10 +1987,12 @@
     backdropTag.querySelector("#hitomi-tag-btn-cerrar").addEventListener("click", cerrar);
     backdropTag.querySelector("#hitomi-tag-btn-cancelar").addEventListener("click", cerrar);
     backdropTag.querySelector("#hitomi-tag-btn-guardar").addEventListener("click", () => {
-      const listaFinal = Array.from(tagsSeleccionadosSet);
-      ESTADO.tagsSeleccionadosPorPestana.set(pestanaId, listaFinal);
+      const listaFinalTags = Array.from(tagsSeleccionadosSet);
+      const listaFinalPersonajes = Array.from(personajesSeleccionadosSet);
+      ESTADO.tagsSeleccionadosPorPestana.set(pestanaId, listaFinalTags);
+      ESTADO.personajesSeleccionadosPorPestana.set(pestanaId, listaFinalPersonajes);
       cerrar();
-      if (typeof callbackGuardar === "function") callbackGuardar(listaFinal);
+      if (typeof callbackGuardar === "function") callbackGuardar(listaFinalTags, listaFinalPersonajes);
     });
   }
   function mostrarModalRutaDescarga(callbackGuardar) {
@@ -2083,7 +2188,9 @@
         (p) => {
           const estaMarcada = pestanasMarcadasSet.has(p.id);
           const tagsSel = ESTADO.tagsSeleccionadosPorPestana.get(p.id) || [];
-          const tieneTags = tagsSel.length > 0;
+          const personajesSel = ESTADO.personajesSeleccionadosPorPestana.get(p.id) || [];
+          const totalSelCount = tagsSel.length + personajesSel.length;
+          const tieneTags = totalSelCount > 0;
           const autorEditado = ESTADO.autoresEditadosPorPestana.get(p.id);
           let autorMostrar = autorEditado !== void 0 && autorEditado !== null ? autorEditado : p.autor || "";
           if (!autorMostrar || /^n\/?a$/i.test(autorMostrar.trim()) || /^none$/i.test(autorMostrar.trim())) {
@@ -2094,24 +2201,24 @@
           const tituloEditado = ESTADO.titulosEditadosPorPestana.get(p.id);
           const tituloMostrar = tituloEditado !== void 0 && tituloEditado !== null ? tituloEditado : p.titulo;
           return `
-                           <div class="hitomi-modal-item ${p.yaProcesada ? "es-forzada" : ""}">
-                             <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" ${estaMarcada ? "checked" : ""} style="accent-color: #ec4899;" title="Marcar/desmarcar este c\xF3mic para la descarga" />
-                             <div class="hitomi-modal-item-info">
-                               <div class="hitomi-modal-inputs-row">
-                                 <input type="text" class="hitomi-input-autor-item" data-id="${p.id}" value="${escapeHtml(autorMostrar)}" title="Editar autor o grupo (se antepondr\xE1 entre corchetes \u300C...\u300D al inicio)" placeholder="Autor..." />
-                                 <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Editar el nombre de archivo con el que se guardar\xE1 este c\xF3mic en tu computadora" placeholder="T\xEDtulo del archivo..." />
-                               </div>
-                               <div class="hitomi-modal-item-url" title="${escapeHtml(p.url)}">${escapeHtml(p.url)}</div>
-                             </div>
-                             <button class="hitomi-btn-abrir-tags ${tieneTags ? "tiene-tags" : ""}" data-id="${p.id}" title="Abrir el panel para elegir qu\xE9 etiquetas concatenar al nombre de este c\xF3mic">
-                               \u{1F3F7}\uFE0F Tags ${tieneTags ? `(${tagsSel.length})` : ""}
-                             </button>
-                             ${p.yaProcesada ? `<span class="hitomi-item-tag hitomi-tag-forzada" title="Indica si este c\xF3mic es nuevo o si ya se hab\xEDa descargado antes">${p.esForzada ? "\u26A0\uFE0F Re-descargada" : "\u26A0\uFE0F Ya descargada"}</span>` : `<span class="hitomi-item-tag hitomi-tag-nueva" title="C\xF3mic nuevo pendiente de descarga">Nueva</span>`}
-                           </div>
-                         `;
+                            <div class="hitomi-modal-item ${p.yaProcesada ? "es-forzada" : ""}">
+                              <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" ${estaMarcada ? "checked" : ""} style="accent-color: #ec4899;" title="Marcar/desmarcar este c\xF3mic para la descarga" />
+                              <div class="hitomi-modal-item-info">
+                                <div class="hitomi-modal-inputs-row">
+                                  <input type="text" class="hitomi-input-autor-item" data-id="${p.id}" value="${escapeHtml(autorMostrar)}" title="Editar autor o grupo (se antepondr\xE1 entre corchetes \u300C...\u300D al inicio)" placeholder="Autor..." />
+                                  <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Editar el nombre de archivo con el que se guardar\xE1 este c\xF3mic en tu computadora" placeholder="T\xEDtulo del archivo..." />
+                                </div>
+                                <div class="hitomi-modal-item-url" title="${escapeHtml(p.url)}">${escapeHtml(p.url)}</div>
+                              </div>
+                              <button class="hitomi-btn-abrir-tags ${tieneTags ? "tiene-tags" : ""}" data-id="${p.id}" title="Abrir el panel para elegir qu\xE9 etiquetas y personajes concatenar al nombre de este c\xF3mic">
+                                \u{1F3F7}\uFE0F Tags ${tieneTags ? `(${totalSelCount})` : ""}
+                              </button>
+                              ${p.yaProcesada ? `<span class="hitomi-item-tag hitomi-tag-forzada" title="Indica si este c\xF3mic es nuevo o si ya se hab\xEDa descargado antes">${p.esForzada ? "\u26A0\uFE0F Re-descargada" : "\u26A0\uFE0F Ya descargada"}</span>` : `<span class="hitomi-item-tag hitomi-tag-nueva" title="C\xF3mic nuevo pendiente de descarga">Nueva</span>`}
+                            </div>
+                          `;
         }
       ).join("")}
-                 </div>`}
+                  </div>`}
         </div>
 
         <!-- PIE DE MODAL / SECCI\xD3N DE ACCIONES (BOTONES DE EJECUCI\xD3N) -->
@@ -2236,7 +2343,9 @@
             ESTADO.titulosEditadosPorPestana.get(pId) || pInfo.titulo,
             pInfo.tagsDisponibles || [],
             ESTADO.tagsSeleccionadosPorPestana.get(pId) || [],
-            () => renderizarContenidoModal()
+            () => renderizarContenidoModal(),
+            pInfo.personajesDisponibles || [],
+            ESTADO.personajesSeleccionadosPorPestana.get(pId) || []
           );
         });
       }
@@ -2258,6 +2367,7 @@
         ESTADO.titulosEditadosPorPestana.clear();
         ESTADO.autoresEditadosPorPestana.clear();
         ESTADO.tagsSeleccionadosPorPestana.clear();
+        ESTADO.personajesSeleccionadosPorPestana.clear();
         pestanasMarcadasSet.clear();
         await solicitarSincronizacionGlobalPestanas(modoForzado);
         renderizarContenidoModal();
@@ -2473,6 +2583,7 @@
       const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
       const tagsDisponibles = extraerTagsPagina();
       const serieDetectada = extraerSeriePagina();
+      const personajesDetectados = extraerPersonajesPagina();
       const ahora = Date.now();
       guardarValorGM(CLAVES.presencia(ID_PESTANA), tieneBoton);
       guardarValorGM(CLAVES.urlPestana(ID_PESTANA), location.href);
@@ -2480,6 +2591,7 @@
       guardarValorGM(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
       guardarValorGM(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
       guardarValorGM(CLAVES.seriePestana(ID_PESTANA), serieDetectada);
+      guardarValorGM(CLAVES.personajesPestana(ID_PESTANA), personajesDetectados);
       guardarValorGM(CLAVES.timestampPestana(ID_PESTANA), ahora);
       ESTADO.ultimoEstadoPublicado = tieneBoton;
     } catch (e) {
@@ -2496,6 +2608,7 @@
       eliminarValorGM(CLAVES.autorPestana(ID_PESTANA));
       eliminarValorGM(CLAVES.tagsPestana(ID_PESTANA));
       eliminarValorGM(CLAVES.seriePestana(ID_PESTANA));
+      eliminarValorGM(CLAVES.personajesPestana(ID_PESTANA));
       eliminarValorGM(CLAVES.timestampPestana(ID_PESTANA));
     } catch {
     }
@@ -2519,6 +2632,7 @@
         const autor = leerValorGM(CLAVES.autorPestana(id), "");
         const tagsDisponibles = leerValorGM(CLAVES.tagsPestana(id), []);
         const serie = leerValorGM(CLAVES.seriePestana(id), "");
+        const personajesDisponibles = leerValorGM(CLAVES.personajesPestana(id), []);
         if (!estado.procesada || incluirProcesadas) {
           resultado.push({
             id,
@@ -2527,6 +2641,7 @@
             autor,
             tagsDisponibles,
             serie,
+            personajesDisponibles,
             yaProcesada: estado.procesada,
             esForzada: estado.esForzada
           });
@@ -2555,11 +2670,12 @@
       for (const idPestana of pesta\u00F1as) {
         const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(idPestana) || [];
+        const personajesSeleccionados = ESTADO.personajesSeleccionadosPorPestana.get(idPestana) || [];
         const tituloPersonalizado = ESTADO.titulosEditadosPorPestana.get(idPestana) || null;
         const autorPersonalizado = ESTADO.autoresEditadosPorPestana.get(idPestana) || null;
         let respuesta = null;
         if (idPestana === ID_PESTANA) {
-          respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado });
+          respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, personajesSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado });
         } else {
           const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
           eliminarValorGM(claveRespuesta);
@@ -2568,6 +2684,7 @@
             nonce,
             forzar,
             tagsSeleccionados,
+            personajesSeleccionados,
             estiloSeparador,
             tituloPersonalizado,
             autorPersonalizado
@@ -2693,13 +2810,14 @@
                 if (!cambioRemoto || !valorNuevo || typeof valorNuevo !== "object") {
                   return;
                 }
-                const { pesta\u00F1aDestino, nonce, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
+                const { pesta\u00F1aDestino, nonce, forzar, tagsSeleccionados, personajesSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
                 if (pesta\u00F1aDestino !== ID_PESTANA) {
                   return;
                 }
                 const resultado = await ejecutarOrdenDescarga(nonce, {
                   forzar: !!forzar,
                   tagsSeleccionados: tagsSeleccionados || [],
+                  personajesSeleccionados: personajesSeleccionados || [],
                   estiloSeparador: estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe"),
                   tituloPersonalizado: tituloPersonalizado || null,
                   autorPersonalizado: autorPersonalizado || null
@@ -2730,10 +2848,11 @@
                 try {
                   const valorNuevo = JSON.parse(e.newValue);
                   if (valorNuevo && typeof valorNuevo === "object" && valorNuevo.pesta\u00F1aDestino === ID_PESTANA) {
-                    const { nonce, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
+                    const { nonce, forzar, tagsSeleccionados, personajesSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado } = valorNuevo;
                     const resultado = await ejecutarOrdenDescarga(nonce, {
                       forzar: !!forzar,
                       tagsSeleccionados: tagsSeleccionados || [],
+                      personajesSeleccionados: personajesSeleccionados || [],
                       estiloSeparador: estiloSeparador || "pipe",
                       tituloPersonalizado: tituloPersonalizado || null,
                       autorPersonalizado: autorPersonalizado || null

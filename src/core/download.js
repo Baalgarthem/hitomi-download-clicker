@@ -90,11 +90,13 @@ export function generarNombreFinalConExtension(referenciaUrl = "") {
     const autor = ESTADO.autoresEditadosPorPestana.get(ID_PESTANA) || obtenerAutorOEstadoInicial();
     const tituloBase = ESTADO.titulosEditadosPorPestana.get(ID_PESTANA) || document.title || "";
     const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(ID_PESTANA) || [];
+    const personajesSeleccionados = ESTADO.personajesSeleccionadosPorPestana.get(ID_PESTANA) || [];
     const estiloSeparador = leerValorGM(CLAVES.estiloSeparador, "pipe");
     nombreBase = obtenerNombreFinalCompleto({
       tituloOriginal: tituloBase,
       autor,
       tagsSeleccionados,
+      personajesSeleccionados,
       estiloSeparador
     });
   }
@@ -409,7 +411,7 @@ export function interceptarDescargasNativas() {
   }
 }
 
-export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null, autorPersonalizado = null) {
+export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], personajesSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null, autorPersonalizado = null) {
   if (!boton) return false;
 
   let fueClickeadoConExito = false;
@@ -419,6 +421,9 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
 
     if (Array.isArray(tagsSeleccionados)) {
       ESTADO.tagsSeleccionadosPorPestana.set(ID_PESTANA, tagsSeleccionados);
+    }
+    if (Array.isArray(personajesSeleccionados)) {
+      ESTADO.personajesSeleccionadosPorPestana.set(ID_PESTANA, personajesSeleccionados);
     }
     if (tituloPersonalizado && typeof tituloPersonalizado === "string" && tituloPersonalizado.trim()) {
       ESTADO.titulosEditadosPorPestana.set(ID_PESTANA, tituloPersonalizado.trim());
@@ -442,11 +447,15 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
     const tagsEfectivos = (Array.isArray(tagsSeleccionados) && tagsSeleccionados.length > 0)
       ? tagsSeleccionados
       : (ESTADO.tagsSeleccionadosPorPestana.get(ID_PESTANA) || []);
+    const personajesEfectivos = (Array.isArray(personajesSeleccionados) && personajesSeleccionados.length > 0)
+      ? personajesSeleccionados
+      : (ESTADO.personajesSeleccionadosPorPestana.get(ID_PESTANA) || []);
 
     const nombreFinalCompleto = obtenerNombreFinalCompleto({
       tituloOriginal: tituloBase,
       autor: autorTarget,
       tagsSeleccionados: tagsEfectivos,
+      personajesSeleccionados: personajesEfectivos,
       estiloSeparador: estiloActivo
     });
 
@@ -523,10 +532,13 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
 }
 
 export async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
-  const { forzar = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null, autorPersonalizado = null } = opciones;
+  const { forzar = false, tagsSeleccionados = [], personajesSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null, autorPersonalizado = null } = opciones;
 
   if (Array.isArray(tagsSeleccionados)) {
     ESTADO.tagsSeleccionadosPorPestana.set(ID_PESTANA, tagsSeleccionados);
+  }
+  if (Array.isArray(personajesSeleccionados)) {
+    ESTADO.personajesSeleccionadosPorPestana.set(ID_PESTANA, personajesSeleccionados);
   }
   if (tituloPersonalizado) {
     ESTADO.titulosEditadosPorPestana.set(ID_PESTANA, tituloPersonalizado);
@@ -559,7 +571,7 @@ export async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
   try {
     ESTADO.ordenesEjecutadas.add(identificadorOrden);
 
-    const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado);
+    const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados, personajesSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado);
 
     if (!clicConfirmado) {
       console.warn(obtenerHora(), "Clic no confirmado o bloqueado en el elemento objetivo.");

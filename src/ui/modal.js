@@ -494,7 +494,7 @@ export function vincularSeleccionMultipleCheckboxes(listaContenedor) {
 /**
  * Muestra el sub-modal de selección personalizada de tags para un comic específico.
  */
-export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponibles = [], tagsPreseleccionados = [], callbackGuardar) {
+export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponibles = [], tagsPreseleccionados = [], callbackGuardar, personajesDisponibles = [], personajesPreseleccionados = []) {
   const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
   const backdropTag = document.createElement("div");
   backdropTag.className = "hitomi-tag-modal-backdrop";
@@ -503,6 +503,12 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
     Array.isArray(tagsPreseleccionados) && tagsPreseleccionados.length > 0
       ? tagsPreseleccionados
       : (ESTADO.tagsSeleccionadosPorPestana.get(pestanaId) || [])
+  );
+
+  const personajesSeleccionadosSet = new Set(
+    Array.isArray(personajesPreseleccionados) && personajesPreseleccionados.length > 0
+      ? personajesPreseleccionados
+      : (ESTADO.personajesSeleccionadosPorPestana.get(pestanaId) || [])
   );
 
   const todosLosTagsDisponibles = new Set();
@@ -542,6 +548,30 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
       </div>
 
       <div class="hitomi-modal-body">
+        <!-- SECCIÓN DE PERSONAJES DETECTADOS -->
+        <div class="hitomi-custom-tags-contenedor" style="margin-bottom: 12px;">
+          <div style="font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+            <span>👤 Personajes Detectados:</span>
+            ${
+              personajesDisponibles && personajesDisponibles.length > 0
+                ? `<span id="hitomi-personajes-count-badge" style="font-size: 11px; color: #3fb950; font-weight: 600;">(${personajesSeleccionadosSet.size} de ${personajesDisponibles.length} seleccionados)</span>`
+                : ''
+            }
+          </div>
+          ${
+            !personajesDisponibles || personajesDisponibles.length === 0
+              ? `<div style="font-size: 12px; color: #768390; font-style: italic;">No hay personajes por añadir</div>`
+              : `<div class="hitomi-grid-tags" id="hitomi-contenedor-pills-personajes">
+                   ${personajesDisponibles
+                     .map(pName => {
+                       const estaActivo = personajesSeleccionadosSet.has(pName);
+                       return `<div class="hitomi-pill-tag ${estaActivo ? 'activa' : ''}" data-personaje="${escapeHtml(pName)}" title="Clic para ${estaActivo ? 'desmarcar' : 'seleccionar'} el personaje '${escapeHtml(pName)}'">${escapeHtml(pName)}</div>`;
+                     })
+                     .join('')}
+                 </div>`
+          }
+        </div>
+
         <div class="hitomi-estilo-separador-contenedor">
           <div style="font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 8px;">
             📐 Estilo del Separador de Tags:
@@ -603,6 +633,27 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
   const btnAddCustom = backdropTag.querySelector("#hitomi-btn-add-custom-tag");
   const warningCustom = backdropTag.querySelector("#hitomi-custom-tag-warning");
   const contenedorPills = backdropTag.querySelector("#hitomi-contenedor-pills");
+  const contenedorPersonajes = backdropTag.querySelector("#hitomi-contenedor-pills-personajes");
+
+  if (contenedorPersonajes) {
+    contenedorPersonajes.addEventListener("click", ev => {
+      const pill = ev.target.closest(".hitomi-pill-tag");
+      if (!pill) return;
+
+      const pName = pill.getAttribute("data-personaje");
+      if (personajesSeleccionadosSet.has(pName)) {
+        personajesSeleccionadosSet.delete(pName);
+        pill.classList.remove("activa");
+      } else {
+        personajesSeleccionadosSet.add(pName);
+        pill.classList.add("activa");
+      }
+      const countBadge = backdropTag.querySelector("#hitomi-personajes-count-badge");
+      if (countBadge) {
+        countBadge.textContent = `(${personajesSeleccionadosSet.size} de ${personajesDisponibles.length} seleccionados)`;
+      }
+    });
+  }
 
   let timerWarningTag = null;
 
@@ -747,10 +798,12 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
   backdropTag.querySelector("#hitomi-tag-btn-cancelar").addEventListener("click", cerrar);
 
   backdropTag.querySelector("#hitomi-tag-btn-guardar").addEventListener("click", () => {
-    const listaFinal = Array.from(tagsSeleccionadosSet);
-    ESTADO.tagsSeleccionadosPorPestana.set(pestanaId, listaFinal);
+    const listaFinalTags = Array.from(tagsSeleccionadosSet);
+    const listaFinalPersonajes = Array.from(personajesSeleccionadosSet);
+    ESTADO.tagsSeleccionadosPorPestana.set(pestanaId, listaFinalTags);
+    ESTADO.personajesSeleccionadosPorPestana.set(pestanaId, listaFinalPersonajes);
     cerrar();
-    if (typeof callbackGuardar === "function") callbackGuardar(listaFinal);
+    if (typeof callbackGuardar === "function") callbackGuardar(listaFinalTags, listaFinalPersonajes);
   });
 }
 
@@ -985,45 +1038,47 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                  <div class="hitomi-modal-lista" id="hitomi-modal-lista-items">
                    ${pestanasInfo
                      .map(
-                       p => {
-                         const estaMarcada = pestanasMarcadasSet.has(p.id);
-                         const tagsSel = ESTADO.tagsSeleccionadosPorPestana.get(p.id) || [];
-                         const tieneTags = tagsSel.length > 0;
+                        p => {
+                          const estaMarcada = pestanasMarcadasSet.has(p.id);
+                          const tagsSel = ESTADO.tagsSeleccionadosPorPestana.get(p.id) || [];
+                          const personajesSel = ESTADO.personajesSeleccionadosPorPestana.get(p.id) || [];
+                          const totalSelCount = tagsSel.length + personajesSel.length;
+                          const tieneTags = totalSelCount > 0;
 
-                         const autorEditado = ESTADO.autoresEditadosPorPestana.get(p.id);
-                         let autorMostrar = (autorEditado !== undefined && autorEditado !== null) ? autorEditado : (p.autor || "");
-                         if (!autorMostrar || /^n\/?a$/i.test(autorMostrar.trim()) || /^none$/i.test(autorMostrar.trim())) {
-                           autorMostrar = "Unknown";
-                         } else {
-                           autorMostrar = capitalizarNombre(autorMostrar);
-                         }
+                          const autorEditado = ESTADO.autoresEditadosPorPestana.get(p.id);
+                          let autorMostrar = (autorEditado !== undefined && autorEditado !== null) ? autorEditado : (p.autor || "");
+                          if (!autorMostrar || /^n\/?a$/i.test(autorMostrar.trim()) || /^none$/i.test(autorMostrar.trim())) {
+                            autorMostrar = "Unknown";
+                          } else {
+                            autorMostrar = capitalizarNombre(autorMostrar);
+                          }
 
-                         const tituloEditado = ESTADO.titulosEditadosPorPestana.get(p.id);
-                         const tituloMostrar = (tituloEditado !== undefined && tituloEditado !== null) ? tituloEditado : p.titulo;
-                         return `
-                           <div class="hitomi-modal-item ${p.yaProcesada ? 'es-forzada' : ''}">
-                             <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" ${estaMarcada ? 'checked' : ''} style="accent-color: #ec4899;" title="Marcar/desmarcar este cómic para la descarga" />
-                             <div class="hitomi-modal-item-info">
-                               <div class="hitomi-modal-inputs-row">
-                                 <input type="text" class="hitomi-input-autor-item" data-id="${p.id}" value="${escapeHtml(autorMostrar)}" title="Editar autor o grupo (se antepondrá entre corchetes 「...」 al inicio)" placeholder="Autor..." />
-                                 <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Editar el nombre de archivo con el que se guardará este cómic en tu computadora" placeholder="Título del archivo..." />
-                               </div>
-                               <div class="hitomi-modal-item-url" title="${escapeHtml(p.url)}">${escapeHtml(p.url)}</div>
-                             </div>
-                             <button class="hitomi-btn-abrir-tags ${tieneTags ? 'tiene-tags' : ''}" data-id="${p.id}" title="Abrir el panel para elegir qué etiquetas concatenar al nombre de este cómic">
-                               🏷️ Tags ${tieneTags ? `(${tagsSel.length})` : ''}
-                             </button>
-                             ${
-                               p.yaProcesada
-                                 ? `<span class="hitomi-item-tag hitomi-tag-forzada" title="Indica si este cómic es nuevo o si ya se había descargado antes">${p.esForzada ? '⚠️ Re-descargada' : '⚠️ Ya descargada'}</span>`
-                                 : `<span class="hitomi-item-tag hitomi-tag-nueva" title="Cómic nuevo pendiente de descarga">Nueva</span>`
-                             }
-                           </div>
-                         `;
-                       }
-                     )
-                     .join('')}
-                 </div>`
+                          const tituloEditado = ESTADO.titulosEditadosPorPestana.get(p.id);
+                          const tituloMostrar = (tituloEditado !== undefined && tituloEditado !== null) ? tituloEditado : p.titulo;
+                          return `
+                            <div class="hitomi-modal-item ${p.yaProcesada ? 'es-forzada' : ''}">
+                              <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" ${estaMarcada ? 'checked' : ''} style="accent-color: #ec4899;" title="Marcar/desmarcar este cómic para la descarga" />
+                              <div class="hitomi-modal-item-info">
+                                <div class="hitomi-modal-inputs-row">
+                                  <input type="text" class="hitomi-input-autor-item" data-id="${p.id}" value="${escapeHtml(autorMostrar)}" title="Editar autor o grupo (se antepondrá entre corchetes 「...」 al inicio)" placeholder="Autor..." />
+                                  <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Editar el nombre de archivo con el que se guardará este cómic en tu computadora" placeholder="Título del archivo..." />
+                                </div>
+                                <div class="hitomi-modal-item-url" title="${escapeHtml(p.url)}">${escapeHtml(p.url)}</div>
+                              </div>
+                              <button class="hitomi-btn-abrir-tags ${tieneTags ? 'tiene-tags' : ''}" data-id="${p.id}" title="Abrir el panel para elegir qué etiquetas y personajes concatenar al nombre de este cómic">
+                                🏷️ Tags ${tieneTags ? `(${totalSelCount})` : ''}
+                              </button>
+                              ${
+                                p.yaProcesada
+                                  ? `<span class="hitomi-item-tag hitomi-tag-forzada" title="Indica si este cómic es nuevo o si ya se había descargado antes">${p.esForzada ? '⚠️ Re-descargada' : '⚠️ Ya descargada'}</span>`
+                                  : `<span class="hitomi-item-tag hitomi-tag-nueva" title="Cómic nuevo pendiente de descarga">Nueva</span>`
+                              }
+                            </div>
+                          `;
+                        }
+                      )
+                      .join('')}
+                  </div>`
           }
         </div>
 
@@ -1172,7 +1227,9 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
           ESTADO.titulosEditadosPorPestana.get(pId) || pInfo.titulo,
           pInfo.tagsDisponibles || [],
           ESTADO.tagsSeleccionadosPorPestana.get(pId) || [],
-          () => renderizarContenidoModal()
+          () => renderizarContenidoModal(),
+          pInfo.personajesDisponibles || [],
+          ESTADO.personajesSeleccionadosPorPestana.get(pId) || []
         );
       });
     }
@@ -1198,6 +1255,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
       ESTADO.titulosEditadosPorPestana.clear();
       ESTADO.autoresEditadosPorPestana.clear();
       ESTADO.tagsSeleccionadosPorPestana.clear();
+      ESTADO.personajesSeleccionadosPorPestana.clear();
       pestanasMarcadasSet.clear();
       await solicitarSincronizacionGlobalPestanas(modoForzado);
       renderizarContenidoModal();

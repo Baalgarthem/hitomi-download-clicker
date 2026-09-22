@@ -190,6 +190,7 @@ export function obtenerNombreFinalCompleto(opciones = {}) {
     tituloOriginal = "",
     autor = null,
     tagsSeleccionados = [],
+    personajesSeleccionados = [],
     estiloSeparador = null,
     serie = null,
     incluirSerie = null
@@ -221,6 +222,9 @@ export function obtenerNombreFinalCompleto(opciones = {}) {
     }
   }
 
+  // Elemento 5 (Sufijo Personajes): Personajes seleccionados entre corchetes japoneses 【Personaje1 Personaje2】 siempre después de la serie
+  const seccionPersonajes = formatearCadenaPersonajes(personajesSeleccionados);
+
   // Construcción desacoplada de los elementos y saneamiento estricto para FileSystem
   let nombreFinal = `${autorFormateado} ${tituloLimpio}`.trim();
   if (seccionTags) {
@@ -229,8 +233,75 @@ export function obtenerNombreFinalCompleto(opciones = {}) {
   if (seccionSerie) {
     nombreFinal = `${nombreFinal}${seccionSerie}`;
   }
+  if (seccionPersonajes) {
+    nombreFinal = `${nombreFinal}${seccionPersonajes}`;
+  }
 
   return sanearNombreArchivoFileSystem(nombreFinal);
+}
+
+/**
+ * Capitaliza cada palabra de un nombre de personaje (Title Case).
+ * Ejemplo: "relena peacecraft" -> "Relena Peacecraft"
+ * Ejemplo: "dermail catalonia" -> "Dermail Catalonia"
+ * @param {string} str - Nombre bruto del personaje.
+ * @returns {string} Nombre del personaje formateado en Title Case.
+ */
+export function capitalizarPersonaje(str = "") {
+  if (!str || typeof str !== "string") return "";
+  let texto = str.trim();
+  texto = texto.replace(/\s*-\s*all$/i, "").trim();
+  texto = texto.replace(/^character:/i, "").trim();
+  texto = texto.replace(/[♀♂]/g, "").trim();
+
+  if (/^(?:n\/?a|none)$/i.test(texto)) return "";
+
+  return texto.replace(/\b[a-zA-ZáéíóúÁÉÍÓÚñÑ]+/g, word => {
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+}
+
+/**
+ * Escanea el DOM de la página para extraer los personajes presentes en <ul id="characters">.
+ * @returns {Array<string>} Lista de nombres de personajes limpios y capitalizados.
+ */
+export function extraerPersonajesPagina() {
+  const listaPersonajes = [];
+  const procesadosSet = new Set();
+  try {
+    if (typeof document === "undefined") return [];
+    for (const selector of CONFIGURACION.selectoresPersonajes) {
+      const elementos = document.querySelectorAll(selector);
+      if (elementos && elementos.length > 0) {
+        elementos.forEach(el => {
+          const raw = (el.textContent || "").trim();
+          const clean = capitalizarPersonaje(raw);
+          if (clean && !procesadosSet.has(clean)) {
+            procesadosSet.add(clean);
+            listaPersonajes.push(clean);
+          }
+        });
+        if (listaPersonajes.length > 0) break;
+      }
+    }
+  } catch (e) {
+    console.error("Error al extraer personajes de la página:", e);
+  }
+  return listaPersonajes;
+}
+
+/**
+ * Formatea un arreglo de personajes seleccionados en el sufijo corchete japonés 【Personaje1 Personaje2】.
+ * @param {Array<string>} personajesSeleccionados - Arreglo de personajes seleccionados.
+ * @returns {string} Cadena formateada ej. " 【Relena Peacecraft Dermail Catalonia】".
+ */
+export function formatearCadenaPersonajes(personajesSeleccionados = []) {
+  if (!Array.isArray(personajesSeleccionados) || personajesSeleccionados.length === 0) {
+    return "";
+  }
+  const limpios = personajesSeleccionados.map(p => capitalizarPersonaje(p)).filter(Boolean);
+  if (limpios.length === 0) return "";
+  return ` 【${limpios.join(" ")}】`;
 }
 
 /**
