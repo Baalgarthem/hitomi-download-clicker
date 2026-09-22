@@ -2,11 +2,11 @@
 // Detección Multinivel y Ejecución del Botón de Descarga
 // ─────────────────────────────────────────────
 
-import { CONFIGURACION, ESTADO } from '../config/constants.js';
+import { CONFIGURACION, ESTADO, CLAVES } from '../config/constants.js';
 import { elementoVisible, esperar, obtenerHora } from '../utils/dom.js';
 import { obtenerEstadoPaginaProcesada, guardarPaginaProcesada } from './memory.js';
 import { vincularEventosBotonDescarga, marcarBotonComoProcesado } from '../ui/badge.js';
-import { extraerNombreAutor, formatearNombreAutor } from './author.js';
+import { extraerNombreAutor } from './author.js';
 import { obtenerNombreFinalCompleto, formatearCadenaTags } from './tags.js';
 
 export function obtenerElementoBotonDescarga() {
@@ -71,7 +71,7 @@ export async function buscarBotonDescarga(opciones = {}) {
   return null;
 }
 
-export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = []) {
+export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null) {
   if (!boton) return false;
 
   let fueClickeadoConExito = false;
@@ -81,19 +81,19 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
     const estiloPointerPrevio = boton.style.pointerEvents;
     const deshabilitadoPrevio = boton.disabled;
 
-    // Extraer autor y formatear el nombre final completo: 「Artista」 Nombre ┃ tags
+    const estiloActivo = estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
     const autor = extraerNombreAutor();
-    const autorFormateado = formatearNombreAutor(autor);
     const nombreFinalCompleto = obtenerNombreFinalCompleto({
       tituloOriginal: document.title,
-      autorFormateado,
-      tagsSeleccionados
+      autor,
+      tagsSeleccionados,
+      estiloSeparador: estiloActivo
     });
 
     if (nombreFinalCompleto) {
       boton.setAttribute("data-hitomi-nombre-final", nombreFinalCompleto);
       if (tagsSeleccionados.length > 0) {
-        boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsSeleccionados));
+        boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsSeleccionados, estiloActivo));
       }
       boton.setAttribute("title", nombreFinalCompleto);
       if (boton.hasAttribute("download") || boton.tagName.toLowerCase() === "a") {
@@ -153,7 +153,7 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
 }
 
 export async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
-  const { forzar = false, tagsSeleccionados = [] } = opciones;
+  const { forzar = false, tagsSeleccionados = [], estiloSeparador = null } = opciones;
 
   if (ESTADO.ordenesEjecutadas.has(identificadorOrden)) {
     return "orden_repetida";
@@ -179,7 +179,7 @@ export async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
   try {
     ESTADO.ordenesEjecutadas.add(identificadorOrden);
 
-    const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados);
+    const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados, estiloSeparador);
 
     if (!clicConfirmado) {
       console.warn(obtenerHora(), "Clic no confirmado o bloqueado en el elemento objetivo.");

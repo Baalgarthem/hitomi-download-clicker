@@ -5,6 +5,21 @@
 import { CONFIGURACION } from '../config/constants.js';
 
 /**
+ * Capitaliza adecuadamente la primera letra de cada palabra de un texto.
+ * Ejemplo: "nodo" -> "Nodo", "john doe" -> "John Doe"
+ * @param {string} texto - Texto a capitalizar.
+ * @returns {string} Texto capitalizado.
+ */
+export function capitalizarNombre(texto = "") {
+  if (!texto || typeof texto !== "string") return "";
+  return texto
+    .trim()
+    .split(/\s+/)
+    .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1))
+    .join(" ");
+}
+
+/**
  * Extrae el nombre del autor o artistas presentes en la página actual de Hitomi.
  * Inspecciona elementos como <h2 id="artists">, listas de comas y fallbacks.
  * @returns {string} El nombre del autor extraído o cadena vacía si no se encuentra.
@@ -27,7 +42,7 @@ export function extraerNombreAutor() {
       }
     }
 
-    // Fallback: Buscar en la tabla de información de la galería (ej. td que contenga Artist)
+    // Fallback: Buscar en la tabla de información de la galería
     const celdas = document.querySelectorAll("td, th, .gallery-info tr");
     for (let i = 0; i < celdas.length; i++) {
       const contenido = (celdas[i].textContent || "").toLowerCase();
@@ -45,28 +60,13 @@ export function extraerNombreAutor() {
 }
 
 /**
- * Formatea un nombre de autor envolviéndolo en comillas japonesas 「xxxx」.
+ * Formatea un nombre de autor capitalizándolo y envolviéndolo en comillas japonesas 「xxxx」.
+ * Ejemplo: "nodo" -> "「Nodo」"
  * @param {string} autor - Nombre del autor.
- * @returns {string} Nombre formateado como 「xxxx」 o vacio si autor no es válido.
+ * @returns {string} Nombre formateado como 「Nodo」 o vacío si autor no es válido.
  */
 export function formatearNombreAutor(autor) {
-  const nombreLimpio = (autor || "").trim();
+  const nombreLimpio = capitalizarNombre(autor || "");
   if (!nombreLimpio) return "";
   return `「${nombreLimpio}」`;
-}
-
-/**
- * Obtiene el título de la página integrado con la etiqueta del autor si se encuentra.
- * @param {string} tituloOriginal - Título original de la página o documento.
- * @returns {string} Título completo incluyendo el distintivo 「autor」.
- */
-export function obtenerTituloConAutor(tituloOriginal = "") {
-  const tituloBase = (tituloOriginal || document.title || location.href).trim();
-  const autor = extraerNombreAutor();
-  const etiquetaAutor = formatearNombreAutor(autor);
-
-  if (!etiquetaAutor) return tituloBase;
-  if (tituloBase.includes(etiquetaAutor)) return tituloBase;
-
-  return `${tituloBase} ${etiquetaAutor}`;
 }

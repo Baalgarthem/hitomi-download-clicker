@@ -2,7 +2,7 @@
 // Interfaz Visual: Modal de Confirmación y Selección de Tags
 // ─────────────────────────────────────────────
 
-import { CONFIGURACION, ESTADO } from '../config/constants.js';
+import { CONFIGURACION, ESTADO, CLAVES } from '../config/constants.js';
 import { obtenerInformacionPestanas, publicarEstadoPestana, recorrerPestanasDescarga } from '../core/presence.js';
 import { limpiarMemoriaProcesadas } from '../core/memory.js';
 import { resetearEstadoBotonDescarga } from './badge.js';
@@ -235,6 +235,45 @@ export function aplicarEstilosModal() {
       border-color: rgba(88, 166, 255, 0.4);
     }
 
+    .hitomi-estilo-separador-contenedor {
+      margin-bottom: 14px;
+      padding: 10px 14px;
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+    }
+
+    .hitomi-selector-estilos {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .hitomi-btn-estilo-tag {
+      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      background: #21262d;
+      color: #8b949e;
+      border: 1px solid #30363d;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .hitomi-btn-estilo-tag:hover {
+      border-color: #58a6ff;
+      color: #c9d1d9;
+    }
+
+    .hitomi-btn-estilo-tag.activo {
+      background: rgba(35, 134, 54, 0.2);
+      color: #3fb950;
+      border-color: #3fb950;
+      font-weight: 600;
+    }
+
     .hitomi-grid-tags {
       display: flex;
       flex-wrap: wrap;
@@ -399,12 +438,18 @@ export function vincularSeleccionMultipleCheckboxes(listaContenedor) {
 /**
  * Muestra el sub-modal de selección personalizada de tags para un comic específico.
  */
-export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponibles = [], callbackGuardar) {
+export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponibles = [], tagsPreseleccionados = [], callbackGuardar) {
   const interfaz = crearInterfaz();
   const backdropTag = document.createElement("div");
   backdropTag.className = "hitomi-tag-modal-backdrop";
 
-  const tagsSeleccionadosSet = new Set(ESTADO.tagsSeleccionadosPorPestana.get(pestanaId) || []);
+  const tagsSeleccionadosSet = new Set(
+    Array.isArray(tagsPreseleccionados) && tagsPreseleccionados.length > 0
+      ? tagsPreseleccionados
+      : (ESTADO.tagsSeleccionadosPorPestana.get(pestanaId) || [])
+  );
+
+  let estiloActual = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe";
 
   function escapeHtml(texto) {
     return (texto || "")
@@ -425,8 +470,28 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
       </div>
 
       <div class="hitomi-modal-body">
+        <div class="hitomi-estilo-separador-contenedor">
+          <div style="font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 8px;">
+            📐 Estilo del Separador de Tags:
+          </div>
+          <div class="hitomi-selector-estilos" id="hitomi-selector-estilos-tags">
+            <button class="hitomi-btn-estilo-tag ${estiloActual === 'pipe' ? 'activo' : ''}" data-estilo="pipe">
+              ┃ Pipe ( ┃ tags)
+            </button>
+            <button class="hitomi-btn-estilo-tag ${estiloActual === 'angle' ? 'activo' : ''}" data-estilo="angle">
+              ⟨⟩ Angular ( ⟨tags⟩)
+            </button>
+            <button class="hitomi-btn-estilo-tag ${estiloActual === 'square' ? 'activo' : ''}" data-estilo="square">
+              [] Corchete ( [tags])
+            </button>
+            <button class="hitomi-btn-estilo-tag ${estiloActual === 'paren' ? 'activo' : ''}" data-estilo="paren">
+              () Paréntesis ( (tags))
+            </button>
+          </div>
+        </div>
+
         <p class="hitomi-modal-instruccion">
-          Selecciona las etiquetas que deseas añadir al nombre del archivo concatenadas como <strong>┃ tag1 tag2</strong>:
+          Selecciona las etiquetas que deseas añadir al nombre del archivo concatenadas:
         </p>
 
         ${
@@ -458,6 +523,21 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
   `;
 
   interfaz.appendChild(backdropTag);
+
+  const selectorEstilos = backdropTag.querySelector("#hitomi-selector-estilos-tags");
+  if (selectorEstilos) {
+    selectorEstilos.addEventListener("click", ev => {
+      const btnEstilo = ev.target.closest(".hitomi-btn-estilo-tag");
+      if (!btnEstilo) return;
+
+      const nuevoEstilo = btnEstilo.getAttribute("data-estilo");
+      if (typeof GM_setValue !== "undefined") {
+        GM_setValue(CLAVES.estiloSeparador, nuevoEstilo);
+      }
+      selectorEstilos.querySelectorAll(".hitomi-btn-estilo-tag").forEach(b => b.classList.remove("activo"));
+      btnEstilo.classList.add("activo");
+    });
+  }
 
   const contenedorPills = backdropTag.querySelector("#hitomi-contenedor-pills");
   if (contenedorPills) {

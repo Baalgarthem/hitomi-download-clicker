@@ -8,8 +8,7 @@ import { obtenerMemoriaPaginasProcesadas, obtenerEstadoPaginaProcesada, guardarP
 import { buscarBotonDescarga, ejecutarOrdenDescarga } from './download.js';
 import { marcarBotonComoProcesado } from '../ui/badge.js';
 import { mostrarEstado } from '../ui/pill.js';
-import { obtenerTituloConAutor } from './author.js';
-import { extraerTagsPagina } from './tags.js';
+import { extraerTagsPagina, obtenerTituloConAutor } from './tags.js';
 
 let publicandoEstado = false;
 
@@ -113,6 +112,7 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
     }
 
     let procesadas = 0;
+    const estiloSeparador = GM_getValue(CLAVES.estiloSeparador, "pipe");
 
     for (const idPestana of pestañas) {
       const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -120,7 +120,7 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
       let respuesta = null;
 
       if (idPestana === ID_PESTANA) {
-        respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados });
+        respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, estiloSeparador });
       } else {
         const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
         GM_deleteValue(claveRespuesta);
@@ -129,7 +129,8 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
           pestañaDestino: idPestana,
           nonce,
           forzar,
-          tagsSeleccionados
+          tagsSeleccionados,
+          estiloSeparador
         });
 
         const inicio = Date.now();

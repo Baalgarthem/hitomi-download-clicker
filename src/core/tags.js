@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────
-// Extracción de Tags y Formateo ┃ + tags
+// Extracción de Tags y Formateo Personalizado (┃ / ⟨⟩ / [] / ())
 // ─────────────────────────────────────────────
 
-import { CONFIGURACION } from '../config/constants.js';
+import { CONFIGURACION, ESTILOS_SEPARADOR, CLAVES } from '../config/constants.js';
+import { extraerNombreAutor, formatearNombreAutor } from './author.js';
 
 /**
  * Limpia el texto de un tag removiendo símbolos de género (♀, ♂) y prefijos de categoría.
@@ -15,12 +16,44 @@ export function limpiarNombreTag(rawTag = "") {
   if (!rawTag || typeof rawTag !== "string") return "";
 
   let tag = rawTag.trim();
-  // Remover símbolos de género
   tag = tag.replace(/[♀♂]/g, "").trim();
-  // Remover prefijos comunes de categoría (ej. female: o male:)
   tag = tag.replace(/^(?:female|male|group|parody|character|language):/i, "").trim();
-  // Normalizar espacios múltiples
   return tag.replace(/\s+/g, " ");
+}
+
+/**
+ * Limpia estrictamente el título base del cómic eliminando el nombre del sitio web (Hitomi.la)
+ * y reduciendo cualquier 'by <autor>' redundante para evitar duplicaciones.
+ * Ejemplo: "Good Teachers 4 by nodo | Hitomi.la" -> "Good Teachers 4"
+ * @param {string} rawTitle - Título bruto de la página o documento.
+ * @param {string} autorNombre - Nombre del autor detectado.
+ * @returns {string} Título base completamente limpio.
+ */
+export function limpiarTituloBase(rawTitle = "", autorNombre = "") {
+  let titulo = (rawTitle || document.title || "").trim();
+
+  // 1. Eliminar sufijos del sitio web (ej. | Hitomi.la, - Hitomi.la, / Hitomi.la, ┃ Hitomi.la)
+  titulo = titulo.replace(/\s*[\|║\-\/┃]\s*Hitomi(?:\.la)?.*$/i, "").trim();
+  titulo = titulo.replace(/^Read online at Hitomi(?:\.la)?\s*[\|║\-\/┃]\s*/i, "").trim();
+
+  // 2. Eliminar cualquier etiqueta 「...」 preexistente en el cuerpo del título
+  titulo = titulo.replace(/「[^」]+」/g, "").trim();
+
+  // 3. Eliminar 'by <autor>' o 'por <autor>' si está presente al final o dentro del título
+  const autorLimpio = (autorNombre || "").trim();
+  if (autorLimpio) {
+    const regexByAutor = new RegExp(`\\s+(?:by|por)\\s+${autorLimpio.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+    titulo = titulo.replace(regexByAutor, "").trim();
+  }
+
+  // Eliminar cualquier 'by ...' residual al final si fue cortado
+  titulo = titulo.replace(/\s+(?:by|por)\s+[\w\s\.\-]+$/i, "").trim();
+
+  // 4. Eliminar delimitadores de tags antiguos que pudieran estar en el título
+  titulo = titulo.split("┃")[0].trim();
+  titulo = titulo.replace(/\s*[⟨\[\(].*?[⟩\]\)]\s*$/g, "").trim();
+
+  return titulo.replace(/\s+/g, " ");
 }
 
 /**
@@ -58,49 +91,78 @@ export function extraerTagsPagina() {
 }
 
 /**
- * Formatea un arreglo de tags seleccionados con el símbolo delimitador ' ┃ + tags'.
- * Ejemplo: ["glasses", "squirt", "sea", "dog"] -> " ┃ glasses squirt sea dog"
+ * Formatea un arreglo de tags seleccionados aplicando el estilo de separador / envolvente elegido.
+ * Estilos:
+ *  - 'pipe'   -> " ┃ tag1 tag2"
+ *  - 'angle'  -> " ⟨tag1 tag2⟩"
+ *  - 'square' -> " [tag1 tag2]"
+ *  - 'paren'  -> " (tag1 tag2)"
  * @param {Array<string>} tagsSeleccionados - Arreglo con los nombres limpios de los tags elegidos.
- * @returns {string} Cadena formateada como " ┃ tag1 tag2 ..." o vacía si no hay tags.
+ * @param {string} estiloId - Identificador del estilo ('pipe', 'angle', 'square', 'paren').
+ * @returns {string} Cadena formateada según el estilo elegido.
  */
-export function formatearCadenaTags(tagsSeleccionados = []) {
+export function formatearCadenaTags(tagsSeleccionados = [], estiloId = null) {
   if (!Array.isArray(tagsSeleccionados) || tagsSeleccionados.length === 0) {
     return "";
   }
 
   const tagsValidos = tagsSeleccionados
-    .map(t => (typeof t === "string" ? limpiarNombreTag(t) : ""))
+    .map(t => (typeof t === "string" ? limpiarNombreTag(t) : (typeof t === "object" && t ? limpiarNombreTag(t.clean || t.raw) : "")))
     .filter(Boolean);
 
   if (tagsValidos.length === 0) return "";
 
-  return ` ┃ ${tagsValidos.join(" ")}`;
+  const estiloFinal = estiloId || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
+  const configEstilo = ESTILOS_SEPARADOR[estiloFinal] || ESTILOS_SEPARADOR.pipe;
+  return `${configEstilo.prefijo}${tagsValidos.join(" ")}${configEstilo.sufijo}`;
 }
 
 /**
- * Genera el título/nombre final completo combinando autor, título base y la sección de tags.
- * Ejemplo: 「Artista」 nombre del comic ┃ viajes chicas rubia
+ * Genera el título/nombre final completo combinando autor, título base limpio y la sección de tags.
+ * Formatos de salida:
+ *  - Sin tags: 「Nodo」 Good Teachers 4
+ *  - Con tags (pipe):  「Nodo」 Good Teachers 4 ┃ girls blonde schoolgirl
+ *  - Con tags (angle): 「Nodo」 Good Teachers 4 ⟨girls blonde schoolgirl⟩
  * @param {Object} opciones - Parámetros de formateo.
- * @param {string} opciones.tituloOriginal - Título base del comic.
- * @param {string} opciones.autorFormateado - Nombre del autor ya formateado como 「Artista」.
+ * @param {string} opciones.tituloOriginal - Título original bruto.
+ * @param {string} opciones.autor - Nombre del autor.
  * @param {Array<string>} opciones.tagsSeleccionados - Lista de tags seleccionados.
- * @returns {string} Nombre final estructurado.
+ * @param {string} opciones.estiloSeparador - Estilo del separador ('pipe', 'angle', etc.).
+ * @returns {string} Nombre final estructurado sin repeticiones ni sitio web.
  */
 export function obtenerNombreFinalCompleto(opciones = {}) {
-  const { tituloOriginal = "", autorFormateado = "", tagsSeleccionados = [] } = opciones;
+  const {
+    tituloOriginal = "",
+    autor = "",
+    tagsSeleccionados = [],
+    estiloSeparador = null
+  } = opciones;
 
-  let resultado = (tituloOriginal || document.title || "").trim();
+  const autorDetectado = autor || extraerNombreAutor();
+  const autorFormateado = formatearNombreAutor(autorDetectado);
+  const tituloLimpio = limpiarTituloBase(tituloOriginal, autorDetectado);
 
-  // Integrar autor si no está ya incluido
-  if (autorFormateado && !resultado.includes(autorFormateado)) {
-    resultado = `${autorFormateado} ${resultado}`.trim();
+  let nombreFinal = tituloLimpio;
+
+  // Insertar 「Autor」 únicamente al principio si existe
+  if (autorFormateado) {
+    nombreFinal = `${autorFormateado} ${tituloLimpio}`.trim();
   }
 
-  // Concatenar tags elegidos
-  const seccionTags = formatearCadenaTags(tagsSeleccionados);
-  if (seccionTags && !resultado.includes("┃")) {
-    resultado = `${resultado}${seccionTags}`;
+  // Concatenar tags seleccionados con el estilo configurado
+  const seccionTags = formatearCadenaTags(tagsSeleccionados, estiloSeparador);
+  if (seccionTags) {
+    nombreFinal = `${nombreFinal}${seccionTags}`;
   }
 
-  return resultado;
+  return nombreFinal;
+}
+
+/**
+ * Formatea el título de un cómic con su autor para visualización general.
+ * @param {string} tituloBruto - Título original del cómic.
+ * @returns {string} Título formateado con autor.
+ */
+export function obtenerTituloConAutor(tituloBruto = "") {
+  return obtenerNombreFinalCompleto({ tituloOriginal: tituloBruto });
 }

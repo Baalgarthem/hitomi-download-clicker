@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.4.2
+// @version      1.5.0
 // @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」, selección de tags personalizados ┃ + tags y opción para limpiar memoria.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -54,7 +54,7 @@
       return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     }
   }
-  var CONFIGURACION, ID_PESTANA, CLAVES, ESTADO;
+  var CONFIGURACION, ESTILOS_SEPARADOR, ID_PESTANA, CLAVES, ESTADO;
   var init_constants = __esm({
     "src/config/constants.js"() {
       CONFIGURACION = {
@@ -98,6 +98,12 @@
           modalBackdrop: "hitomi-clicker-modal-backdrop"
         }
       };
+      ESTILOS_SEPARADOR = {
+        pipe: { id: "pipe", label: "\u2503 Pipe", prefijo: " \u2503 ", sufijo: "" },
+        angle: { id: "angle", label: "\u27E8\u27E9 Angular", prefijo: " \u27E8", sufijo: "\u27E9" },
+        square: { id: "square", label: "[] Corchete", prefijo: " [", sufijo: "]" },
+        paren: { id: "paren", label: "() Par\xE9ntesis", prefijo: " (", sufijo: ")" }
+      };
       ID_PESTANA = generarIdPestana();
       CLAVES = {
         presencia: (id) => `hitomi_presencia_${id}`,
@@ -106,7 +112,8 @@
         memoriaPaginas: "hitomi_paginas_procesadas",
         urlPestana: (id) => `hitomi_url_${id}`,
         tituloPestana: (id) => `hitomi_titulo_${id}`,
-        tagsPestana: (id) => `hitomi_tags_${id}`
+        tagsPestana: (id) => `hitomi_tags_${id}`,
+        estiloSeparador: "hitomi_estilo_separador_tags"
       };
       ESTADO = {
         bloqueado: false,
@@ -312,6 +319,10 @@
 /* ════════════════════════════════════════════════════════════ */
 /*                 MÓDULO: src/core/author.js                 */
 /* ════════════════════════════════════════════════════════════ */
+  function capitalizarNombre(texto = "") {
+    if (!texto || typeof texto !== "string") return "";
+    return texto.trim().split(/\s+/).map((palabra) => palabra.charAt(0).toUpperCase() + palabra.slice(1)).join(" ");
+  }
   function extraerNombreAutor() {
     try {
       for (const selector of CONFIGURACION.selectoresArtista) {
@@ -345,17 +356,9 @@
     return "";
   }
   function formatearNombreAutor(autor) {
-    const nombreLimpio = (autor || "").trim();
+    const nombreLimpio = capitalizarNombre(autor || "");
     if (!nombreLimpio) return "";
     return `\u300C${nombreLimpio}\u300D`;
-  }
-  function obtenerTituloConAutor(tituloOriginal = "") {
-    const tituloBase = (tituloOriginal || document.title || location.href).trim();
-    const autor = extraerNombreAutor();
-    const etiquetaAutor = formatearNombreAutor(autor);
-    if (!etiquetaAutor) return tituloBase;
-    if (tituloBase.includes(etiquetaAutor)) return tituloBase;
-    return `${tituloBase} ${etiquetaAutor}`;
   }
   var init_author = __esm({
     "src/core/author.js"() {
@@ -372,6 +375,21 @@
     tag = tag.replace(/[♀♂]/g, "").trim();
     tag = tag.replace(/^(?:female|male|group|parody|character|language):/i, "").trim();
     return tag.replace(/\s+/g, " ");
+  }
+  function limpiarTituloBase(rawTitle = "", autorNombre = "") {
+    let titulo = (rawTitle || document.title || "").trim();
+    titulo = titulo.replace(/\s*[\|║\-\/┃]\s*Hitomi(?:\.la)?.*$/i, "").trim();
+    titulo = titulo.replace(/^Read online at Hitomi(?:\.la)?\s*[\|║\-\/┃]\s*/i, "").trim();
+    titulo = titulo.replace(/「[^」]+」/g, "").trim();
+    const autorLimpio = (autorNombre || "").trim();
+    if (autorLimpio) {
+      const regexByAutor = new RegExp(`\\s+(?:by|por)\\s+${autorLimpio.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+      titulo = titulo.replace(regexByAutor, "").trim();
+    }
+    titulo = titulo.replace(/\s+(?:by|por)\s+[\w\s\.\-]+$/i, "").trim();
+    titulo = titulo.split("\u2503")[0].trim();
+    titulo = titulo.replace(/\s*[⟨\[\(].*?[⟩\]\)]\s*$/g, "").trim();
+    return titulo.replace(/\s+/g, " ");
   }
   function extraerTagsPagina() {
     const listaTags = [];
@@ -399,29 +417,43 @@
     }
     return listaTags;
   }
-  function formatearCadenaTags(tagsSeleccionados = []) {
+  function formatearCadenaTags(tagsSeleccionados = [], estiloId = null) {
     if (!Array.isArray(tagsSeleccionados) || tagsSeleccionados.length === 0) {
       return "";
     }
-    const tagsValidos = tagsSeleccionados.map((t) => typeof t === "string" ? limpiarNombreTag(t) : "").filter(Boolean);
+    const tagsValidos = tagsSeleccionados.map((t) => typeof t === "string" ? limpiarNombreTag(t) : typeof t === "object" && t ? limpiarNombreTag(t.clean || t.raw) : "").filter(Boolean);
     if (tagsValidos.length === 0) return "";
-    return ` \u2503 ${tagsValidos.join(" ")}`;
+    const estiloFinal = estiloId || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
+    const configEstilo = ESTILOS_SEPARADOR[estiloFinal] || ESTILOS_SEPARADOR.pipe;
+    return `${configEstilo.prefijo}${tagsValidos.join(" ")}${configEstilo.sufijo}`;
   }
   function obtenerNombreFinalCompleto(opciones = {}) {
-    const { tituloOriginal = "", autorFormateado = "", tagsSeleccionados = [] } = opciones;
-    let resultado = (tituloOriginal || document.title || "").trim();
-    if (autorFormateado && !resultado.includes(autorFormateado)) {
-      resultado = `${autorFormateado} ${resultado}`.trim();
+    const {
+      tituloOriginal = "",
+      autor = "",
+      tagsSeleccionados = [],
+      estiloSeparador = null
+    } = opciones;
+    const autorDetectado = autor || extraerNombreAutor();
+    const autorFormateado = formatearNombreAutor(autorDetectado);
+    const tituloLimpio = limpiarTituloBase(tituloOriginal, autorDetectado);
+    let nombreFinal = tituloLimpio;
+    if (autorFormateado) {
+      nombreFinal = `${autorFormateado} ${tituloLimpio}`.trim();
     }
-    const seccionTags = formatearCadenaTags(tagsSeleccionados);
-    if (seccionTags && !resultado.includes("\u2503")) {
-      resultado = `${resultado}${seccionTags}`;
+    const seccionTags = formatearCadenaTags(tagsSeleccionados, estiloSeparador);
+    if (seccionTags) {
+      nombreFinal = `${nombreFinal}${seccionTags}`;
     }
-    return resultado;
+    return nombreFinal;
+  }
+  function obtenerTituloConAutor(tituloBruto = "") {
+    return obtenerNombreFinalCompleto({ tituloOriginal: tituloBruto });
   }
   var init_tags = __esm({
     "src/core/tags.js"() {
       init_constants();
+      init_author();
     }
   });
 
@@ -475,24 +507,25 @@
     }
     return null;
   }
-  function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = []) {
+  function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null) {
     if (!boton) return false;
     let fueClickeadoConExito = false;
     try {
       const teniaProcesado = boton.getAttribute("data-hitomi-procesado");
       const estiloPointerPrevio = boton.style.pointerEvents;
       const deshabilitadoPrevio = boton.disabled;
+      const estiloActivo = estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
       const autor = extraerNombreAutor();
-      const autorFormateado = formatearNombreAutor(autor);
       const nombreFinalCompleto = obtenerNombreFinalCompleto({
         tituloOriginal: document.title,
-        autorFormateado,
-        tagsSeleccionados
+        autor,
+        tagsSeleccionados,
+        estiloSeparador: estiloActivo
       });
       if (nombreFinalCompleto) {
         boton.setAttribute("data-hitomi-nombre-final", nombreFinalCompleto);
         if (tagsSeleccionados.length > 0) {
-          boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsSeleccionados));
+          boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsSeleccionados, estiloActivo));
         }
         boton.setAttribute("title", nombreFinalCompleto);
         if (boton.hasAttribute("download") || boton.tagName.toLowerCase() === "a") {
@@ -545,7 +578,7 @@
     return fueClickeadoConExito;
   }
   async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
-    const { forzar = false, tagsSeleccionados = [] } = opciones;
+    const { forzar = false, tagsSeleccionados = [], estiloSeparador = null } = opciones;
     if (ESTADO.ordenesEjecutadas.has(identificadorOrden)) {
       return "orden_repetida";
     }
@@ -564,7 +597,7 @@
     }
     try {
       ESTADO.ordenesEjecutadas.add(identificadorOrden);
-      const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados);
+      const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados, estiloSeparador);
       if (!clicConfirmado) {
         console.warn(obtenerHora(), "Clic no confirmado o bloqueado en el elemento objetivo.");
         return "error_click";
@@ -816,6 +849,45 @@
       border-color: rgba(88, 166, 255, 0.4);
     }
 
+    .hitomi-estilo-separador-contenedor {
+      margin-bottom: 14px;
+      padding: 10px 14px;
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+    }
+
+    .hitomi-selector-estilos {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .hitomi-btn-estilo-tag {
+      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      background: #21262d;
+      color: #8b949e;
+      border: 1px solid #30363d;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .hitomi-btn-estilo-tag:hover {
+      border-color: #58a6ff;
+      color: #c9d1d9;
+    }
+
+    .hitomi-btn-estilo-tag.activo {
+      background: rgba(35, 134, 54, 0.2);
+      color: #3fb950;
+      border-color: #3fb950;
+      font-weight: 600;
+    }
+
     .hitomi-grid-tags {
       display: flex;
       flex-wrap: wrap;
@@ -969,11 +1041,14 @@
       ultimoCheckClickeado = checkbox;
     });
   }
-  function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponibles = [], callbackGuardar) {
+  function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponibles = [], tagsPreseleccionados = [], callbackGuardar) {
     const interfaz = crearInterfaz();
     const backdropTag = document.createElement("div");
     backdropTag.className = "hitomi-tag-modal-backdrop";
-    const tagsSeleccionadosSet = new Set(ESTADO.tagsSeleccionadosPorPestana.get(pestanaId) || []);
+    const tagsSeleccionadosSet = new Set(
+      Array.isArray(tagsPreseleccionados) && tagsPreseleccionados.length > 0 ? tagsPreseleccionados : ESTADO.tagsSeleccionadosPorPestana.get(pestanaId) || []
+    );
+    let estiloActual = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe";
     function escapeHtml(texto) {
       return (texto || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
@@ -987,8 +1062,28 @@
       </div>
 
       <div class="hitomi-modal-body">
+        <div class="hitomi-estilo-separador-contenedor">
+          <div style="font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 8px;">
+            \u{1F4D0} Estilo del Separador de Tags:
+          </div>
+          <div class="hitomi-selector-estilos" id="hitomi-selector-estilos-tags">
+            <button class="hitomi-btn-estilo-tag ${estiloActual === "pipe" ? "activo" : ""}" data-estilo="pipe">
+              \u2503 Pipe ( \u2503 tags)
+            </button>
+            <button class="hitomi-btn-estilo-tag ${estiloActual === "angle" ? "activo" : ""}" data-estilo="angle">
+              \u27E8\u27E9 Angular ( \u27E8tags\u27E9)
+            </button>
+            <button class="hitomi-btn-estilo-tag ${estiloActual === "square" ? "activo" : ""}" data-estilo="square">
+              [] Corchete ( [tags])
+            </button>
+            <button class="hitomi-btn-estilo-tag ${estiloActual === "paren" ? "activo" : ""}" data-estilo="paren">
+              () Par\xE9ntesis ( (tags))
+            </button>
+          </div>
+        </div>
+
         <p class="hitomi-modal-instruccion">
-          Selecciona las etiquetas que deseas a\xF1adir al nombre del archivo concatenadas como <strong>\u2503 tag1 tag2</strong>:
+          Selecciona las etiquetas que deseas a\xF1adir al nombre del archivo concatenadas:
         </p>
 
         ${tagsDisponibles.length === 0 ? `<div class="hitomi-modal-vacio"><p>No se encontraron etiquetas en esta p\xE1gina.</p></div>` : `<div class="hitomi-grid-tags" id="hitomi-contenedor-pills">
@@ -1013,6 +1108,19 @@
     </div>
   `;
     interfaz.appendChild(backdropTag);
+    const selectorEstilos = backdropTag.querySelector("#hitomi-selector-estilos-tags");
+    if (selectorEstilos) {
+      selectorEstilos.addEventListener("click", (ev) => {
+        const btnEstilo = ev.target.closest(".hitomi-btn-estilo-tag");
+        if (!btnEstilo) return;
+        const nuevoEstilo = btnEstilo.getAttribute("data-estilo");
+        if (typeof GM_setValue !== "undefined") {
+          GM_setValue(CLAVES.estiloSeparador, nuevoEstilo);
+        }
+        selectorEstilos.querySelectorAll(".hitomi-btn-estilo-tag").forEach((b) => b.classList.remove("activo"));
+        btnEstilo.classList.add("activo");
+      });
+    }
     const contenedorPills = backdropTag.querySelector("#hitomi-contenedor-pills");
     if (contenedorPills) {
       contenedorPills.addEventListener("click", (ev) => {
@@ -1424,12 +1532,13 @@
         return;
       }
       let procesadas = 0;
+      const estiloSeparador = GM_getValue(CLAVES.estiloSeparador, "pipe");
       for (const idPestana of pesta\u00F1as) {
         const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(idPestana) || [];
         let respuesta = null;
         if (idPestana === ID_PESTANA) {
-          respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados });
+          respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, estiloSeparador });
         } else {
           const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
           GM_deleteValue(claveRespuesta);
@@ -1437,7 +1546,8 @@
             pesta\u00F1aDestino: idPestana,
             nonce,
             forzar,
-            tagsSeleccionados
+            tagsSeleccionados,
+            estiloSeparador
           });
           const inicio = Date.now();
           while (Date.now() - inicio < CONFIGURACION.tiempoRespuestaPestana) {
@@ -1492,7 +1602,6 @@
       init_download();
       init_badge();
       init_pill();
-      init_author();
       init_tags();
       publicandoEstado = false;
     }
@@ -1533,13 +1642,14 @@
               if (!cambioRemoto || !valorNuevo || typeof valorNuevo !== "object") {
                 return;
               }
-              const { pesta\u00F1aDestino, nonce, forzar, tagsSeleccionados } = valorNuevo;
+              const { pesta\u00F1aDestino, nonce, forzar, tagsSeleccionados, estiloSeparador } = valorNuevo;
               if (pesta\u00F1aDestino !== ID_PESTANA) {
                 return;
               }
               const resultado = await ejecutarOrdenDescarga(nonce, {
                 forzar: !!forzar,
-                tagsSeleccionados: tagsSeleccionados || []
+                tagsSeleccionados: tagsSeleccionados || [],
+                estiloSeparador: estiloSeparador || GM_getValue(CLAVES.estiloSeparador, "pipe")
               });
               try {
                 GM_setValue(CLAVES.respuesta(nonce, ID_PESTANA), resultado);

@@ -44,6 +44,13 @@ export const CONFIGURACION = {
   }
 };
 
+export const ESTILOS_SEPARADOR = {
+  pipe: { id: "pipe", label: "┃ Pipe", prefijo: " ┃ ", sufijo: "" },
+  angle: { id: "angle", label: "⟨⟩ Angular", prefijo: " ⟨", sufijo: "⟩" },
+  square: { id: "square", label: "[] Corchete", prefijo: " [", sufijo: "]" },
+  paren: { id: "paren", label: "() Paréntesis", prefijo: " (", sufijo: ")" }
+};
+
 function generarIdPestana() {
   const CLAVE = "hitomi_clicker_identidad_pestana";
   try {
@@ -67,7 +74,8 @@ export const CLAVES = {
   memoriaPaginas: "hitomi_paginas_procesadas",
   urlPestana: id => `hitomi_url_${id}`,
   tituloPestana: id => `hitomi_titulo_${id}`,
-  tagsPestana: id => `hitomi_tags_${id}`
+  tagsPestana: id => `hitomi_tags_${id}`,
+  estiloSeparador: "hitomi_estilo_separador_tags"
 };
 
 export const ESTADO = {

@@ -1,6 +1,6 @@
 {
   "name": "hitomi-download-clicker",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "description": "Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」 y opción para limpiar memoria.",
   "main": "dist/hitomi-download-clicker.user.js",
   "directories": {

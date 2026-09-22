@@ -2,20 +2,31 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
-## `src/core/tags.js` (Nuevo Módulo)
-- Implementación de la extracción y formateo de etiquetas desde `<ul id="tags" class="tags">`.
+## Versión 1.5.0 (Limpieza Estricta de Títulos y Selector de Estilos de Tags)
+- **Limpieza Estricta de Títulos (`src/core/tags.js`)**:
+  - Eliminación automática del nombre del sitio (`| Hitomi.la`, `- Hitomi.la`, `┃ Hitomi.la`).
+  - Remoción de frases redundantes de autor (`by <autor>`, `por <autor>`) dentro del cuerpo del título.
+  - Formateo estricto del autor capitalizado únicamente al principio con comillas japonesas: `「Nodo」 Good Teachers 4`.
+- **Selector de Estilo de Separador de Tags (`src/ui/modal.js` & `src/core/tags.js`)**:
+  - Incorporación de opciones configurables de delimitador: ` ┃ tags` (Pipe), ` ⟨tags⟩` (Angular), ` [tags]` (Corchete), y ` (tags)` (Paréntesis).
+  - Selector visual interactivo en el diálogo sub-modal de Tags.
+  - Persistencia de la preferencia del usuario en storage Tampermonkey (`hitomi_estilo_separador_tags`).
+
+## `src/core/tags.js` (Módulo de Tags y Títulos)
+- Extracción y formateo de etiquetas desde `<ul id="tags" class="tags">`.
 - Limpieza automática de símbolos de género (`♀`, `♂`) y prefijos de categoría (`female:`, `male:`).
-- Concatenación de etiquetas elegidas usando el delimitador especificado: ` ┃ tag1 tag2 tag3`.
+- Concatenation de etiquetas elegidas usando el estilo de separador seleccionado (`┃`, `⟨⟩`, `[]`, `()`).
 - Función `obtenerNombreFinalCompleto()` para estructurar el nombre final del archivo:
-  `「Artista」 Nombre del Comic ┃ viajes chicas rubia`
+  `「Artista」 Nombre del Comic ┃ viajes chicas rubia` o `「Artista」 Nombre del Comic ⟨viajes chicas rubia⟩`.
 
 ## `src/ui/modal.js`
 - Adición de un sub-modal emergente interactivo para seleccionar etiquetas de cada comic mediante pills conmutables (botones `🏷️ Tags`).
+- Selector visual de estilo de separador de tags (Pipe, Angular, Corchete, Paréntesis).
 - Botones de acción rápida: "Seleccionar Todos" y "Limpiar Selección".
-- Permite omitir la consulta de tags si la casilla/botón no es activado por el usuario.
 
 ## `src/core/download.js`
-- Inyección del nombre final concatenado (`「Artista」 Nombre ┃ tags`) en los atributos `download`, `title` y `data-hitomi-nombre-final` del botón de descarga.
+- Inyección del nombre final concatenado (`「Artista」 Nombre ┃ tags` o `「Artista」 Nombre ⟨tags⟩`) en los atributos `download`, `title` y `data-hitomi-nombre-final` del botón de descarga.
 
 ## `src/core/presence.js`
-- Transmisión IPC de tags disponibles y tags seleccionados en las órdenes distribuidas entre pestañas.
+- Transmisión IPC de tags disponibles, tags seleccionados y estilo de separador en las órdenes distribuidas entre pestañas.
+
