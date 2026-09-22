@@ -7,6 +7,7 @@ import { obtenerInformacionPestanas, publicarEstadoPestana, recorrerPestanasDesc
 import { limpiarMemoriaProcesadas } from '../core/memory.js';
 import { resetearEstadoBotonDescarga } from './badge.js';
 import { obtenerOCrearAnfitrionUI, escapeHtml } from '../utils/dom.js';
+import { capitalizarNombre } from '../core/author.js';
 
 export function aplicarEstilosModal() {
   GM_addStyle(`
@@ -642,7 +643,15 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
               ? `<div class="hitomi-modal-vacio">
                    <p>No se encontraron pestañas ${modoForzado ? 'disponibles' : 'pendientes'}.</p>
                  </div>`
-              : `<div class="hitomi-modal-lista" id="hitomi-modal-lista-items">
+              : `
+                 <div class="hitomi-bar-master-toggle" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 8px 12px; background: #161b22; border: 1px solid #21262d; border-radius: 8px; user-select: none;">
+                   <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #f0f6fc; cursor: pointer;">
+                     <input type="checkbox" id="hitomi-check-master-pestanas" checked style="width: 16px; height: 16px; accent-color: #238636; cursor: pointer;" />
+                     <span id="hitomi-label-master-pestanas">Deseleccionar Todo</span>
+                   </label>
+                   <span style="font-size: 11px; color: #8b949e;">Usa <strong>Shift + Clic</strong> para seleccionar rangos</span>
+                 </div>
+                 <div class="hitomi-modal-lista" id="hitomi-modal-lista-items">
                    ${pestanasInfo
                      .map(
                        p => {
@@ -653,6 +662,8 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
                          let autorMostrar = (autorEditado !== undefined && autorEditado !== null) ? autorEditado : (p.autor || "");
                          if (!autorMostrar || /^n\/?a$/i.test(autorMostrar.trim()) || /^none$/i.test(autorMostrar.trim())) {
                            autorMostrar = "Unknown";
+                         } else {
+                           autorMostrar = capitalizarNombre(autorMostrar);
                          }
 
                          const tituloEditado = ESTADO.titulosEditadosPorPestana.get(p.id);
@@ -728,9 +739,52 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
       });
     }
 
+    const checkMaster = backdrop.querySelector("#hitomi-check-master-pestanas");
+    const labelMaster = backdrop.querySelector("#hitomi-label-master-pestanas");
     const listaItems = backdrop.querySelector("#hitomi-modal-lista-items");
+
+    function actualizarEstadoMaster() {
+      if (!listaItems || !checkMaster || !labelMaster) return;
+      const checkboxes = Array.from(listaItems.querySelectorAll(".hitomi-check-pestana"));
+      if (checkboxes.length === 0) return;
+
+      const todosMarcados = checkboxes.every(cb => cb.checked);
+      checkMaster.checked = todosMarcados;
+      labelMaster.textContent = todosMarcados ? "Deseleccionar Todo" : "Seleccionar Todo";
+
+      const btnConfirmar = backdrop.querySelector("#hitomi-btn-confirmar");
+      const marcadosCount = checkboxes.filter(cb => cb.checked).length;
+      if (btnConfirmar) {
+        btnConfirmar.disabled = marcadosCount === 0;
+        btnConfirmar.style.opacity = marcadosCount === 0 ? "0.5" : "1";
+        btnConfirmar.style.cursor = marcadosCount === 0 ? "not-allowed" : "pointer";
+      }
+    }
+
+    if (checkMaster && listaItems) {
+      checkMaster.addEventListener("change", () => {
+        const estadoNuevo = checkMaster.checked;
+        const checkboxes = listaItems.querySelectorAll(".hitomi-check-pestana");
+        checkboxes.forEach(cb => { cb.checked = estadoNuevo; });
+        labelMaster.textContent = estadoNuevo ? "Deseleccionar Todo" : "Seleccionar Todo";
+
+        const btnConfirmar = backdrop.querySelector("#hitomi-btn-confirmar");
+        if (btnConfirmar) {
+          btnConfirmar.disabled = !estadoNuevo;
+          btnConfirmar.style.opacity = estadoNuevo ? "1" : "0.5";
+          btnConfirmar.style.cursor = estadoNuevo ? "pointer" : "not-allowed";
+        }
+      });
+    }
+
     if (listaItems) {
       vincularSeleccionMultipleCheckboxes(listaItems);
+
+      listaItems.addEventListener("change", ev => {
+        if (ev.target.classList.contains("hitomi-check-pestana")) {
+          actualizarEstadoMaster();
+        }
+      });
 
       listaItems.addEventListener("input", ev => {
         const inputAutor = ev.target.closest(".hitomi-input-autor-item");

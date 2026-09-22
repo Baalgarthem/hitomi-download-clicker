@@ -2,6 +2,14 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.7.3 (Opción de Seleccionar/Deseleccionar Todo y Capitalización Uniforme)
+- **Opción de Conmutación Global (`src/ui/modal.js`)**:
+  - Incorporación de la barra superior con el control maestro `Deseleccionar Todo` / `Seleccionar Todo`.
+  - Mantiene todas las pestañas seleccionadas por defecto. Al hacer clic, conmuta el estado de todas las casillas y alterna dinámicamente el texto a `Seleccionar Todo`.
+  - Deshabilita de forma reactiva el botón de confirmación `▶ Iniciar Descarga` cuando no hay pestañas seleccionadas.
+- **Capitalización de Nombres de Artistas, Grupos y Unknown (`src/core/author.js` & `src/ui/modal.js`)**:
+  - Normalización estricta de mayúsculas iniciales en nombres de autores y círculos (ej. `shinama` -> `Shinama`, `doso cham` -> `Doso Cham`, `kemusi no bansan kai` -> `Kemusi No Bansan Kai`, `unknown` -> `Unknown`).
+
 ## Versión 1.7.2 (Fallback a Grupo Publicador y Documentación Pedagógica)
 - **Fallback Automático a Nombre del Grupo (`src/core/author.js` & `src/config/constants.js`)**:
   - Incorporación de `selectoresGrupo` para inspeccionar la fila `<td id="groups">` y listas de círculos publicadores (`/group/`).

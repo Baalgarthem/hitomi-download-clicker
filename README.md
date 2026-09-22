@@ -53,7 +53,8 @@ No necesitas ir pestaña por pestaña. Desde cualquier pestaña abierta puedes p
    - Activa `📦 Renombrar a .cbz` si prefieres ese formato.
 4. **Presiona ▶ Iniciar Descarga**: El script recorrerá todas las pestañas seleccionadas descargando los archivos con sus nombres configurados.
 
-> 💡 **Truco Rápido**: Puedes mantener presionada la tecla **Shift** y hacer clic en dos casillas para seleccionar un rango completo de pestañas a la vez.
+> 💡 **Seleccionar / Deseleccionar Todo**: Usa la casilla maestra en la parte superior del menú emergente para alternar instantáneamente la selección de todas las pestañas.
+> 💡 **Selección en Rango**: Puedes mantener presionada la tecla **Shift** y hacer clic en dos casillas para seleccionar un rango completo de pestañas a la vez.
 > 💡 **Limpieza de Memoria**: Mantén presionado **Shift + Clic** sobre la pastilla flotante para resetear la memoria de descargas.
 
 ---

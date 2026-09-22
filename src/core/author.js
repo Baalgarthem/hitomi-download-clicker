@@ -113,7 +113,7 @@ export function obtenerAutorOEstadoInicial() {
     /^unknown$/i.test(autor.trim());
 
   if (!esAutorInvalido) {
-    return autor;
+    return capitalizarNombre(autor);
   }
 
   const grupo = extraerNombreGrupo();
@@ -124,10 +124,10 @@ export function obtenerAutorOEstadoInicial() {
     /^unknown$/i.test(grupo.trim());
 
   if (!esGrupoInvalido) {
-    return grupo;
+    return capitalizarNombre(grupo);
   }
 
-  return "N/A";
+  return "Unknown";
 }
 
 /**
