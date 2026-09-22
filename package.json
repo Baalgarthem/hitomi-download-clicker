@@ -1,18 +1,28 @@
 {
   "name": "hitomi-download-clicker",
-  "version": "1.0.0",
-  "description": "",
-  "main": "hitomi-download-clicker.user.js",
+  "version": "1.3.2",
+  "description": "Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」 y opción para limpiar memoria.",
+  "main": "dist/hitomi-download-clicker.user.js",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "esbuild src/index.js --bundle --outfile=dist/hitomi-download-clicker.user.js"
+    "build": "node build.js",
+    "publish": "node build.js --publish",
+    "push": "node build.js --push",
+    "deploy": "node build.js --publish --push",
+    "watch": "node build.js --watch"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "userscript",
+    "hitomi",
+    "download",
+    "clicker",
+    "automation"
+  ],
+  "author": "Baalgarthem",
+  "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
     "esbuild": "^0.28.2"

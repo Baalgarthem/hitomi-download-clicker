@@ -1,0 +1,70 @@
+// ─────────────────────────────────────────────
+// Configuración general y constantes del sistema
+// ─────────────────────────────────────────────
+
+export const CONFIGURACION = {
+  dominio: "hitomi.la",
+  selectorBotonDescarga: "#dl-button",
+  selectoresAlternativosBoton: [
+    "a#dl-button",
+    "button#dl-button",
+    "a[href*='download']",
+    "button[onclick*='download']",
+    ".download-button",
+    ".dl-button",
+    "[data-action='download']",
+    "a.btn-download",
+    "button.btn-download"
+  ],
+  selectoresArtista: [
+    "#artists ul.comma-list li a",
+    "#artists a",
+    "#artists li",
+    "#artists",
+    ".gallery-info td a[href*='/artist/']",
+    "#artist-list a",
+    ".artist-list a"
+  ],
+  intervaloBusquedaBoton: 150,
+  intentosBusquedaBoton: 40,
+  tiempoEntreOrdenes: 120,
+  tiempoRespuestaPestana: 4000,
+  ids: {
+    pastilla: "hitomi-clicker-pastilla",
+    anfitrion: "hitomi-clicker-interfaz",
+    modalBackdrop: "hitomi-clicker-modal-backdrop"
+  }
+};
+
+function generarIdPestana() {
+  const CLAVE = "hitomi_clicker_identidad_pestana";
+  try {
+    let id = sessionStorage.getItem(CLAVE);
+    if (!id) {
+      id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      sessionStorage.setItem(CLAVE, id);
+    }
+    return id;
+  } catch {
+    return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+}
+
+export const ID_PESTANA = generarIdPestana();
+
+export const CLAVES = {
+  presencia: id => `hitomi_presencia_${id}`,
+  orden: "hitomi_orden_global",
+  respuesta: (nonce, id) => `hitomi_respuesta_${nonce}_${id}`,
+  memoriaPaginas: "hitomi_paginas_procesadas",
+  urlPestana: id => `hitomi_url_${id}`,
+  tituloPestana: id => `hitomi_titulo_${id}`
+};
+
+export const ESTADO = {
+  bloqueado: false,
+  permitirClicForzado: false,
+  ordenesEjecutadas: new Set(),
+  botonPastilla: null,
+  ultimoEstadoPublicado: null
+};
