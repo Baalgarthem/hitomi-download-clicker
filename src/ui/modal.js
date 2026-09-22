@@ -815,6 +815,15 @@ export function mostrarModalRutaDescarga(callbackGuardar) {
     if (typeof callbackGuardar === "function") callbackGuardar("");
   });
 
+  if (inputRuta) {
+    inputRuta.addEventListener("keydown", ev => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        backdropRuta.querySelector("#hitomi-ruta-btn-guardar").click();
+      }
+    });
+  }
+
   backdropRuta.querySelector("#hitomi-ruta-btn-guardar").addEventListener("click", () => {
     const valorIngresado = inputRuta ? inputRuta.value : "";
     const rutaFinal = sanearRutaSubcarpeta(valorIngresado);
@@ -829,6 +838,7 @@ export function mostrarModalRutaDescarga(callbackGuardar) {
     if (typeof callbackGuardar === "function") callbackGuardar(rutaFinal);
   });
 }
+
 
 export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
 

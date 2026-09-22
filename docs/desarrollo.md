@@ -2,7 +2,15 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.2.1 (Refinamiento de Calidad de Código, Tecla Enter en Sub-Modals y Robusteza de Storage)
+- **Refinamiento de Sanitización de Rutas y Fallbacks (`src/utils/dom.js`)**:
+  - Reestructuración de `sanearRutaSubcarpeta()` dividiendo por componentes para neutralizar navegaciones relativas aisladas (`.` y `..`).
+  - Robustecimiento de `leerValorGM()` para manejar strings no JSON en `localStorage` sin lanzar excepciones innecesarias.
+- **Experiencia de Usuario Mejorada (`src/ui/modal.js`)**:
+  - Incorporación del escuchador de tecla `Enter` en la caja de entrada de ruta de descargas para guardar y cerrar dinámicamente con mayor comodidad.
+
 ## Versión 2.2.0 (Subcarpeta de Descargas Personalizada y Restablecimiento a Predeterminado)
+
 - **Opción de Ruta Personalizada (`src/config/constants.js`, `src/utils/dom.js`, `src/core/download.js` & `src/ui/modal.js`)**:
   - Adición de la constante `CLAVES.rutaDescarga` (`hitomi_ruta_descarga_personalizada`) para almacenar persistentemente la subcarpeta elegida por el usuario.
   - Implementación del botón `📂 Ruta: <Ruta Actual>` en el panel `⚙️ OPCIONES DE DESCARGA` de la pantalla principal.

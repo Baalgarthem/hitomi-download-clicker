@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.2.0
+// @version      2.2.1
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -229,7 +229,13 @@
       }
       if (typeof localStorage !== "undefined") {
         const item = localStorage.getItem(clave);
-        if (item !== null) return JSON.parse(item);
+        if (item !== null) {
+          try {
+            return JSON.parse(item);
+          } catch {
+            return item;
+          }
+        }
       }
     } catch {
     }
@@ -264,11 +270,9 @@
     let saneada = ruta.trim();
     saneada = saneada.replace(/\\/g, "/");
     saneada = saneada.replace(/^[a-zA-Z]:/g, "");
-    saneada = saneada.replace(/(?:\.\.\/|\.\/)/g, "");
     saneada = saneada.replace(/[\x00-\x1F\*\?"<>\|:]/g, "");
-    saneada = saneada.replace(/\/+/g, "/");
-    saneada = saneada.replace(/^[\/\s]+|[\/\s]+$/g, "");
-    return saneada;
+    const partes = saneada.split("/").map((p) => p.trim()).filter((p) => p && p !== "." && p !== "..");
+    return partes.join("/");
   }
   var esperar, obtenerHora, esPaginaHitomi;
   var init_dom = __esm({
@@ -1773,6 +1777,14 @@
       cerrar();
       if (typeof callbackGuardar === "function") callbackGuardar("");
     });
+    if (inputRuta) {
+      inputRuta.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          backdropRuta.querySelector("#hitomi-ruta-btn-guardar").click();
+        }
+      });
+    }
     backdropRuta.querySelector("#hitomi-ruta-btn-guardar").addEventListener("click", () => {
       const valorIngresado = inputRuta ? inputRuta.value : "";
       const rutaFinal = sanearRutaSubcarpeta(valorIngresado);

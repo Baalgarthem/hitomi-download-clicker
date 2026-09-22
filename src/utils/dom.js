@@ -154,7 +154,13 @@ export function leerValorGM(clave, valorDefecto = null) {
     }
     if (typeof localStorage !== "undefined") {
       const item = localStorage.getItem(clave);
-      if (item !== null) return JSON.parse(item);
+      if (item !== null) {
+        try {
+          return JSON.parse(item);
+        } catch {
+          return item;
+        }
+      }
     }
   } catch { }
   return valorDefecto;
@@ -211,16 +217,16 @@ export function sanearRutaSubcarpeta(ruta = "") {
   saneada = saneada.replace(/\\/g, "/");
   // 2. Eliminar letras de unidad (ej. C:)
   saneada = saneada.replace(/^[a-zA-Z]:/g, "");
-  // 3. Eliminar secuencias de path traversal ../ o ./
-  saneada = saneada.replace(/(?:\.\.\/|\.\/)/g, "");
-  // 4. Eliminar caracteres ilícitos (\x00-\x1F, *, ?, ", <, >, |)
+  // 3. Eliminar caracteres ilícitos (\x00-\x1F, *, ?, ", <, >, |)
   saneada = saneada.replace(/[\x00-\x1F\*\?"<>\|:]/g, "");
-  // 5. Reducir múltiples barras consecutivas
-  saneada = saneada.replace(/\/+/g, "/");
-  // 6. Eliminar barras y espacios al inicio y al final
-  saneada = saneada.replace(/^[\/\s]+|[\/\s]+$/g, "");
+  // 4. Dividir por / y filtrar partes vacías o navegaciones relativas
+  const partes = saneada
+    .split("/")
+    .map(p => p.trim())
+    .filter(p => p && p !== "." && p !== "..");
 
-  return saneada;
+  return partes.join("/");
 }
+
 
 
