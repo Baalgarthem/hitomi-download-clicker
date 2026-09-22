@@ -2,6 +2,16 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.5.0 (Opción de Bloqueo del Botón de Descarga Nativo de la Página)
+- **Opción de Bloqueo Anti-Descarga Accidental (`src/config/constants.js`, `src/ui/badge.js`, `src/core/download.js` & `src/ui/modal.js`)**:
+  - Incorporación de la constante `CLAVES.bloquearBotonNativo` (`hitomi_bloquear_boton_nativo`) para recordar persistentemente la preferencia del usuario.
+  - Adición del checkbox `🛡️ Bloquear botón nativo` en la sección `⚙️ OPCIONES DE DESCARGA` de la ventana flotante.
+- **Intercepción y Bloqueo de Clics Directos (`src/ui/badge.js` & `src/core/download.js`)**:
+  - Al estar activada esta opción, cualquier clic directo del usuario sobre el botón de descarga nativo de la página (`#dl-button` / `.download-button`) es bloqueado de forma inmediata (`preventDefault()` & `stopImmediatePropagation()`), evitando descargas accidentales mientras se navega por el sitio.
+  - Las descargas programáticas iniciadas desde la interfaz flotante o la ventana modal de nuestro script se ejecutan normalmente sin ser afectadas (`ESTADO.permitirClicForzado`).
+- **Insignia Visual Dinámica (`src/ui/badge.js`)**:
+  - Implementación de `actualizarEstadoVisualBotonNativo()` que añade la insignia `🔒 Bloqueado` y tooltip explicativo al botón nativo en la página cuando el usuario activa la protección.
+
 ## Versión 2.4.0 (Sincronización Global IPC de Pestañas, Re-Escaneo Normalizado y Fallback H1)
 - **Sincronización Global IPC entre Pestañas (`src/core/presence.js`, `src/config/constants.js` & `src/index.js`)**:
   - Implementación de `solicitarSincronizacionGlobalPestanas()` y la clave IPC `CLAVES.pingPresencia`.

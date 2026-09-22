@@ -5,7 +5,7 @@
 import { CONFIGURACION, ESTADO, CLAVES } from '../config/constants.js';
 import { obtenerInformacionPestanas, publicarEstadoPestana, solicitarSincronizacionGlobalPestanas, recorrerPestanasDescarga } from '../core/presence.js';
 import { limpiarMemoriaProcesadas } from '../core/memory.js';
-import { resetearEstadoBotonDescarga } from './badge.js';
+import { resetearEstadoBotonDescarga, actualizarEstadoVisualBotonNativo } from './badge.js';
 import { obtenerOCrearAnfitrionUI, escapeHtml, inyectarEstilos, leerValorGM, guardarValorGM, eliminarValorGM, sanearRutaSubcarpeta } from '../utils/dom.js';
 
 import { capitalizarNombre } from '../core/author.js';
@@ -862,6 +862,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
     const forzadasCount = pestanasInfo.filter(p => p.yaProcesada).length;
     const usarCbz = leerValorGM(CLAVES.usarCbz, false);
     const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
+    const bloquearBotonNativo = leerValorGM(CLAVES.bloquearBotonNativo, false);
     const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
     const rutaSaneada = sanearRutaSubcarpeta(rutaCustom);
     const rutaFormateada = rutaSaneada ? escapeHtml(rutaSaneada) : "Predeterminada";
@@ -922,7 +923,12 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
 
                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Cierra automáticamente cada pestaña del navegador después de iniciar su descarga">
                          <input type="checkbox" id="hitomi-check-cerrar-pestana" ${cerrarPestana ? 'checked' : ''} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar cierre automático de pestañas descargadas" />
-                         <span>🚪 <strong>Cerrar pestañas</strong> al descargar</span>
+                         <span>🚪 <strong>Cerrar pestañas</strong></span>
+                       </label>
+
+                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Bloquea los clics directos sobre el botón de descarga nativo (#dl-button) de Hitomi.la para prevenir descargas accidentales">
+                         <input type="checkbox" id="hitomi-check-bloquear-boton-nativo" ${bloquearBotonNativo ? 'checked' : ''} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar bloqueo de botón de descarga nativo de la página" />
+                         <span>🛡️ <strong>Bloquear botón nativo</strong></span>
                        </label>
                      </div>
 
@@ -1032,6 +1038,14 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
     if (checkCerrarPestana) {
       checkCerrarPestana.addEventListener("change", () => {
         guardarValorGM(CLAVES.cerrarPestana, checkCerrarPestana.checked);
+      });
+    }
+
+    const checkBloquearBotonNativo = backdrop.querySelector("#hitomi-check-bloquear-boton-nativo");
+    if (checkBloquearBotonNativo) {
+      checkBloquearBotonNativo.addEventListener("change", () => {
+        guardarValorGM(CLAVES.bloquearBotonNativo, checkBloquearBotonNativo.checked);
+        actualizarEstadoVisualBotonNativo();
       });
     }
 

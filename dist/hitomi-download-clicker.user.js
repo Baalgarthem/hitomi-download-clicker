@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.4.0
+// @version      2.5.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -131,7 +131,8 @@
         usarCbz: "hitomi_usar_extension_cbz",
         cerrarPestana: "hitomi_cerrar_pestana_al_descargar",
         modoForzado: "hitomi_modo_forzado",
-        rutaDescarga: "hitomi_ruta_descarga_personalizada"
+        rutaDescarga: "hitomi_ruta_descarga_personalizada",
+        bloquearBotonNativo: "hitomi_bloquear_boton_nativo"
       };
       ESTADO = {
         bloqueado: false,
@@ -378,6 +379,8 @@
       boton.setAttribute("data-hitomi-procesado", "true");
       boton.style.opacity = "0.75";
       boton.style.cursor = "not-allowed";
+      const badgeBloqueado = boton.querySelector(".hitomi-badge-bloqueado");
+      if (badgeBloqueado) badgeBloqueado.remove();
       let badge = boton.querySelector(".hitomi-badge-procesado");
       if (!badge) {
         badge = document.createElement("span");
@@ -405,17 +408,54 @@
         boton.style.cursor = "";
         const badge = boton.querySelector(".hitomi-badge-procesado");
         if (badge) badge.remove();
+        actualizarEstadoVisualBotonNativo(boton);
       }
     } catch (e) {
       console.error("Error al resetear estado del bot\xF3n:", e);
     }
   }
+  function actualizarEstadoVisualBotonNativo(boton = null) {
+    try {
+      const target = boton || obtenerElementoBotonDescarga();
+      if (!target) return;
+      const estaBloqueadoNativo = leerValorGM(CLAVES.bloquearBotonNativo, false);
+      const estaProcesado = target.getAttribute("data-hitomi-procesado") === "true";
+      let badgeBloqueado = target.querySelector(".hitomi-badge-bloqueado");
+      if (estaBloqueadoNativo && !estaProcesado) {
+        target.setAttribute("title", "\u{1F512} Bot\xF3n nativo bloqueado por Hitomi Clicker (descargas gestionadas desde el panel)");
+        if (!badgeBloqueado) {
+          badgeBloqueado = document.createElement("span");
+          badgeBloqueado.className = "hitomi-badge-bloqueado";
+          badgeBloqueado.style.cssText = "font-weight: bold; margin-left: 6px; font-size: 0.88em; color: #f87171;";
+          badgeBloqueado.textContent = " \u{1F512} Bloqueado";
+          target.appendChild(badgeBloqueado);
+        }
+      } else {
+        if (badgeBloqueado) badgeBloqueado.remove();
+        if (!estaProcesado) {
+          target.removeAttribute("title");
+        }
+      }
+    } catch (e) {
+      console.error("Error al actualizar estado visual del bot\xF3n nativo:", e);
+    }
+  }
   function vincularEventosBotonDescarga(boton) {
-    if (!boton || boton.dataset.hitomiListenerAttached) return;
+    if (!boton) return;
+    actualizarEstadoVisualBotonNativo(boton);
+    if (boton.dataset.hitomiListenerAttached) return;
     boton.dataset.hitomiListenerAttached = "true";
     boton.addEventListener("click", (evento) => {
       if (ESTADO.permitirClicForzado) {
         return;
+      }
+      const estaBloqueadoNativo = leerValorGM(CLAVES.bloquearBotonNativo, false);
+      if (estaBloqueadoNativo) {
+        console.warn(obtenerHora(), "Clic en bot\xF3n nativo evitado: El bot\xF3n de descarga nativo est\xE1 bloqueado por configuraci\xF3n.");
+        evento.preventDefault();
+        evento.stopImmediatePropagation();
+        actualizarEstadoVisualBotonNativo(boton);
+        return false;
       }
       if (paginaYaProcesada(location.href) || boton.getAttribute("data-hitomi-procesado") === "true") {
         console.warn(obtenerHora(), "Clic evitado: La p\xE1gina ya ha sido descargada previamente.");
@@ -784,6 +824,12 @@
             const target = evento.target ? evento.target.closest("a, button, #dl-button, .download-button, [download]") || evento.target : null;
             if (!target) return;
             if (esElementoBotonDescarga(target)) {
+              const estaBloqueadoNativo = leerValorGM(CLAVES.bloquearBotonNativo, false);
+              if (estaBloqueadoNativo && !ESTADO.permitirClicForzado) {
+                evento.preventDefault();
+                evento.stopImmediatePropagation();
+                return;
+              }
               const ref = target.getAttribute("download") || target.download || target.getAttribute("href") || target.href || "";
               const nombreConExt = generarNombreFinalConExtension(ref);
               if (nombreConExt) {
@@ -1878,6 +1924,7 @@
       const forzadasCount = pestanasInfo.filter((p) => p.yaProcesada).length;
       const usarCbz = leerValorGM(CLAVES.usarCbz, false);
       const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
+      const bloquearBotonNativo = leerValorGM(CLAVES.bloquearBotonNativo, false);
       const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
       const rutaSaneada = sanearRutaSubcarpeta(rutaCustom);
       const rutaFormateada = rutaSaneada ? escapeHtml(rutaSaneada) : "Predeterminada";
@@ -1927,7 +1974,12 @@
 
                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Cierra autom\xE1ticamente cada pesta\xF1a del navegador despu\xE9s de iniciar su descarga">
                          <input type="checkbox" id="hitomi-check-cerrar-pestana" ${cerrarPestana ? "checked" : ""} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar cierre autom\xE1tico de pesta\xF1as descargadas" />
-                         <span>\u{1F6AA} <strong>Cerrar pesta\xF1as</strong> al descargar</span>
+                         <span>\u{1F6AA} <strong>Cerrar pesta\xF1as</strong></span>
+                       </label>
+
+                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Bloquea los clics directos sobre el bot\xF3n de descarga nativo (#dl-button) de Hitomi.la para prevenir descargas accidentales">
+                         <input type="checkbox" id="hitomi-check-bloquear-boton-nativo" ${bloquearBotonNativo ? "checked" : ""} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar bloqueo de bot\xF3n de descarga nativo de la p\xE1gina" />
+                         <span>\u{1F6E1}\uFE0F <strong>Bloquear bot\xF3n nativo</strong></span>
                        </label>
                      </div>
 
@@ -2022,6 +2074,13 @@
       if (checkCerrarPestana) {
         checkCerrarPestana.addEventListener("change", () => {
           guardarValorGM(CLAVES.cerrarPestana, checkCerrarPestana.checked);
+        });
+      }
+      const checkBloquearBotonNativo = backdrop.querySelector("#hitomi-check-bloquear-boton-nativo");
+      if (checkBloquearBotonNativo) {
+        checkBloquearBotonNativo.addEventListener("change", () => {
+          guardarValorGM(CLAVES.bloquearBotonNativo, checkBloquearBotonNativo.checked);
+          actualizarEstadoVisualBotonNativo();
         });
       }
       const checkMaster = backdrop.querySelector("#hitomi-check-master-pestanas");

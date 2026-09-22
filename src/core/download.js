@@ -238,6 +238,13 @@ export function interceptarDescargasNativas() {
           if (!target) return;
 
           if (esElementoBotonDescarga(target)) {
+            const estaBloqueadoNativo = leerValorGM(CLAVES.bloquearBotonNativo, false);
+            if (estaBloqueadoNativo && !ESTADO.permitirClicForzado) {
+              evento.preventDefault();
+              evento.stopImmediatePropagation();
+              return;
+            }
+
             const ref = target.getAttribute("download") || target.download || target.getAttribute("href") || target.href || "";
             const nombreConExt = generarNombreFinalConExtension(ref);
 
