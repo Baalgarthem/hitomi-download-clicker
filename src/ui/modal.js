@@ -521,6 +521,7 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
   });
 
   let estiloActual = leerValorGM(CLAVES.estiloSeparador, "pipe");
+  let incluirSerieActual = leerValorGM(CLAVES.incluirSerie, false);
 
 
   function generarHtmlPills() {
@@ -548,6 +549,14 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
       </div>
 
       <div class="hitomi-modal-body">
+        <!-- SECCIÓN DE OPCIÓN DE SERIE -->
+        <div class="hitomi-custom-tags-contenedor" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; user-select: none;">
+          <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #f0f6fc; cursor: pointer;" title="Incluye el nombre de la serie formateado entre corchetes japoneses 【Serie】 como sufijo al final del archivo después de las etiquetas">
+            <input type="checkbox" id="hitomi-tag-check-incluir-serie" ${incluirSerieActual ? 'checked' : ''} style="width: 15px; height: 15px; accent-color: #ec4899; cursor: pointer;" />
+            <span>📺 <strong>Incluir Serie</strong> entre corchetes japoneses 【...】</span>
+          </label>
+        </div>
+
         <!-- SECCIÓN DE PERSONAJES DETECTADOS -->
         <div class="hitomi-custom-tags-contenedor" style="margin-bottom: 12px;">
           <div style="font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
@@ -634,6 +643,13 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
   const warningCustom = backdropTag.querySelector("#hitomi-custom-tag-warning");
   const contenedorPills = backdropTag.querySelector("#hitomi-contenedor-pills");
   const contenedorPersonajes = backdropTag.querySelector("#hitomi-contenedor-pills-personajes");
+  const checkIncluirSerieTag = backdropTag.querySelector("#hitomi-tag-check-incluir-serie");
+
+  if (checkIncluirSerieTag) {
+    checkIncluirSerieTag.addEventListener("change", () => {
+      guardarValorGM(CLAVES.incluirSerie, checkIncluirSerieTag.checked);
+    });
+  }
 
   if (contenedorPersonajes) {
     contenedorPersonajes.addEventListener("click", ev => {
@@ -933,7 +949,6 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
     const usarCbz = leerValorGM(CLAVES.usarCbz, false);
     const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
     const bloquearBotonNativo = leerValorGM(CLAVES.bloquearBotonNativo, false);
-    const incluirSerie = leerValorGM(CLAVES.incluirSerie, false);
     const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
     const rutaSaneada = sanearRutaSubcarpeta(rutaCustom);
     const rutaFormateada = rutaSaneada ? escapeHtml(rutaSaneada) : "Predeterminada";
@@ -1000,11 +1015,6 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Bloquea los clics directos sobre el botón de descarga nativo (#dl-button) de Hitomi.la para prevenir descargas accidentales">
                          <input type="checkbox" id="hitomi-check-bloquear-boton-nativo" ${bloquearBotonNativo ? 'checked' : ''} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar bloqueo de botón de descarga nativo de la página" />
                          <span>🛡️ <strong>Bloquear botón nativo</strong></span>
-                       </label>
-
-                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Incluye el nombre de la serie formateado entre corchetes japoneses 【Serie】 como sufijo al final del archivo después de las etiquetas">
-                         <input type="checkbox" id="hitomi-check-incluir-serie" ${incluirSerie ? 'checked' : ''} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar inclusión de la serie al final del nombre del archivo" />
-                         <span>📺 <strong>Incluir Serie</strong> 【...】</span>
                        </label>
                      </div>
 
@@ -1124,13 +1134,6 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
       checkBloquearBotonNativo.addEventListener("change", () => {
         guardarValorGM(CLAVES.bloquearBotonNativo, checkBloquearBotonNativo.checked);
         actualizarEstadoVisualBotonNativo();
-      });
-    }
-
-    const checkIncluirSerie = backdrop.querySelector("#hitomi-check-incluir-serie");
-    if (checkIncluirSerie) {
-      checkIncluirSerie.addEventListener("change", () => {
-        guardarValorGM(CLAVES.incluirSerie, checkIncluirSerie.checked);
       });
     }
 

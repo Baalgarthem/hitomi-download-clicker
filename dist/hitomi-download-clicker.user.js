@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.7.0
+// @version      2.8.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz, sufijo de serie 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -1782,6 +1782,7 @@
       if (t) todosLosTagsDisponibles.add(t);
     });
     let estiloActual = leerValorGM(CLAVES.estiloSeparador, "pipe");
+    let incluirSerieActual = leerValorGM(CLAVES.incluirSerie, false);
     function generarHtmlPills() {
       const listaOrdenada = Array.from(todosLosTagsDisponibles);
       if (listaOrdenada.length === 0) {
@@ -1803,6 +1804,14 @@
       </div>
 
       <div class="hitomi-modal-body">
+        <!-- SECCI\xD3N DE OPCI\xD3N DE SERIE -->
+        <div class="hitomi-custom-tags-contenedor" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; user-select: none;">
+          <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #f0f6fc; cursor: pointer;" title="Incluye el nombre de la serie formateado entre corchetes japoneses \u3010Serie\u3011 como sufijo al final del archivo despu\xE9s de las etiquetas">
+            <input type="checkbox" id="hitomi-tag-check-incluir-serie" ${incluirSerieActual ? "checked" : ""} style="width: 15px; height: 15px; accent-color: #ec4899; cursor: pointer;" />
+            <span>\u{1F4FA} <strong>Incluir Serie</strong> entre corchetes japoneses \u3010...\u3011</span>
+          </label>
+        </div>
+
         <!-- SECCI\xD3N DE PERSONAJES DETECTADOS -->
         <div class="hitomi-custom-tags-contenedor" style="margin-bottom: 12px;">
           <div style="font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
@@ -1877,6 +1886,12 @@
     const warningCustom = backdropTag.querySelector("#hitomi-custom-tag-warning");
     const contenedorPills = backdropTag.querySelector("#hitomi-contenedor-pills");
     const contenedorPersonajes = backdropTag.querySelector("#hitomi-contenedor-pills-personajes");
+    const checkIncluirSerieTag = backdropTag.querySelector("#hitomi-tag-check-incluir-serie");
+    if (checkIncluirSerieTag) {
+      checkIncluirSerieTag.addEventListener("change", () => {
+        guardarValorGM(CLAVES.incluirSerie, checkIncluirSerieTag.checked);
+      });
+    }
     if (contenedorPersonajes) {
       contenedorPersonajes.addEventListener("click", (ev) => {
         const pill = ev.target.closest(".hitomi-pill-tag");
@@ -2122,7 +2137,6 @@
       const usarCbz = leerValorGM(CLAVES.usarCbz, false);
       const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
       const bloquearBotonNativo = leerValorGM(CLAVES.bloquearBotonNativo, false);
-      const incluirSerie = leerValorGM(CLAVES.incluirSerie, false);
       const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
       const rutaSaneada = sanearRutaSubcarpeta(rutaCustom);
       const rutaFormateada = rutaSaneada ? escapeHtml(rutaSaneada) : "Predeterminada";
@@ -2178,11 +2192,6 @@
                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Bloquea los clics directos sobre el bot\xF3n de descarga nativo (#dl-button) de Hitomi.la para prevenir descargas accidentales">
                          <input type="checkbox" id="hitomi-check-bloquear-boton-nativo" ${bloquearBotonNativo ? "checked" : ""} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar bloqueo de bot\xF3n de descarga nativo de la p\xE1gina" />
                          <span>\u{1F6E1}\uFE0F <strong>Bloquear bot\xF3n nativo</strong></span>
-                       </label>
-
-                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Incluye el nombre de la serie formateado entre corchetes japoneses \u3010Serie\u3011 como sufijo al final del archivo despu\xE9s de las etiquetas">
-                         <input type="checkbox" id="hitomi-check-incluir-serie" ${incluirSerie ? "checked" : ""} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar inclusi\xF3n de la serie al final del nombre del archivo" />
-                         <span>\u{1F4FA} <strong>Incluir Serie</strong> \u3010...\u3011</span>
                        </label>
                      </div>
 
@@ -2286,12 +2295,6 @@
         checkBloquearBotonNativo.addEventListener("change", () => {
           guardarValorGM(CLAVES.bloquearBotonNativo, checkBloquearBotonNativo.checked);
           actualizarEstadoVisualBotonNativo();
-        });
-      }
-      const checkIncluirSerie = backdrop.querySelector("#hitomi-check-incluir-serie");
-      if (checkIncluirSerie) {
-        checkIncluirSerie.addEventListener("change", () => {
-          guardarValorGM(CLAVES.incluirSerie, checkIncluirSerie.checked);
         });
       }
       const checkMaster = backdrop.querySelector("#hitomi-check-master-pestanas");

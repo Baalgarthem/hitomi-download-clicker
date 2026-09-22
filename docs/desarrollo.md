@@ -2,6 +2,12 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.8.0 (Reubicación de Casilla 'Incluir Serie' dentro del Sub-Modal de Tags)
+- **Reubicación de Interfaz (`src/ui/modal.js`)**:
+  - Traslado de la casilla de verificación `📺 Incluir Serie 【...】` desde el panel principal de opciones (`mostrarPopupConfirmacion`) hacia el interior del sub-modal de selección de etiquetas (`mostrarModalSeleccionTags`).
+  - Mantiene la misma funcionalidad persistente (`CLAVES.incluirSerie` -> `hitomi_incluir_serie_sufijo`) y comportamiento global.
+  - No requirió la modificación de estructuras de datos en `ESTADO` ni claves de almacenamiento adicionales, optimizando el rendimiento y reutilizando los listeners existentes.
+
 ## Versión 2.7.0 (Sufijo de Personajes 【Personaje1 Personaje2】 en Title Case y Selección Integrada en Sub-Modal)
 - **Inclusión y Selección de Personajes (`src/config/constants.js`, `src/core/tags.js`, `src/core/presence.js`, `src/core/download.js` & `src/ui/modal.js`)**:
   - Extracción automática de personajes desde la lista `<ul id="characters" class="tags">` mediante `CONFIGURACION.selectoresPersonajes`.
