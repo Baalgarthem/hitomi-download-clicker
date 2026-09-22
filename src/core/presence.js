@@ -9,7 +9,7 @@ import { buscarBotonDescarga, ejecutarOrdenDescarga } from './download.js';
 import { marcarBotonComoProcesado } from '../ui/badge.js';
 import { mostrarEstado } from '../ui/pill.js';
 import { extraerNombreAutor, obtenerAutorOEstadoInicial } from './author.js';
-import { extraerTagsPagina, limpiarTituloBase } from './tags.js';
+import { extraerTagsPagina, limpiarTituloBase, extraerSeriePagina } from './tags.js';
 
 
 let publicandoEstado = false;
@@ -31,6 +31,7 @@ export async function publicarEstadoPestana(forzar = false) {
     const autorDetectado = obtenerAutorOEstadoInicial();
     const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
     const tagsDisponibles = extraerTagsPagina();
+    const serieDetectada = extraerSeriePagina();
     const ahora = Date.now();
 
     guardarValorGM(CLAVES.presencia(ID_PESTANA), tieneBoton);
@@ -38,6 +39,7 @@ export async function publicarEstadoPestana(forzar = false) {
     guardarValorGM(CLAVES.tituloPestana(ID_PESTANA), tituloLimpio);
     guardarValorGM(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
     guardarValorGM(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
+    guardarValorGM(CLAVES.seriePestana(ID_PESTANA), serieDetectada);
     guardarValorGM(CLAVES.timestampPestana(ID_PESTANA), ahora);
 
     ESTADO.ultimoEstadoPublicado = tieneBoton;
@@ -55,6 +57,7 @@ export function eliminarPresenciaPestana() {
     eliminarValorGM(CLAVES.tituloPestana(ID_PESTANA));
     eliminarValorGM(CLAVES.autorPestana(ID_PESTANA));
     eliminarValorGM(CLAVES.tagsPestana(ID_PESTANA));
+    eliminarValorGM(CLAVES.seriePestana(ID_PESTANA));
     eliminarValorGM(CLAVES.timestampPestana(ID_PESTANA));
   } catch { }
 }
@@ -81,6 +84,7 @@ export function obtenerInformacionPestanas(incluirProcesadas = false) {
       const titulo = leerValorGM(CLAVES.tituloPestana(id), url);
       const autor = leerValorGM(CLAVES.autorPestana(id), "");
       const tagsDisponibles = leerValorGM(CLAVES.tagsPestana(id), []);
+      const serie = leerValorGM(CLAVES.seriePestana(id), "");
 
       if (!estado.procesada || incluirProcesadas) {
         resultado.push({
@@ -89,6 +93,7 @@ export function obtenerInformacionPestanas(incluirProcesadas = false) {
           titulo,
           autor,
           tagsDisponibles,
+          serie,
           yaProcesada: estado.procesada,
           esForzada: estado.esForzada
         });
@@ -199,6 +204,7 @@ export function limpiarRegistrosPestanasAntiguas() {
         eliminarValorGM(CLAVES.tituloPestana(id));
         eliminarValorGM(CLAVES.autorPestana(id));
         eliminarValorGM(CLAVES.tagsPestana(id));
+        eliminarValorGM(CLAVES.seriePestana(id));
         eliminarValorGM(CLAVES.timestampPestana(id));
       }
     }

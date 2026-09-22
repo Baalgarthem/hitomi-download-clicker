@@ -44,6 +44,16 @@ export const CONFIGURACION = {
     ".tags a",
     "a[href*='/tag/']"
   ],
+  selectoresSerie: [
+    "#series ul.comma-list li a",
+    "#series a",
+    "#series li",
+    "#series",
+    "td#series a[href*='/series/']",
+    ".gallery-info td#series a",
+    "a[href*='/series/']",
+    ".series-list a"
+  ],
   intervaloBusquedaBoton: 150,
   intentosBusquedaBoton: 40,
   tiempoEntreOrdenes: 120,
@@ -87,6 +97,7 @@ export const CLAVES = {
   tituloPestana: id => `hitomi_titulo_${id}`,
   autorPestana: id => `hitomi_autor_${id}`,
   tagsPestana: id => `hitomi_tags_${id}`,
+  seriePestana: id => `hitomi_serie_${id}`,
   timestampPestana: id => `hitomi_timestamp_${id}`,
   pingPresencia: "hitomi_ping_presencia_global",
   estiloSeparador: "hitomi_estilo_separador_tags",
@@ -94,7 +105,8 @@ export const CLAVES = {
   cerrarPestana: "hitomi_cerrar_pestana_al_descargar",
   modoForzado: "hitomi_modo_forzado",
   rutaDescarga: "hitomi_ruta_descarga_personalizada",
-  bloquearBotonNativo: "hitomi_bloquear_boton_nativo"
+  bloquearBotonNativo: "hitomi_bloquear_boton_nativo",
+  incluirSerie: "hitomi_incluir_serie_sufijo"
 };
 
 

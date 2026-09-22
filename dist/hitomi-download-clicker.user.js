@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.5.1
+// @version      2.6.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -99,6 +99,16 @@
           ".tags a",
           "a[href*='/tag/']"
         ],
+        selectoresSerie: [
+          "#series ul.comma-list li a",
+          "#series a",
+          "#series li",
+          "#series",
+          "td#series a[href*='/series/']",
+          ".gallery-info td#series a",
+          "a[href*='/series/']",
+          ".series-list a"
+        ],
         intervaloBusquedaBoton: 150,
         intentosBusquedaBoton: 40,
         tiempoEntreOrdenes: 120,
@@ -125,6 +135,7 @@
         tituloPestana: (id) => `hitomi_titulo_${id}`,
         autorPestana: (id) => `hitomi_autor_${id}`,
         tagsPestana: (id) => `hitomi_tags_${id}`,
+        seriePestana: (id) => `hitomi_serie_${id}`,
         timestampPestana: (id) => `hitomi_timestamp_${id}`,
         pingPresencia: "hitomi_ping_presencia_global",
         estiloSeparador: "hitomi_estilo_separador_tags",
@@ -132,7 +143,8 @@
         cerrarPestana: "hitomi_cerrar_pestana_al_descargar",
         modoForzado: "hitomi_modo_forzado",
         rutaDescarga: "hitomi_ruta_descarga_personalizada",
-        bloquearBotonNativo: "hitomi_bloquear_boton_nativo"
+        bloquearBotonNativo: "hitomi_bloquear_boton_nativo",
+        incluirSerie: "hitomi_incluir_serie_sufijo"
       };
       ESTADO = {
         bloqueado: false,
@@ -607,7 +619,7 @@
     }
     titulo = titulo.replace(/\s*[\|║\-\/┃]\s*Hitomi(?:\.la)?.*$/i, "").trim();
     titulo = titulo.replace(/^Read online at Hitomi(?:\.la)?\s*[\|║\-\/┃]\s*/i, "").trim();
-    titulo = titulo.replace(/「[^」]+」/g, "").trim();
+    titulo = titulo.replace(/「[^」]+」/g, "").replace(/【[^】]+】/g, "").trim();
     const autorLimpio = (autorNombre || "").trim();
     if (autorLimpio) {
       const regexByAutor = new RegExp(`\\s+(?:by|por)\\s+${autorLimpio.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
@@ -617,6 +629,30 @@
     titulo = titulo.split("\u2503")[0].trim();
     titulo = titulo.replace(/\s*[⟨\[\(].*?[⟩\]\)]\s*$/g, "").trim();
     return titulo.replace(/\s+/g, " ");
+  }
+  function capitalizarSerie(str = "") {
+    if (!str || typeof str !== "string") return "";
+    let texto = str.trim();
+    texto = texto.replace(/\s*-\s*all$/i, "").trim();
+    if (/^(?:n\/?a|none)$/i.test(texto)) return "";
+    return texto.replace(/\b[a-zA-ZáéíóúÁÉÍÓÚñÑ]+/g, (word) => {
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    });
+  }
+  function extraerSeriePagina() {
+    try {
+      if (typeof document === "undefined") return "";
+      for (const selector of CONFIGURACION.selectoresSerie) {
+        const el = document.querySelector(selector);
+        if (el && el.textContent) {
+          const limpia = capitalizarSerie(el.textContent);
+          if (limpia) return limpia;
+        }
+      }
+    } catch (e) {
+      console.error("Error al extraer serie de la p\xE1gina:", e);
+    }
+    return "";
   }
   function extraerTagsPagina() {
     const listaTags = [];
@@ -659,15 +695,29 @@
       tituloOriginal = "",
       autor = null,
       tagsSeleccionados = [],
-      estiloSeparador = null
+      estiloSeparador = null,
+      serie = null,
+      incluirSerie = null
     } = opciones;
     const autorTarget = autor !== null && autor !== void 0 && String(autor).trim() !== "" ? String(autor).trim() : obtenerAutorOEstadoInicial();
     const autorFormateado = formatearNombreAutor(autorTarget);
     const tituloLimpio = limpiarTituloBase(tituloOriginal, autorTarget);
     const seccionTags = formatearCadenaTags(tagsSeleccionados, estiloSeparador);
+    const debeIncluirSerie = incluirSerie !== null ? incluirSerie : leerValorGM(CLAVES.incluirSerie, false);
+    let seccionSerie = "";
+    if (debeIncluirSerie) {
+      const serieRaw = serie !== null && serie !== void 0 && String(serie).trim() !== "" ? String(serie).trim() : extraerSeriePagina();
+      const serieLimpia = capitalizarSerie(serieRaw);
+      if (serieLimpia) {
+        seccionSerie = ` \u3010${serieLimpia}\u3011`;
+      }
+    }
     let nombreFinal = `${autorFormateado} ${tituloLimpio}`.trim();
     if (seccionTags) {
       nombreFinal = `${nombreFinal}${seccionTags}`;
+    }
+    if (seccionSerie) {
+      nombreFinal = `${nombreFinal}${seccionSerie}`;
     }
     return sanearNombreArchivoFileSystem(nombreFinal);
   }
@@ -1941,6 +1991,7 @@
       const usarCbz = leerValorGM(CLAVES.usarCbz, false);
       const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
       const bloquearBotonNativo = leerValorGM(CLAVES.bloquearBotonNativo, false);
+      const incluirSerie = leerValorGM(CLAVES.incluirSerie, false);
       const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
       const rutaSaneada = sanearRutaSubcarpeta(rutaCustom);
       const rutaFormateada = rutaSaneada ? escapeHtml(rutaSaneada) : "Predeterminada";
@@ -1996,6 +2047,11 @@
                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Bloquea los clics directos sobre el bot\xF3n de descarga nativo (#dl-button) de Hitomi.la para prevenir descargas accidentales">
                          <input type="checkbox" id="hitomi-check-bloquear-boton-nativo" ${bloquearBotonNativo ? "checked" : ""} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar bloqueo de bot\xF3n de descarga nativo de la p\xE1gina" />
                          <span>\u{1F6E1}\uFE0F <strong>Bloquear bot\xF3n nativo</strong></span>
+                       </label>
+
+                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Incluye el nombre de la serie formateado entre corchetes japoneses \u3010Serie\u3011 como sufijo al final del archivo despu\xE9s de las etiquetas">
+                         <input type="checkbox" id="hitomi-check-incluir-serie" ${incluirSerie ? "checked" : ""} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar inclusi\xF3n de la serie al final del nombre del archivo" />
+                         <span>\u{1F4FA} <strong>Incluir Serie</strong> \u3010...\u3011</span>
                        </label>
                      </div>
 
@@ -2097,6 +2153,12 @@
         checkBloquearBotonNativo.addEventListener("change", () => {
           guardarValorGM(CLAVES.bloquearBotonNativo, checkBloquearBotonNativo.checked);
           actualizarEstadoVisualBotonNativo();
+        });
+      }
+      const checkIncluirSerie = backdrop.querySelector("#hitomi-check-incluir-serie");
+      if (checkIncluirSerie) {
+        checkIncluirSerie.addEventListener("change", () => {
+          guardarValorGM(CLAVES.incluirSerie, checkIncluirSerie.checked);
         });
       }
       const checkMaster = backdrop.querySelector("#hitomi-check-master-pestanas");
@@ -2410,12 +2472,14 @@
       const autorDetectado = obtenerAutorOEstadoInicial();
       const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
       const tagsDisponibles = extraerTagsPagina();
+      const serieDetectada = extraerSeriePagina();
       const ahora = Date.now();
       guardarValorGM(CLAVES.presencia(ID_PESTANA), tieneBoton);
       guardarValorGM(CLAVES.urlPestana(ID_PESTANA), location.href);
       guardarValorGM(CLAVES.tituloPestana(ID_PESTANA), tituloLimpio);
       guardarValorGM(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
       guardarValorGM(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
+      guardarValorGM(CLAVES.seriePestana(ID_PESTANA), serieDetectada);
       guardarValorGM(CLAVES.timestampPestana(ID_PESTANA), ahora);
       ESTADO.ultimoEstadoPublicado = tieneBoton;
     } catch (e) {
@@ -2431,6 +2495,7 @@
       eliminarValorGM(CLAVES.tituloPestana(ID_PESTANA));
       eliminarValorGM(CLAVES.autorPestana(ID_PESTANA));
       eliminarValorGM(CLAVES.tagsPestana(ID_PESTANA));
+      eliminarValorGM(CLAVES.seriePestana(ID_PESTANA));
       eliminarValorGM(CLAVES.timestampPestana(ID_PESTANA));
     } catch {
     }
@@ -2453,6 +2518,7 @@
         const titulo = leerValorGM(CLAVES.tituloPestana(id), url);
         const autor = leerValorGM(CLAVES.autorPestana(id), "");
         const tagsDisponibles = leerValorGM(CLAVES.tagsPestana(id), []);
+        const serie = leerValorGM(CLAVES.seriePestana(id), "");
         if (!estado.procesada || incluirProcesadas) {
           resultado.push({
             id,
@@ -2460,6 +2526,7 @@
             titulo,
             autor,
             tagsDisponibles,
+            serie,
             yaProcesada: estado.procesada,
             esForzada: estado.esForzada
           });
@@ -2551,6 +2618,7 @@
           eliminarValorGM(CLAVES.tituloPestana(id));
           eliminarValorGM(CLAVES.autorPestana(id));
           eliminarValorGM(CLAVES.tagsPestana(id));
+          eliminarValorGM(CLAVES.seriePestana(id));
           eliminarValorGM(CLAVES.timestampPestana(id));
         }
       }

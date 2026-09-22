@@ -50,8 +50,8 @@ export function limpiarTituloBase(rawTitle = "", autorNombre = "") {
   titulo = titulo.replace(/\s*[\|║\-\/┃]\s*Hitomi(?:\.la)?.*$/i, "").trim();
   titulo = titulo.replace(/^Read online at Hitomi(?:\.la)?\s*[\|║\-\/┃]\s*/i, "").trim();
 
-  // 2. Eliminar cualquier etiqueta 「...」 preexistente en el cuerpo del título
-  titulo = titulo.replace(/「[^」]+」/g, "").trim();
+  // 2. Eliminar cualquier etiqueta 「...」 o corchete de serie 【...】 preexistente en el cuerpo del título
+  titulo = titulo.replace(/「[^」]+」/g, "").replace(/【[^】]+】/g, "").trim();
 
   // 3. Eliminar 'by <autor>' o 'por <autor>' si está presente al final o dentro del título
   const autorLimpio = (autorNombre || "").trim();
@@ -68,6 +68,44 @@ export function limpiarTituloBase(rawTitle = "", autorNombre = "") {
   titulo = titulo.replace(/\s*[⟨\[\(].*?[⟩\]\)]\s*$/g, "").trim();
 
   return titulo.replace(/\s+/g, " ");
+}
+
+/**
+ * Capitaliza cada palabra de una cadena de texto (Title Case).
+ * Ejemplo: "gundam wing" -> "Gundam Wing"
+ * @param {string} str - Nombre bruto de la serie.
+ * @returns {string} Nombre de la serie formateado en Title Case.
+ */
+export function capitalizarSerie(str = "") {
+  if (!str || typeof str !== "string") return "";
+  let texto = str.trim();
+  texto = texto.replace(/\s*-\s*all$/i, "").trim();
+
+  if (/^(?:n\/?a|none)$/i.test(texto)) return "";
+
+  return texto.replace(/\b[a-zA-ZáéíóúÁÉÍÓÚñÑ]+/g, word => {
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+}
+
+/**
+ * Escanea el DOM de la página para extraer el nombre de la serie (si está presente).
+ * @returns {string} Serie limpia y capitalizada.
+ */
+export function extraerSeriePagina() {
+  try {
+    if (typeof document === "undefined") return "";
+    for (const selector of CONFIGURACION.selectoresSerie) {
+      const el = document.querySelector(selector);
+      if (el && el.textContent) {
+        const limpia = capitalizarSerie(el.textContent);
+        if (limpia) return limpia;
+      }
+    }
+  } catch (e) {
+    console.error("Error al extraer serie de la página:", e);
+  }
+  return "";
 }
 
 /**
@@ -133,16 +171,18 @@ export function formatearCadenaTags(tagsSeleccionados = [], estiloId = null) {
 }
 
 /**
- * Genera el título/nombre final completo combinando autor, título base limpio y la sección de tags.
+ * Genera el título/nombre final completo combinando autor, título base limpio, tags y sufijo de serie.
  * Formatos de salida:
- *  - Sin tags: 「Nodo」 Good Teachers 4
- *  - Con tags (pipe):  「Nodo」 Good Teachers 4 ┃ girls blonde schoolgirl
- *  - Con tags (angle): 「Nodo」 Good Teachers 4 ⟨girls blonde schoolgirl⟩
+ *  - Sin tags ni serie: 「Nodo」 Good Teachers 4
+ *  - Con tags: 「Nodo」 Good Teachers 4 ┃ girls blonde schoolgirl
+ *  - Con tags y serie: 「Nodo」 Good Teachers 4 ┃ girls blonde 【Gundam Wing】
  * @param {Object} opciones - Parámetros de formateo.
  * @param {string} opciones.tituloOriginal - Título original bruto.
  * @param {string} opciones.autor - Nombre del autor.
  * @param {Array<string>} opciones.tagsSeleccionados - Lista de tags seleccionados.
  * @param {string} opciones.estiloSeparador - Estilo del separador ('pipe', 'angle', etc.).
+ * @param {string} opciones.serie - Nombre de la serie (opcional).
+ * @param {boolean} opciones.incluirSerie - Si debe forzarse la inclusión de la serie.
  * @returns {string} Nombre final estructurado sin repeticiones ni sitio web.
  */
 export function obtenerNombreFinalCompleto(opciones = {}) {
@@ -150,7 +190,9 @@ export function obtenerNombreFinalCompleto(opciones = {}) {
     tituloOriginal = "",
     autor = null,
     tagsSeleccionados = [],
-    estiloSeparador = null
+    estiloSeparador = null,
+    serie = null,
+    incluirSerie = null
   } = opciones;
 
   // Elemento 1 (Prefijo): Autor o Grupo formateado (ej. 「Nodo」, 「Kemusi」 o 「Unknown」 si es N/A)
@@ -162,13 +204,30 @@ export function obtenerNombreFinalCompleto(opciones = {}) {
   // Elemento 2 (Cuerpo Principal): Título base completamente limpio
   const tituloLimpio = limpiarTituloBase(tituloOriginal, autorTarget);
 
-  // Elemento 3 (Sufijo): Tags con su respectivo separador/envolvente (ej. ┃ tags / ⟨tags⟩)
+  // Elemento 3: Tags con su respectivo separador/envolvente (ej. ┃ tags / ⟨tags⟩)
   const seccionTags = formatearCadenaTags(tagsSeleccionados, estiloSeparador);
 
-  // Construcción desacoplada de los 3 elementos y saneamiento estricto para Chromium/Linux/Windows
+  // Elemento 4 (Sufijo Serie): Serie con corchetes japoneses 【Serie】 al final del nombre si la opción está activa
+  const debeIncluirSerie = incluirSerie !== null ? incluirSerie : leerValorGM(CLAVES.incluirSerie, false);
+  let seccionSerie = "";
+
+  if (debeIncluirSerie) {
+    const serieRaw = (serie !== null && serie !== undefined && String(serie).trim() !== "")
+      ? String(serie).trim()
+      : extraerSeriePagina();
+    const serieLimpia = capitalizarSerie(serieRaw);
+    if (serieLimpia) {
+      seccionSerie = ` 【${serieLimpia}】`;
+    }
+  }
+
+  // Construcción desacoplada de los elementos y saneamiento estricto para FileSystem
   let nombreFinal = `${autorFormateado} ${tituloLimpio}`.trim();
   if (seccionTags) {
     nombreFinal = `${nombreFinal}${seccionTags}`;
+  }
+  if (seccionSerie) {
+    nombreFinal = `${nombreFinal}${seccionSerie}`;
   }
 
   return sanearNombreArchivoFileSystem(nombreFinal);

@@ -2,6 +2,15 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.6.0 (Sufijo Persistente de Serie 【Serie】 en Mayúsculas y Verificación de Tags Custom)
+- **Inclusión General y Persistente de Serie (`src/config/constants.js`, `src/core/tags.js`, `src/core/presence.js` & `src/ui/modal.js`)**:
+  - Incorporación de la casilla de verificación `📺 Incluir Serie 【...】` en el panel `⚙️ OPCIONES DE DESCARGA` (almacenada persistentemente en `CLAVES.incluirSerie`).
+  - Al estar activada, la serie del cómic se anexa como un sufijo formateado entre corchetes japoneses `【...】` al final del nombre de archivo (después de las etiquetas).
+- **Capitalización Obligatoria Title Case (`src/core/tags.js`)**:
+  - Implementación de `capitalizarSerie()` que transforma cualquier serie del DOM (ej. `"gundam wing"` -> `"Gundam Wing"`) a formato Title Case con mayúscula en cada palabra.
+- **Verificación de Descarga de Tags Personalizados (`src/core/tags.js` & `src/core/download.js`)**:
+  - Confirmación y validación de que los tags ingresados manualmente por el usuario se integran limpiamente en `formatearCadenaTags()` y se reflejan al 100% en el archivo descargado.
+
 ## Versión 2.5.1 (Sincronización en Tiempo Real de Tags Personalizados en Contadores)
 - **Reflejo Inmediato de Tags Personalizados en Contadores (`src/ui/modal.js`)**:
   - Implementación de `actualizarContadoresTags()` para actualizar dinámicamente en tiempo real los contadores del sub-modal (`#hitomi-tag-badge-count`, `#hitomi-count-sel` y `#hitomi-count-total`).

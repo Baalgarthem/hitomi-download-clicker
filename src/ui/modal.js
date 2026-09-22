@@ -880,6 +880,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
     const usarCbz = leerValorGM(CLAVES.usarCbz, false);
     const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
     const bloquearBotonNativo = leerValorGM(CLAVES.bloquearBotonNativo, false);
+    const incluirSerie = leerValorGM(CLAVES.incluirSerie, false);
     const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
     const rutaSaneada = sanearRutaSubcarpeta(rutaCustom);
     const rutaFormateada = rutaSaneada ? escapeHtml(rutaSaneada) : "Predeterminada";
@@ -946,6 +947,11 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Bloquea los clics directos sobre el botón de descarga nativo (#dl-button) de Hitomi.la para prevenir descargas accidentales">
                          <input type="checkbox" id="hitomi-check-bloquear-boton-nativo" ${bloquearBotonNativo ? 'checked' : ''} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar bloqueo de botón de descarga nativo de la página" />
                          <span>🛡️ <strong>Bloquear botón nativo</strong></span>
+                       </label>
+
+                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Incluye el nombre de la serie formateado entre corchetes japoneses 【Serie】 como sufijo al final del archivo después de las etiquetas">
+                         <input type="checkbox" id="hitomi-check-incluir-serie" ${incluirSerie ? 'checked' : ''} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar inclusión de la serie al final del nombre del archivo" />
+                         <span>📺 <strong>Incluir Serie</strong> 【...】</span>
                        </label>
                      </div>
 
@@ -1063,6 +1069,13 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
       checkBloquearBotonNativo.addEventListener("change", () => {
         guardarValorGM(CLAVES.bloquearBotonNativo, checkBloquearBotonNativo.checked);
         actualizarEstadoVisualBotonNativo();
+      });
+    }
+
+    const checkIncluirSerie = backdrop.querySelector("#hitomi-check-incluir-serie");
+    if (checkIncluirSerie) {
+      checkIncluirSerie.addEventListener("change", () => {
+        guardarValorGM(CLAVES.incluirSerie, checkIncluirSerie.checked);
       });
     }
 
