@@ -75,11 +75,12 @@ export async function buscarBotonDescarga(opciones = {}) {
 
 /**
  * Genera y resuelve el nombre de archivo final completo con su extensión (.cbz o la original del enlace).
- * @param {string} referenciaUrl - Atributo href, download o URL de referencia para la descarga.
- * @param {boolean} incluirRutaSubcarpeta - Si es true, antepone la subcarpeta de descargas (ej. "Hitomi/Comics/archivo.cbz"). Si es false, retorna solo el nombre limpio.
- * @returns {string} Nombre completo formateado listo para inyectar en el navegador o GM_download.
+ * Retorna siempre un nombre limpio sin barras de subcarpeta, apto para inyectar en atributos HTML (a.download, title).
+ * La composición de ruta personalizada para GM_download se realiza directamente en confirmarYEjecutarClic.
+ * @param {string} referenciaUrl - Atributo href, download o URL de referencia para inferir la extensión del archivo.
+ * @returns {string} Nombre completo formateado listo para inyectar en el navegador.
  */
-export function generarNombreFinalConExtension(referenciaUrl = "", incluirRutaSubcarpeta = false) {
+export function generarNombreFinalConExtension(referenciaUrl = "") {
   let nombreBase = ESTADO.ultimoNombreFinal;
 
   if (!nombreBase) {
@@ -102,27 +103,18 @@ export function generarNombreFinalConExtension(referenciaUrl = "", incluirRutaSu
   const usarCbz = leerValorGM(CLAVES.usarCbz, false);
   const baseLimpia = nombreBase.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
 
-  let nombreConExt = "";
   if (usarCbz) {
-    nombreConExt = `${baseLimpia}.cbz`;
-  } else {
-    const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
-    let extension = matchExt ? `.${matchExt[1]}` : ".zip";
-    if (extension.toLowerCase() === ".cbz" && !usarCbz) {
-      extension = ".zip";
-    }
-    nombreConExt = `${baseLimpia}${extension}`;
+    return `${baseLimpia}.cbz`;
   }
 
-  if (incluirRutaSubcarpeta) {
-    const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
-    const rutaLimpia = sanearRutaSubcarpeta(rutaCustom);
-    if (rutaLimpia) {
-      return `${rutaLimpia}/${nombreConExt}`;
-    }
+  const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
+  let extension = matchExt ? `.${matchExt[1]}` : ".zip";
+  // Si la referencia apunta a un .cbz pero el usuario no activó la opción, usar .zip
+  if (extension.toLowerCase() === ".cbz" && !usarCbz) {
+    extension = ".zip";
   }
 
-  return nombreConExt;
+  return `${baseLimpia}${extension}`;
 }
 
 
@@ -319,7 +311,8 @@ export function interceptarDescargasNativas() {
               const nombreConExt = generarNombreFinalConExtension(valorAtributo || this.href || "");
               return originalSetAttribute.call(this, nombreAtributo, nombreConExt || valorAtributo, ...restoArgs);
             }
-            return;
+            // No es botón de descarga nuestro: dejar pasar el setAttribute original sin modificar
+            return originalSetAttribute.call(this, nombreAtributo, valorAtributo, ...restoArgs);
           }
           return originalSetAttribute.call(this, nombreAtributo, valorAtributo, ...restoArgs);
         };
@@ -469,8 +462,7 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
 
     if (nombreFinalCompleto) {
       ESTADO.ultimoNombreFinal = nombreFinalCompleto;
-      const nombreLimpioConExt = generarNombreFinalConExtension("", false);
-      const nombreConRutaSubcarpeta = generarNombreFinalConExtension("", true);
+      const nombreLimpioConExt = generarNombreFinalConExtension("");
 
       // Ajustar document.title SOLO con el nombre sin extensiones para evitar carpetas internas .cbz/.zip anidadas
       try {
@@ -478,7 +470,7 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
         document.title = tituloLimpioSinExt;
       } catch { }
 
-      // Asignar el nombre limpio sin barras a los atributos HTML download para evitar prefijos de ruta rotos en descargas nativas
+      // Asignar el nombre limpio (sin barras de subcarpeta) a todos los atributos HTML download
       const elementosTarget = new Set([
         boton,
         boton.closest ? boton.closest("a") : null,
@@ -496,51 +488,70 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
         if ("download" in el) el.download = nombreLimpioConExt;
       });
 
-      // Extraer URL absoluta para la descarga programática
-      let hrefRaw = (boton.getAttribute("href") || boton.href || (boton.closest && boton.closest("a") ? (boton.closest("a").getAttribute("href") || boton.closest("a").href) : "") || "").trim();
-      let downloadUrl = "";
-      if (hrefRaw) {
-        try {
-          downloadUrl = new URL(hrefRaw, location.href).href;
-        } catch {
-          downloadUrl = hrefRaw;
-        }
-      }
+      // Verificar si hay ruta de subcarpeta personalizada configurada
+      const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
+      const rutaLimpia = sanearRutaSubcarpeta(rutaCustom);
+      const tieneRutaPersonalizada = !!rutaLimpia;
 
-      // Si GM_download está disponible y tenemos URL válida, ejecutar descarga por la API de Userscript hacia la subcarpeta
-      if (typeof GM_download === "function" && downloadUrl && (downloadUrl.startsWith("http") || downloadUrl.startsWith("blob"))) {
-        let ejecucionExitosaGM = false;
-        try {
-          console.log(obtenerHora(), "Iniciando descarga segura vía GM_download a la subcarpeta:", nombreConRutaSubcarpeta);
-          GM_download({
-            url: downloadUrl,
-            name: nombreConRutaSubcarpeta,
-            saveAs: false,
-            onload: () => {
-              console.log(obtenerHora(), "Descarga guardada exitosamente en:", nombreConRutaSubcarpeta);
-            },
-            onerror: (error) => {
-              console.error(obtenerHora(), "Error en GM_download, recurriendo a clic nativo:", error);
-              if (typeof boton.click === "function") boton.click();
-            }
-          });
-          ejecucionExitosaGM = true;
-          fueClickeadoConExito = true;
-        } catch (errGM) {
-          console.warn("Excepción al invocar GM_download:", errGM);
-          ejecucionExitosaGM = false;
-        }
+      // Solo usar GM_download cuando hay ruta personalizada configurada.
+      // Sin ruta personalizada, el clic nativo es suficiente y más confiable.
+      if (tieneRutaPersonalizada && typeof GM_download === "function") {
+        // Construir nombre con subcarpeta únicamente para GM_download
+        const nombreConRuta = `${rutaLimpia}/${nombreLimpioConExt}`;
 
-        if (ejecucionExitosaGM) {
-          if (esForzado) {
-            ESTADO.permitirClicForzado = false;
-            if (teniaProcesado) boton.setAttribute("data-hitomi-procesado", teniaProcesado);
-            boton.style.pointerEvents = estiloPointerPrevio;
-            if ("disabled" in boton) boton.disabled = deshabilitadoPrevio;
-          } else {
-            ESTADO.permitirClicForzado = false;
+        // Extraer URL absoluta del enlace de descarga
+        let hrefRaw = (
+          boton.getAttribute("href") ||
+          boton.href ||
+          (boton.closest && boton.closest("a") ? (boton.closest("a").getAttribute("href") || boton.closest("a").href) : "") ||
+          ""
+        ).trim();
+        let downloadUrl = "";
+        if (hrefRaw) {
+          try {
+            downloadUrl = new URL(hrefRaw, location.href).href;
+          } catch {
+            downloadUrl = hrefRaw;
           }
-          return true;
+        }
+
+        if (downloadUrl && (downloadUrl.startsWith("http") || downloadUrl.startsWith("blob"))) {
+          let ejecucionExitosaGM = false;
+          try {
+            console.log(obtenerHora(), "Iniciando GM_download hacia subcarpeta:", nombreConRuta);
+            GM_download({
+              url: downloadUrl,
+              name: nombreConRuta,
+              saveAs: false,
+              onload: () => {
+                console.log(obtenerHora(), "Descarga guardada en subcarpeta:", nombreConRuta);
+              },
+              onerror: (error) => {
+                console.warn(obtenerHora(), "GM_download falló, recurriendo a clic nativo:", error);
+                // Fallback: clic nativo con nombre limpio ya inyectado en a.download
+                ESTADO.permitirClicForzado = true;
+                if (typeof boton.click === "function") boton.click();
+                ESTADO.permitirClicForzado = false;
+              }
+            });
+            ejecucionExitosaGM = true;
+            fueClickeadoConExito = true;
+          } catch (errGM) {
+            console.warn("Excepción al invocar GM_download:", errGM);
+            ejecucionExitosaGM = false;
+          }
+
+          if (ejecucionExitosaGM) {
+            if (esForzado) {
+              ESTADO.permitirClicForzado = false;
+              if (teniaProcesado) boton.setAttribute("data-hitomi-procesado", teniaProcesado);
+              boton.style.pointerEvents = estiloPointerPrevio;
+              if ("disabled" in boton) boton.disabled = deshabilitadoPrevio;
+            } else {
+              ESTADO.permitirClicForzado = false;
+            }
+            return true;
+          }
         }
       }
     }

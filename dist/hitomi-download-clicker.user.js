@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.9.0
+// @version      2.9.1
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz, sufijo de serie 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -837,7 +837,7 @@
     }
     return null;
   }
-  function generarNombreFinalConExtension(referenciaUrl = "", incluirRutaSubcarpeta = false) {
+  function generarNombreFinalConExtension(referenciaUrl = "") {
     let nombreBase = ESTADO.ultimoNombreFinal;
     if (!nombreBase) {
       const autor = ESTADO.autoresEditadosPorPestana.get(ID_PESTANA) || obtenerAutorOEstadoInicial();
@@ -856,25 +856,15 @@
     if (!nombreBase) return "";
     const usarCbz = leerValorGM(CLAVES.usarCbz, false);
     const baseLimpia = nombreBase.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
-    let nombreConExt = "";
     if (usarCbz) {
-      nombreConExt = `${baseLimpia}.cbz`;
-    } else {
-      const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
-      let extension = matchExt ? `.${matchExt[1]}` : ".zip";
-      if (extension.toLowerCase() === ".cbz" && !usarCbz) {
-        extension = ".zip";
-      }
-      nombreConExt = `${baseLimpia}${extension}`;
+      return `${baseLimpia}.cbz`;
     }
-    if (incluirRutaSubcarpeta) {
-      const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
-      const rutaLimpia = sanearRutaSubcarpeta(rutaCustom);
-      if (rutaLimpia) {
-        return `${rutaLimpia}/${nombreConExt}`;
-      }
+    const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
+    let extension = matchExt ? `.${matchExt[1]}` : ".zip";
+    if (extension.toLowerCase() === ".cbz" && !usarCbz) {
+      extension = ".zip";
     }
-    return nombreConExt;
+    return `${baseLimpia}${extension}`;
   }
   function esElementoBotonDescarga(elemento) {
     if (!elemento || typeof elemento !== "object") return false;
@@ -1008,7 +998,7 @@
                 const nombreConExt = generarNombreFinalConExtension(valorAtributo || this.href || "");
                 return originalSetAttribute.call(this, nombreAtributo, nombreConExt || valorAtributo, ...restoArgs);
               }
-              return;
+              return originalSetAttribute.call(this, nombreAtributo, valorAtributo, ...restoArgs);
             }
             return originalSetAttribute.call(this, nombreAtributo, valorAtributo, ...restoArgs);
           };
@@ -1142,8 +1132,7 @@
       });
       if (nombreFinalCompleto) {
         ESTADO.ultimoNombreFinal = nombreFinalCompleto;
-        const nombreLimpioConExt = generarNombreFinalConExtension("", false);
-        const nombreConRutaSubcarpeta = generarNombreFinalConExtension("", true);
+        const nombreLimpioConExt = generarNombreFinalConExtension("");
         try {
           const tituloLimpioSinExt = nombreFinalCompleto.replace(/\.cbz$/i, "").replace(/\.zip$/i, "");
           document.title = tituloLimpioSinExt;
@@ -1164,47 +1153,55 @@
           el.setAttribute("download", nombreLimpioConExt);
           if ("download" in el) el.download = nombreLimpioConExt;
         });
-        let hrefRaw = (boton.getAttribute("href") || boton.href || (boton.closest && boton.closest("a") ? boton.closest("a").getAttribute("href") || boton.closest("a").href : "") || "").trim();
-        let downloadUrl = "";
-        if (hrefRaw) {
-          try {
-            downloadUrl = new URL(hrefRaw, location.href).href;
-          } catch {
-            downloadUrl = hrefRaw;
-          }
-        }
-        if (typeof GM_download === "function" && downloadUrl && (downloadUrl.startsWith("http") || downloadUrl.startsWith("blob"))) {
-          let ejecucionExitosaGM = false;
-          try {
-            console.log(obtenerHora(), "Iniciando descarga segura v\xEDa GM_download a la subcarpeta:", nombreConRutaSubcarpeta);
-            GM_download({
-              url: downloadUrl,
-              name: nombreConRutaSubcarpeta,
-              saveAs: false,
-              onload: () => {
-                console.log(obtenerHora(), "Descarga guardada exitosamente en:", nombreConRutaSubcarpeta);
-              },
-              onerror: (error) => {
-                console.error(obtenerHora(), "Error en GM_download, recurriendo a clic nativo:", error);
-                if (typeof boton.click === "function") boton.click();
-              }
-            });
-            ejecucionExitosaGM = true;
-            fueClickeadoConExito = true;
-          } catch (errGM) {
-            console.warn("Excepci\xF3n al invocar GM_download:", errGM);
-            ejecucionExitosaGM = false;
-          }
-          if (ejecucionExitosaGM) {
-            if (esForzado) {
-              ESTADO.permitirClicForzado = false;
-              if (teniaProcesado) boton.setAttribute("data-hitomi-procesado", teniaProcesado);
-              boton.style.pointerEvents = estiloPointerPrevio;
-              if ("disabled" in boton) boton.disabled = deshabilitadoPrevio;
-            } else {
-              ESTADO.permitirClicForzado = false;
+        const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
+        const rutaLimpia = sanearRutaSubcarpeta(rutaCustom);
+        const tieneRutaPersonalizada = !!rutaLimpia;
+        if (tieneRutaPersonalizada && typeof GM_download === "function") {
+          const nombreConRuta = `${rutaLimpia}/${nombreLimpioConExt}`;
+          let hrefRaw = (boton.getAttribute("href") || boton.href || (boton.closest && boton.closest("a") ? boton.closest("a").getAttribute("href") || boton.closest("a").href : "") || "").trim();
+          let downloadUrl = "";
+          if (hrefRaw) {
+            try {
+              downloadUrl = new URL(hrefRaw, location.href).href;
+            } catch {
+              downloadUrl = hrefRaw;
             }
-            return true;
+          }
+          if (downloadUrl && (downloadUrl.startsWith("http") || downloadUrl.startsWith("blob"))) {
+            let ejecucionExitosaGM = false;
+            try {
+              console.log(obtenerHora(), "Iniciando GM_download hacia subcarpeta:", nombreConRuta);
+              GM_download({
+                url: downloadUrl,
+                name: nombreConRuta,
+                saveAs: false,
+                onload: () => {
+                  console.log(obtenerHora(), "Descarga guardada en subcarpeta:", nombreConRuta);
+                },
+                onerror: (error) => {
+                  console.warn(obtenerHora(), "GM_download fall\xF3, recurriendo a clic nativo:", error);
+                  ESTADO.permitirClicForzado = true;
+                  if (typeof boton.click === "function") boton.click();
+                  ESTADO.permitirClicForzado = false;
+                }
+              });
+              ejecucionExitosaGM = true;
+              fueClickeadoConExito = true;
+            } catch (errGM) {
+              console.warn("Excepci\xF3n al invocar GM_download:", errGM);
+              ejecucionExitosaGM = false;
+            }
+            if (ejecucionExitosaGM) {
+              if (esForzado) {
+                ESTADO.permitirClicForzado = false;
+                if (teniaProcesado) boton.setAttribute("data-hitomi-procesado", teniaProcesado);
+                boton.style.pointerEvents = estiloPointerPrevio;
+                if ("disabled" in boton) boton.disabled = deshabilitadoPrevio;
+              } else {
+                ESTADO.permitirClicForzado = false;
+              }
+              return true;
+            }
           }
         }
       }

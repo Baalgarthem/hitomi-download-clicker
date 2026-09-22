@@ -2,6 +2,17 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.9.1 (Corrección de Doble Descarga y Condicionalidad de GM_download)
+- **Corrección Crítica: GM_download solo activo con ruta personalizada (`src/core/download.js`)**:
+  - En v2.9.0, `GM_download` se invocaba **siempre** que la API estaba disponible, incluso cuando no había ruta personalizada configurada. Esto causaba que el clic nativo **también** se ejecutara (doble descarga), y en algunos casos generaba archivos rotos o doble compresión cuando los dos flujos interferían simultáneamente.
+  - Corregido: `GM_download` ahora se usa **únicamente** cuando el usuario tiene configurada una ruta de subcarpeta personalizada (`CLAVES.rutaDescarga`). Sin ruta personalizada, el flujo de clic nativo estándar se ejecuta de forma directa y sin interferencias.
+- **Corrección de Bug en Interceptor `setAttribute` (`src/core/download.js`)**:
+  - El interceptor de `HTMLAnchorElement.prototype.setAttribute` tenía un `return;` (vacío) en el branch de "no es botón de descarga", lo que descartaba silenciosamente cualquier `setAttribute("download", ...)` en elementos que no eran el botón de descarga del script. Corregido para siempre llamar al `originalSetAttribute` incluso en elementos que no son objetivos.
+- **Simplificación de `generarNombreFinalConExtension` (`src/core/download.js`)**:
+  - Eliminado el parámetro `incluirRutaSubcarpeta` que era código muerto: la función ahora siempre retorna un nombre limpio sin barras de subcarpeta. La composición de la ruta con subcarpeta se realiza en el punto de uso (`confirmarYEjecutarClic`) de forma explícita y controlada.
+- **Fallback en GM_download mejorado**:
+  - Si `GM_download` falla (error de red, permisos), el fallback al clic nativo ahora levanta correctamente `ESTADO.permitirClicForzado` antes del clic y lo restablece después, evitando que el interceptor global lo bloquee.
+
 ## Versión 2.9.0 (Integración de GM_download para Subcarpetas y Saneamiento de a.download)
 - **Corrección de Ruta Personalizada con Subcarpetas (`src/core/download.js`)**:
   - Solución al problema en Windows y navegadores nativos donde los separadores `/` en atributos HTML `a.download` causaban que el archivo se guardara en la carpeta predeterminada de descargas usando la ruta como prefijo con guiones bajos (ej. `Hitomi_Comics_「Autor」 Título.cbz`).
