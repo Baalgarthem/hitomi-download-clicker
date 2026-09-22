@@ -2711,6 +2711,7 @@
       const pestanasTodas = obtenerInformacionPestanas(true);
       const pestanasCerrar = pestanasTodas.filter((p) => p.yaProcesada);
       const idsCerrar = pestanasCerrar.map((p) => p.id);
+      console.log(obtenerHora(), `[Cerrar Procesadas] Pesta\xF1as detectadas en total: ${pestanasTodas.length}, Pesta\xF1as procesadas/descargadas a cerrar: ${idsCerrar.length}`, idsCerrar);
       if (idsCerrar.length === 0) {
         return 0;
       }
@@ -2723,6 +2724,7 @@
       if (idsCerrar.includes(ID_PESTANA)) {
         setTimeout(() => {
           try {
+            console.log(obtenerHora(), "[Cerrar Procesadas] Cerrando pesta\xF1a local por estar procesada:", ID_PESTANA);
             window.close();
           } catch (e) {
             console.warn("No se pudo cerrar la pesta\xF1a actual local:", e);
