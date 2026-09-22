@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.7.7
+// @version      1.8.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -1206,12 +1206,32 @@
       border-color: rgba(88, 166, 255, 0.4);
     }
 
-    .hitomi-estilo-separador-contenedor {
+    .hitomi-estilo-separador-contenedor, .hitomi-custom-tags-contenedor {
       margin-bottom: 14px;
       padding: 10px 14px;
       background: #161b22;
       border: 1px solid #21262d;
       border-radius: 8px;
+    }
+
+    .hitomi-input-custom-tag-field {
+      background: #0d1117;
+      color: #f0f6fc;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      flex: 1;
+      min-width: 0;
+      box-sizing: border-box;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .hitomi-input-custom-tag-field:focus {
+      border-color: #58a6ff;
+      outline: none;
+      background: #161b22;
+      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
     }
 
     .hitomi-selector-estilos {
@@ -1405,7 +1425,25 @@
     const tagsSeleccionadosSet = new Set(
       Array.isArray(tagsPreseleccionados) && tagsPreseleccionados.length > 0 ? tagsPreseleccionados : ESTADO.tagsSeleccionadosPorPestana.get(pestanaId) || []
     );
+    const todosLosTagsDisponibles = /* @__PURE__ */ new Set();
+    (tagsDisponibles || []).forEach((t) => {
+      const clean = typeof t === "object" ? t.clean : t;
+      if (clean) todosLosTagsDisponibles.add(clean);
+    });
+    tagsSeleccionadosSet.forEach((t) => {
+      if (t) todosLosTagsDisponibles.add(t);
+    });
     let estiloActual = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe";
+    function generarHtmlPills() {
+      const listaOrdenada = Array.from(todosLosTagsDisponibles);
+      if (listaOrdenada.length === 0) {
+        return `<div class="hitomi-modal-vacio"><p>No hay etiquetas seleccionadas ni disponibles. Ingresa una abajo.</p></div>`;
+      }
+      return listaOrdenada.map((tagClean) => {
+        const estaActivo = tagsSeleccionadosSet.has(tagClean);
+        return `<div class="hitomi-pill-tag ${estaActivo ? "activa" : ""}" data-tag="${escapeHtml(tagClean)}">${escapeHtml(tagClean)}</div>`;
+      }).join("");
+    }
     backdropTag.innerHTML = `
     <div class="hitomi-tag-modal-contenedor">
       <div class="hitomi-modal-header">
@@ -1436,17 +1474,23 @@
           </div>
         </div>
 
+        <div class="hitomi-custom-tags-contenedor">
+          <div style="font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 6px;">
+            \u270D\uFE0F Ingresar Tags Personalizados Manualmente:
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="hitomi-input-custom-tag" placeholder="Escribe un tag (o varios separados por comas) y presiona Enter..." class="hitomi-input-custom-tag-field" />
+            <button type="button" id="hitomi-btn-add-custom-tag" class="hitomi-btn hitomi-btn-secundario" style="white-space: nowrap;">\u2795 A\xF1adir Tag</button>
+          </div>
+        </div>
+
         <p class="hitomi-modal-instruccion">
           Selecciona las etiquetas que deseas a\xF1adir al nombre del archivo concatenadas:
         </p>
 
-        ${tagsDisponibles.length === 0 ? `<div class="hitomi-modal-vacio"><p>No se encontraron etiquetas en esta p\xE1gina.</p></div>` : `<div class="hitomi-grid-tags" id="hitomi-contenedor-pills">
-                ${tagsDisponibles.map((t) => {
-      const tagClean = typeof t === "object" ? t.clean : t;
-      const estaActivo = tagsSeleccionadosSet.has(tagClean);
-      return `<div class="hitomi-pill-tag ${estaActivo ? "activa" : ""}" data-tag="${escapeHtml(tagClean)}">${escapeHtml(tagClean)}</div>`;
-    }).join("")}
-               </div>`}
+        <div class="hitomi-grid-tags" id="hitomi-contenedor-pills">
+          ${generarHtmlPills()}
+        </div>
       </div>
 
       <div class="hitomi-modal-footer">
@@ -1462,6 +1506,38 @@
     </div>
   `;
     interfaz.appendChild(backdropTag);
+    const inputCustom = backdropTag.querySelector("#hitomi-input-custom-tag");
+    const btnAddCustom = backdropTag.querySelector("#hitomi-btn-add-custom-tag");
+    const contenedorPills = backdropTag.querySelector("#hitomi-contenedor-pills");
+    function actualizarGridPills() {
+      if (contenedorPills) {
+        contenedorPills.innerHTML = generarHtmlPills();
+      }
+    }
+    function agregarTagPersonalizado() {
+      if (!inputCustom) return;
+      const valorBruto = inputCustom.value || "";
+      if (!valorBruto.trim()) return;
+      const tagsNuevos = valorBruto.split(",").map((t) => limpiarNombreTag(t)).filter(Boolean);
+      if (tagsNuevos.length === 0) return;
+      tagsNuevos.forEach((tagClean) => {
+        tagsSeleccionadosSet.add(tagClean);
+        todosLosTagsDisponibles.add(tagClean);
+      });
+      inputCustom.value = "";
+      actualizarGridPills();
+    }
+    if (btnAddCustom) {
+      btnAddCustom.addEventListener("click", agregarTagPersonalizado);
+    }
+    if (inputCustom) {
+      inputCustom.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          agregarTagPersonalizado();
+        }
+      });
+    }
     const selectorEstilos = backdropTag.querySelector("#hitomi-selector-estilos-tags");
     if (selectorEstilos) {
       selectorEstilos.addEventListener("click", (ev) => {
@@ -1475,7 +1551,6 @@
         btnEstilo.classList.add("activo");
       });
     }
-    const contenedorPills = backdropTag.querySelector("#hitomi-contenedor-pills");
     if (contenedorPills) {
       contenedorPills.addEventListener("click", (ev) => {
         const pill = ev.target.closest(".hitomi-pill-tag");
@@ -1491,22 +1566,19 @@
       });
     }
     const btnTodos = backdropTag.querySelector("#hitomi-tag-btn-todos");
-    if (btnTodos && contenedorPills) {
+    if (btnTodos) {
       btnTodos.addEventListener("click", () => {
-        contenedorPills.querySelectorAll(".hitomi-pill-tag").forEach((pill) => {
-          const tagNombre = pill.getAttribute("data-tag");
+        todosLosTagsDisponibles.forEach((tagNombre) => {
           tagsSeleccionadosSet.add(tagNombre);
-          pill.classList.add("activa");
         });
+        actualizarGridPills();
       });
     }
     const btnNinguno = backdropTag.querySelector("#hitomi-tag-btn-ninguno");
-    if (btnNinguno && contenedorPills) {
+    if (btnNinguno) {
       btnNinguno.addEventListener("click", () => {
         tagsSeleccionadosSet.clear();
-        contenedorPills.querySelectorAll(".hitomi-pill-tag").forEach((pill) => {
-          pill.classList.remove("activa");
-        });
+        actualizarGridPills();
       });
     }
     const cerrar = () => backdropTag.remove();
@@ -1757,6 +1829,7 @@
       init_badge();
       init_dom();
       init_author();
+      init_tags();
     }
   });
 

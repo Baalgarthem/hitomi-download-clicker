@@ -2,6 +2,12 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.8.0 (Entrada Manual de Tags Personalizados por Cómic)
+- **Ingreso Manual de Etiquetas (`src/ui/modal.js`)**:
+  - Incorporación de la caja de texto interactiva `✍️ Ingresar Tags Personalizados Manualmente` y botón `➕ Añadir Tag` dentro del sub-modal de selección de tags.
+  - Permite al usuario escribir una o varias etiquetas personalizadas (separadas por comas) y presionar `Enter` o hacer clic en el botón.
+  - Inclusión dinámica de los nuevos tags personalizados como pills activas en la cuadrícula y persistencia en `ESTADO.tagsSeleccionadosPorPestana` para concatenarlos al nombre del archivo descargado.
+
 ## Versión 1.7.7 (Compatibilidad Multiplataforma Linux y Navegadores Chromium)
 - **Saneamiento Universal de Nombres de Archivo (`src/utils/dom.js` & `src/core/tags.js`)**:
   - Implementación de `sanearNombreArchivoFileSystem()` para neutralizar caracteres prohibidos en sistemas de archivos de Linux (ext4/btrfs) y Windows (NTFS/FAT32), así como en gestores de descarga de Chromium (Chrome, Brave, Edge, Opera) y Firefox.
