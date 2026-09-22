@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.7.3
+// @version      1.7.4
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -585,37 +585,110 @@
     }
     return null;
   }
+  function generarNombreFinalConExtension(referenciaUrl = "") {
+    let nombreBase = ESTADO.ultimoNombreFinal;
+    if (!nombreBase) {
+      const autor = obtenerAutorOEstadoInicial();
+      const tituloBase = document.title || "";
+      const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(ID_PESTANA) || [];
+      const estiloSeparador = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe";
+      nombreBase = obtenerNombreFinalCompleto({
+        tituloOriginal: tituloBase,
+        autor,
+        tagsSeleccionados,
+        estiloSeparador
+      });
+    }
+    if (!nombreBase) return "";
+    const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
+    const baseLimpia = nombreBase.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
+    if (usarCbz) {
+      return `${baseLimpia}.cbz`;
+    }
+    const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
+    const extension = matchExt ? `.${matchExt[1]}` : nombreBase.endsWith(".cbz") || nombreBase.endsWith(".zip") ? "" : ".zip";
+    return `${baseLimpia}${extension}`;
+  }
   function interceptarDescargasNativas() {
-    if (interceptorRegistrado || typeof HTMLAnchorElement === "undefined") return;
+    if (interceptorRegistrado) return;
     interceptorRegistrado = true;
     try {
-      const originalClick = HTMLAnchorElement.prototype.click;
-      HTMLAnchorElement.prototype.click = function(...args) {
-        try {
-          const nombreCustom = ESTADO.ultimoNombreFinal;
-          if (nombreCustom) {
-            const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
-            let nombreConExt = "";
-            if (usarCbz) {
-              const baseLimpia = nombreCustom.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
-              nombreConExt = `${baseLimpia}.cbz`;
-            } else {
-              const downloadAttr = this.getAttribute("download") || this.download || "";
-              const hrefAttr = this.getAttribute("href") || this.href || "";
-              const matchExt = (downloadAttr || hrefAttr).match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
-              const extension = matchExt ? `.${matchExt[1]}` : "";
-              nombreConExt = `${nombreCustom}${extension}`;
+      if (typeof document !== "undefined") {
+        document.addEventListener("click", (evento) => {
+          try {
+            const target = evento.target ? evento.target.closest("a, button, #dl-button, .download-button, [download]") || evento.target : null;
+            if (!target) return;
+            const esEnlaceODescarga = target.tagName === "A" || target.hasAttribute("download") || target.id === "dl-button" || target.className && typeof target.className === "string" && target.className.includes("download");
+            if (esEnlaceODescarga) {
+              const ref = target.getAttribute("download") || target.download || target.getAttribute("href") || target.href || "";
+              const nombreConExt = generarNombreFinalConExtension(ref);
+              if (nombreConExt) {
+                target.setAttribute("download", nombreConExt);
+                if ("download" in target) {
+                  target.download = nombreConExt;
+                }
+                const enlacesHijos = target.querySelectorAll ? target.querySelectorAll("a") : [];
+                enlacesHijos.forEach((a) => {
+                  a.setAttribute("download", nombreConExt);
+                  a.download = nombreConExt;
+                });
+                try {
+                  const baseTitle = nombreConExt.replace(/\.cbz$/i, "").replace(/\.zip$/i, "");
+                  document.title = baseTitle;
+                } catch {
+                }
+              }
             }
-            this.setAttribute("download", nombreConExt);
-            this.download = nombreConExt;
+          } catch (err) {
+            console.error("Error en interceptor global de clics:", err);
           }
-        } catch (err) {
-          console.error("Error en interceptor de descargas nativas:", err);
+        }, true);
+      }
+      if (typeof HTMLAnchorElement !== "undefined") {
+        const originalClick = HTMLAnchorElement.prototype.click;
+        HTMLAnchorElement.prototype.click = function(...args) {
+          try {
+            const ref = this.getAttribute("download") || this.download || this.getAttribute("href") || this.href || "";
+            const nombreConExt = generarNombreFinalConExtension(ref);
+            if (nombreConExt) {
+              this.setAttribute("download", nombreConExt);
+              this.download = nombreConExt;
+            }
+          } catch (err) {
+            console.error("Error en HTMLAnchorElement.prototype.click:", err);
+          }
+          return originalClick.apply(this, args);
+        };
+        try {
+          const descriptor = Object.getOwnPropertyDescriptor(HTMLAnchorElement.prototype, "download");
+          if (descriptor && descriptor.set) {
+            const originalSet = descriptor.set;
+            Object.defineProperty(HTMLAnchorElement.prototype, "download", {
+              set: function(valor) {
+                const nombreConExt = generarNombreFinalConExtension(valor || this.href || "");
+                return originalSet.call(this, nombreConExt || valor);
+              },
+              get: descriptor.get,
+              configurable: true,
+              enumerable: true
+            });
+          }
+        } catch {
         }
-        return originalClick.apply(this, args);
-      };
+        try {
+          const originalSetAttribute = HTMLAnchorElement.prototype.setAttribute;
+          HTMLAnchorElement.prototype.setAttribute = function(nombreAtributo, valorAtributo, ...restoArgs) {
+            if (typeof nombreAtributo === "string" && nombreAtributo.toLowerCase() === "download") {
+              const nombreConExt = generarNombreFinalConExtension(valorAtributo || this.href || "");
+              return originalSetAttribute.call(this, nombreAtributo, nombreConExt || valorAtributo, ...restoArgs);
+            }
+            return originalSetAttribute.call(this, nombreAtributo, valorAtributo, ...restoArgs);
+          };
+        } catch {
+        }
+      }
     } catch (e) {
-      console.error("Error al registrar interceptor de descargas nativas:", e);
+      console.error("Error al registrar interceptor multinivel de descargas:", e);
     }
   }
   function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null, autorPersonalizado = null) {
@@ -636,9 +709,8 @@
         estiloSeparador: estiloActivo
       });
       if (nombreFinalCompleto) {
-        const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
-        const nombreFinalConExt = usarCbz ? nombreFinalCompleto.endsWith(".cbz") ? nombreFinalCompleto : `${nombreFinalCompleto}.cbz` : nombreFinalCompleto;
         ESTADO.ultimoNombreFinal = nombreFinalCompleto;
+        const nombreFinalConExt = generarNombreFinalConExtension();
         try {
           document.title = nombreFinalCompleto;
         } catch {

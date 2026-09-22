@@ -2,6 +2,15 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.7.4 (Interceptación Multinivel de Descargas en Fase de Captura)
+- **Escuchador Global en Fase de Captura (`document.addEventListener("click", ..., true)`)**:
+  - Intercepción preventiva de clics en fase de captura antes de que los manejadores de eventos propios de Hitomi o Firefox procesen el evento.
+  - Inyección reactiva del atributo `download` formateado (`「Autor/Grupo」 Título ┃ tags.zip/.cbz`) directamente sobre el elemento presionado.
+- **Intercepción de Prototipo y Propiedades (`HTMLAnchorElement.prototype`)**:
+  - Sobrescritura de `HTMLAnchorElement.prototype.click`.
+  - Intercepción de la propiedad `download` mediante descriptor setter `Object.defineProperty` para sobrescribir asignaciones dinámicas del sitio web.
+  - Intercepción de `HTMLAnchorElement.prototype.setAttribute("download", ...)` para garantizar que el nombre configurado prevalezca 100%.
+
 ## Versión 1.7.3 (Opción de Seleccionar/Deseleccionar Todo y Capitalización Uniforme)
 - **Opción de Conmutación Global (`src/ui/modal.js`)**:
   - Incorporación de la barra superior con el control maestro `Deseleccionar Todo` / `Seleccionar Todo`.

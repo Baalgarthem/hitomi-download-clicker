@@ -2,7 +2,7 @@
 // Detección Multinivel y Ejecución del Botón de Descarga
 // ─────────────────────────────────────────────
 
-import { CONFIGURACION, ESTADO, CLAVES } from '../config/constants.js';
+import { CONFIGURACION, ESTADO, CLAVES, ID_PESTANA } from '../config/constants.js';
 import { elementoVisible, esperar, obtenerHora } from '../utils/dom.js';
 import { obtenerEstadoPaginaProcesada, guardarPaginaProcesada } from './memory.js';
 import { vincularEventosBotonDescarga, marcarBotonComoProcesado } from '../ui/badge.js';
@@ -71,49 +71,144 @@ export async function buscarBotonDescarga(opciones = {}) {
   return null;
 }
 
+/**
+ * Genera y resuelve el nombre de archivo final completo con su extensión (.cbz o la original del enlace).
+ * @param {string} referenciaUrl - Atributo href, download o URL de referencia para la descarga.
+ * @returns {string} Nombre completo formateado listo para inyectar en el navegador.
+ */
+export function generarNombreFinalConExtension(referenciaUrl = "") {
+  let nombreBase = ESTADO.ultimoNombreFinal;
+
+  if (!nombreBase) {
+    const autor = obtenerAutorOEstadoInicial();
+    const tituloBase = document.title || "";
+    const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(ID_PESTANA) || [];
+    const estiloSeparador = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe";
+    nombreBase = obtenerNombreFinalCompleto({
+      tituloOriginal: tituloBase,
+      autor,
+      tagsSeleccionados,
+      estiloSeparador
+    });
+  }
+
+  if (!nombreBase) return "";
+
+  const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
+  const baseLimpia = nombreBase.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
+
+  if (usarCbz) {
+    return `${baseLimpia}.cbz`;
+  }
+
+  const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
+  const extension = matchExt ? `.${matchExt[1]}` : (nombreBase.endsWith(".cbz") || nombreBase.endsWith(".zip") ? "" : ".zip");
+  return `${baseLimpia}${extension}`;
+}
+
 let interceptorRegistrado = false;
 
 /**
- * Intercepta de forma global los clics en elementos <a> creados dinámicamente o presentes en el DOM,
- * garantizando que el nombre final del archivo (con formato 「Autor」 Nombre ┃ tags) sea inyectado
- * como el atributo 'download' nativo del navegador antes de disparar la descarga.
+ * Intercepta de forma global y multinivel todas las descargas del sitio mediante:
+ * 1. Escuchador global de clics en la fase de captura (capturing phase click listener).
+ * 2. Sobrescritura del método HTMLAnchorElement.prototype.click.
+ * 3. Intercepción de asignaciones a la propiedad HTMLAnchorElement.prototype.download.
+ * 4. Intercepción del método HTMLAnchorElement.prototype.setAttribute para 'download'.
  */
 export function interceptarDescargasNativas() {
-  if (interceptorRegistrado || typeof HTMLAnchorElement === "undefined") return;
+  if (interceptorRegistrado) return;
   interceptorRegistrado = true;
 
   try {
-    const originalClick = HTMLAnchorElement.prototype.click;
-    HTMLAnchorElement.prototype.click = function (...args) {
-      try {
-        const nombreCustom = ESTADO.ultimoNombreFinal;
-        if (nombreCustom) {
-          const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
-          let nombreConExt = "";
+    // 1. Escuchador global de clics en fase de captura (capturing phase)
+    if (typeof document !== "undefined") {
+      document.addEventListener("click", evento => {
+        try {
+          const target = evento.target ? (evento.target.closest("a, button, #dl-button, .download-button, [download]") || evento.target) : null;
+          if (!target) return;
 
-          if (usarCbz) {
-            const baseLimpia = nombreCustom.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
-            nombreConExt = `${baseLimpia}.cbz`;
-          } else {
-            const downloadAttr = this.getAttribute("download") || this.download || "";
-            const hrefAttr = this.getAttribute("href") || this.href || "";
+          const esEnlaceODescarga =
+            target.tagName === "A" ||
+            target.hasAttribute("download") ||
+            target.id === "dl-button" ||
+            (target.className && typeof target.className === "string" && target.className.includes("download"));
 
-            const matchExt = (downloadAttr || hrefAttr).match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
-            const extension = matchExt ? `.${matchExt[1]}` : "";
+          if (esEnlaceODescarga) {
+            const ref = target.getAttribute("download") || target.download || target.getAttribute("href") || target.href || "";
+            const nombreConExt = generarNombreFinalConExtension(ref);
 
-            nombreConExt = `${nombreCustom}${extension}`;
+            if (nombreConExt) {
+              target.setAttribute("download", nombreConExt);
+              if ("download" in target) {
+                target.download = nombreConExt;
+              }
+
+              const enlacesHijos = target.querySelectorAll ? target.querySelectorAll("a") : [];
+              enlacesHijos.forEach(a => {
+                a.setAttribute("download", nombreConExt);
+                a.download = nombreConExt;
+              });
+
+              try {
+                const baseTitle = nombreConExt.replace(/\.cbz$/i, "").replace(/\.zip$/i, "");
+                document.title = baseTitle;
+              } catch { }
+            }
           }
-
-          this.setAttribute("download", nombreConExt);
-          this.download = nombreConExt;
+        } catch (err) {
+          console.error("Error en interceptor global de clics:", err);
         }
-      } catch (err) {
-        console.error("Error en interceptor de descargas nativas:", err);
-      }
-      return originalClick.apply(this, args);
-    };
+      }, true);
+    }
+
+    if (typeof HTMLAnchorElement !== "undefined") {
+      // 2. Prototype .click override
+      const originalClick = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function (...args) {
+        try {
+          const ref = this.getAttribute("download") || this.download || this.getAttribute("href") || this.href || "";
+          const nombreConExt = generarNombreFinalConExtension(ref);
+          if (nombreConExt) {
+            this.setAttribute("download", nombreConExt);
+            this.download = nombreConExt;
+          }
+        } catch (err) {
+          console.error("Error en HTMLAnchorElement.prototype.click:", err);
+        }
+        return originalClick.apply(this, args);
+      };
+
+      // 3. Property descriptor setter override for .download
+      try {
+        const descriptor = Object.getOwnPropertyDescriptor(HTMLAnchorElement.prototype, "download");
+        if (descriptor && descriptor.set) {
+          const originalSet = descriptor.set;
+          Object.defineProperty(HTMLAnchorElement.prototype, "download", {
+            set: function (valor) {
+              const nombreConExt = generarNombreFinalConExtension(valor || this.href || "");
+              return originalSet.call(this, nombreConExt || valor);
+            },
+            get: descriptor.get,
+            configurable: true,
+            enumerable: true
+          });
+        }
+      } catch { }
+
+      // 4. setAttribute override for 'download'
+      try {
+        const originalSetAttribute = HTMLAnchorElement.prototype.setAttribute;
+        HTMLAnchorElement.prototype.setAttribute = function (nombreAtributo, valorAtributo, ...restoArgs) {
+          if (typeof nombreAtributo === "string" && nombreAtributo.toLowerCase() === "download") {
+            const nombreConExt = generarNombreFinalConExtension(valorAtributo || this.href || "");
+            return originalSetAttribute.call(this, nombreAtributo, nombreConExt || valorAtributo, ...restoArgs);
+          }
+          return originalSetAttribute.call(this, nombreAtributo, valorAtributo, ...restoArgs);
+        };
+      } catch { }
+    }
   } catch (e) {
-    console.error("Error al registrar interceptor de descargas nativas:", e);
+    console.error("Error al registrar interceptor multinivel de descargas:", e);
   }
 }
 
@@ -145,12 +240,9 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
     });
 
     if (nombreFinalCompleto) {
-      const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
-      const nombreFinalConExt = usarCbz
-        ? (nombreFinalCompleto.endsWith(".cbz") ? nombreFinalCompleto : `${nombreFinalCompleto}.cbz`)
-        : nombreFinalCompleto;
-
       ESTADO.ultimoNombreFinal = nombreFinalCompleto;
+      const nombreFinalConExt = generarNombreFinalConExtension();
+
       try {
         document.title = nombreFinalCompleto;
       } catch { }

@@ -116,7 +116,7 @@ async function ejecutarDeploymentManager() {
     console.log(`📦 Preparando commit y staging de git...`);
     try {
       execSync('git add .', { cwd: RUTA_RAIZ, stdio: 'inherit' });
-      const msgCommit = `feat: opción de (de)seleccionar todo en el modal y capitalización uniforme de artistas/grupos (v${nuevaVersion})`;
+      const msgCommit = `feat: interceptación multinivel de descargas en fase de captura y prototipo HTMLAnchorElement (v${nuevaVersion})`;
       execSync(`git commit -m "${msgCommit}"`, { cwd: RUTA_RAIZ, stdio: 'inherit' });
       console.log(`🎉 Commit creado exitosamente: "${msgCommit}"`);
     } catch (err) {
