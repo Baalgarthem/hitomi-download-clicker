@@ -2,6 +2,12 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.6.2 (Optimización de Código y Cierre de Mantenimiento)
+- **Capitalización Uniforme (`src/core/author.js`)**:
+  - Optimización de `capitalizarNombre()` para normalizar palabras en mayúsculas/minúsculas mixtas (`NODO` -> `Nodo`).
+- **Verificación Completa y Publicación**:
+  - Auditoría general del flujo de compilación y despliegue del userscript sin deuda técnica residual.
+
 ## Versión 1.6.1 (Edición Personalizada del Título Detectado por Ítem)
 - **Campos de Texto Editables en Modal (`src/ui/modal.js`)**:
   - Inclusión de `input[type="text"]` por cada pestaña/cómic detectado en la lista del modal popup.

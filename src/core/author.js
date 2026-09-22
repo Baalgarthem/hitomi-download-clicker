@@ -15,7 +15,7 @@ export function capitalizarNombre(texto = "") {
   return texto
     .trim()
     .split(/\s+/)
-    .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1))
+    .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase())
     .join(" ");
 }
 
