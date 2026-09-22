@@ -152,6 +152,32 @@ export function aplicarEstilosModal() {
       min-width: 0;
     }
 
+    .hitomi-modal-inputs-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+
+    .hitomi-input-autor-item {
+      background: #0d1117;
+      color: #3fb950;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 13px;
+      font-weight: 600;
+      width: 120px;
+      box-sizing: border-box;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .hitomi-input-autor-item:focus {
+      border-color: #58a6ff;
+      outline: none;
+      background: #161b22;
+      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+    }
+
     .hitomi-input-titulo-item {
       background: #0d1117;
       color: #f0f6fc;
@@ -160,9 +186,9 @@ export function aplicarEstilosModal() {
       padding: 4px 8px;
       font-size: 13px;
       font-weight: 600;
-      width: 100%;
+      flex: 1;
+      min-width: 0;
       box-sizing: border-box;
-      margin-bottom: 2px;
       transition: border-color 0.15s ease, background 0.15s ease;
     }
 
@@ -622,13 +648,23 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
                        p => {
                          const tagsSel = ESTADO.tagsSeleccionadosPorPestana.get(p.id) || [];
                          const tieneTags = tagsSel.length > 0;
+
+                         const autorEditado = ESTADO.autoresEditadosPorPestana.get(p.id);
+                         let autorMostrar = (autorEditado !== undefined && autorEditado !== null) ? autorEditado : (p.autor || "");
+                         if (!autorMostrar || /^n\/?a$/i.test(autorMostrar.trim()) || /^none$/i.test(autorMostrar.trim())) {
+                           autorMostrar = "Unknown";
+                         }
+
                          const tituloEditado = ESTADO.titulosEditadosPorPestana.get(p.id);
                          const tituloMostrar = (tituloEditado !== undefined && tituloEditado !== null) ? tituloEditado : p.titulo;
                          return `
                            <div class="hitomi-modal-item ${p.yaProcesada ? 'es-forzada' : ''}">
                              <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" checked />
                              <div class="hitomi-modal-item-info">
-                               <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Haz clic para editar el nombre detectado de este archivo" placeholder="Título del archivo..." />
+                               <div class="hitomi-modal-inputs-row">
+                                 <input type="text" class="hitomi-input-autor-item" data-id="${p.id}" value="${escapeHtml(autorMostrar)}" title="Editar autor (Prefijo 「...」)" placeholder="Autor..." />
+                                 <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Haz clic para editar el nombre detectado de este archivo" placeholder="Título del archivo..." />
+                               </div>
                                <div class="hitomi-modal-item-url">${escapeHtml(p.url)}</div>
                              </div>
                              <button class="hitomi-btn-abrir-tags ${tieneTags ? 'tiene-tags' : ''}" data-id="${p.id}" title="Seleccionar etiquetas para concatenar con ┃">
@@ -697,12 +733,19 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
       vincularSeleccionMultipleCheckboxes(listaItems);
 
       listaItems.addEventListener("input", ev => {
-        const inputTitulo = ev.target.closest(".hitomi-input-titulo-item");
-        if (!inputTitulo) return;
+        const inputAutor = ev.target.closest(".hitomi-input-autor-item");
+        if (inputAutor) {
+          const pId = inputAutor.getAttribute("data-id");
+          ESTADO.autoresEditadosPorPestana.set(pId, inputAutor.value);
+          return;
+        }
 
-        const pId = inputTitulo.getAttribute("data-id");
-        const nuevoValor = inputTitulo.value;
-        ESTADO.titulosEditadosPorPestana.set(pId, nuevoValor);
+        const inputTitulo = ev.target.closest(".hitomi-input-titulo-item");
+        if (inputTitulo) {
+          const pId = inputTitulo.getAttribute("data-id");
+          ESTADO.titulosEditadosPorPestana.set(pId, inputTitulo.value);
+          return;
+        }
       });
 
       // Event listener para abrir el selector de tags por cada item
@@ -736,6 +779,8 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
       limpiarMemoriaProcesadas();
       resetearEstadoBotonDescarga();
       ESTADO.titulosEditadosPorPestana.clear();
+      ESTADO.autoresEditadosPorPestana.clear();
+      ESTADO.tagsSeleccionadosPorPestana.clear();
       await publicarEstadoPestana();
       renderizarContenidoModal();
     });

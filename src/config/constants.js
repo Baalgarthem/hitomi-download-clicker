@@ -74,6 +74,7 @@ export const CLAVES = {
   memoriaPaginas: "hitomi_paginas_procesadas",
   urlPestana: id => `hitomi_url_${id}`,
   tituloPestana: id => `hitomi_titulo_${id}`,
+  autorPestana: id => `hitomi_autor_${id}`,
   tagsPestana: id => `hitomi_tags_${id}`,
   estiloSeparador: "hitomi_estilo_separador_tags",
   usarCbz: "hitomi_usar_extension_cbz"
@@ -87,5 +88,6 @@ export const ESTADO = {
   ultimoEstadoPublicado: null,
   tagsSeleccionadosPorPestana: new Map(),
   titulosEditadosPorPestana: new Map(),
+  autoresEditadosPorPestana: new Map(),
   ultimoNombreFinal: null
 };

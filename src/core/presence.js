@@ -8,7 +8,8 @@ import { obtenerMemoriaPaginasProcesadas, obtenerEstadoPaginaProcesada, guardarP
 import { buscarBotonDescarga, ejecutarOrdenDescarga } from './download.js';
 import { marcarBotonComoProcesado } from '../ui/badge.js';
 import { mostrarEstado } from '../ui/pill.js';
-import { extraerTagsPagina, obtenerTituloConAutor } from './tags.js';
+import { extraerNombreAutor } from './author.js';
+import { extraerTagsPagina, limpiarTituloBase } from './tags.js';
 
 let publicandoEstado = false;
 
@@ -28,12 +29,14 @@ export async function publicarEstadoPestana() {
     const tieneBoton = (boton && elementoVisible(boton)) ? 1 : 0;
 
     if (ESTADO.ultimoEstadoPublicado !== tieneBoton) {
-      const tituloConAutor = obtenerTituloConAutor(document.title || location.href);
+      const autorDetectado = extraerNombreAutor();
+      const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
       const tagsDisponibles = extraerTagsPagina();
 
       GM_setValue(CLAVES.presencia(ID_PESTANA), tieneBoton);
       GM_setValue(CLAVES.urlPestana(ID_PESTANA), location.href);
-      GM_setValue(CLAVES.tituloPestana(ID_PESTANA), tituloConAutor);
+      GM_setValue(CLAVES.tituloPestana(ID_PESTANA), tituloLimpio);
+      GM_setValue(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
       GM_setValue(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
       ESTADO.ultimoEstadoPublicado = tieneBoton;
     }
@@ -49,6 +52,7 @@ export function eliminarPresenciaPestana() {
     GM_deleteValue(CLAVES.presencia(ID_PESTANA));
     GM_deleteValue(CLAVES.urlPestana(ID_PESTANA));
     GM_deleteValue(CLAVES.tituloPestana(ID_PESTANA));
+    GM_deleteValue(CLAVES.autorPestana(ID_PESTANA));
     GM_deleteValue(CLAVES.tagsPestana(ID_PESTANA));
   } catch { }
 }
@@ -73,6 +77,7 @@ export function obtenerInformacionPestanas(incluirProcesadas = false) {
 
       const estado = obtenerEstadoPaginaProcesada(url, memoria);
       const titulo = GM_getValue(CLAVES.tituloPestana(id), url);
+      const autor = GM_getValue(CLAVES.autorPestana(id), "");
       const tagsDisponibles = GM_getValue(CLAVES.tagsPestana(id), []);
 
       if (!estado.procesada || incluirProcesadas) {
@@ -80,6 +85,7 @@ export function obtenerInformacionPestanas(incluirProcesadas = false) {
           id,
           url,
           titulo,
+          autor,
           tagsDisponibles,
           yaProcesada: estado.procesada,
           esForzada: estado.esForzada
@@ -118,10 +124,11 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
       const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(idPestana) || [];
       const tituloPersonalizado = ESTADO.titulosEditadosPorPestana.get(idPestana) || null;
+      const autorPersonalizado = ESTADO.autoresEditadosPorPestana.get(idPestana) || null;
       let respuesta = null;
 
       if (idPestana === ID_PESTANA) {
-        respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado });
+        respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado });
       } else {
         const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
         GM_deleteValue(claveRespuesta);
@@ -132,7 +139,8 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
           forzar,
           tagsSeleccionados,
           estiloSeparador,
-          tituloPersonalizado
+          tituloPersonalizado,
+          autorPersonalizado
         });
 
         const inicio = Date.now();
@@ -180,6 +188,7 @@ export function limpiarRegistrosPestanasAntiguas() {
       if (presencia === null) {
         GM_deleteValue(clave);
         GM_deleteValue(CLAVES.tituloPestana(id));
+        GM_deleteValue(CLAVES.autorPestana(id));
         GM_deleteValue(CLAVES.tagsPestana(id));
       }
     }

@@ -133,24 +133,25 @@ export function formatearCadenaTags(tagsSeleccionados = [], estiloId = null) {
 export function obtenerNombreFinalCompleto(opciones = {}) {
   const {
     tituloOriginal = "",
-    autor = "",
+    autor = null,
     tagsSeleccionados = [],
     estiloSeparador = null
   } = opciones;
 
-  const autorDetectado = autor || extraerNombreAutor();
-  const autorFormateado = formatearNombreAutor(autorDetectado);
-  const tituloLimpio = limpiarTituloBase(tituloOriginal, autorDetectado);
+  // Elemento 1 (Prefijo): Autor formateado (ej. 「Nodo」 o 「Unknown」 si es N/A)
+  const autorTarget = (autor !== null && autor !== undefined && String(autor).trim() !== "")
+    ? String(autor).trim()
+    : extraerNombreAutor();
+  const autorFormateado = formatearNombreAutor(autorTarget);
 
-  let nombreFinal = tituloLimpio;
+  // Elemento 2 (Cuerpo Principal): Título base completamente limpio
+  const tituloLimpio = limpiarTituloBase(tituloOriginal, autorTarget);
 
-  // Insertar 「Autor」 únicamente al principio si existe
-  if (autorFormateado) {
-    nombreFinal = `${autorFormateado} ${tituloLimpio}`.trim();
-  }
-
-  // Concatenar tags seleccionados con el estilo configurado
+  // Elemento 3 (Sufijo): Tags con su respectivo separador/envolvente (ej. ┃ tags / ⟨tags⟩)
   const seccionTags = formatearCadenaTags(tagsSeleccionados, estiloSeparador);
+
+  // Construcción desacoplada de los 3 elementos
+  let nombreFinal = `${autorFormateado} ${tituloLimpio}`.trim();
   if (seccionTags) {
     nombreFinal = `${nombreFinal}${seccionTags}`;
   }
@@ -161,8 +162,9 @@ export function obtenerNombreFinalCompleto(opciones = {}) {
 /**
  * Formatea el título de un cómic con su autor para visualización general.
  * @param {string} tituloBruto - Título original del cómic.
+ * @param {string} autorNombre - Nombre del autor del cómic (opcional).
  * @returns {string} Título formateado con autor.
  */
-export function obtenerTituloConAutor(tituloBruto = "") {
-  return obtenerNombreFinalCompleto({ tituloOriginal: tituloBruto });
+export function obtenerTituloConAutor(tituloBruto = "", autorNombre = "") {
+  return obtenerNombreFinalCompleto({ tituloOriginal: tituloBruto, autor: autorNombre });
 }

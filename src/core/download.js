@@ -117,7 +117,7 @@ export function interceptarDescargasNativas() {
   }
 }
 
-export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null) {
+export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null, autorPersonalizado = null) {
   if (!boton) return false;
 
   let fueClickeadoConExito = false;
@@ -130,14 +130,16 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
     const deshabilitadoPrevio = boton.disabled;
 
     const estiloActivo = estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
-    const autor = extraerNombreAutor();
+    const autorTarget = (autorPersonalizado && typeof autorPersonalizado === "string" && autorPersonalizado.trim())
+      ? autorPersonalizado.trim()
+      : extraerNombreAutor();
     const tituloBase = (tituloPersonalizado && typeof tituloPersonalizado === "string" && tituloPersonalizado.trim())
       ? tituloPersonalizado.trim()
       : document.title;
 
     const nombreFinalCompleto = obtenerNombreFinalCompleto({
       tituloOriginal: tituloBase,
-      autor,
+      autor: autorTarget,
       tagsSeleccionados,
       estiloSeparador: estiloActivo
     });
@@ -216,7 +218,7 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
 }
 
 export async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
-  const { forzar = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null } = opciones;
+  const { forzar = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null, autorPersonalizado = null } = opciones;
 
   if (ESTADO.ordenesEjecutadas.has(identificadorOrden)) {
     return "orden_repetida";
@@ -242,7 +244,7 @@ export async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
   try {
     ESTADO.ordenesEjecutadas.add(identificadorOrden);
 
-    const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado);
+    const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado, autorPersonalizado);
 
     if (!clicConfirmado) {
       console.warn(obtenerHora(), "Clic no confirmado o bloqueado en el elemento objetivo.");

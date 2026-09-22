@@ -2,6 +2,16 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.7.0 (Arquitectura de 3 Componentes y Fallback Autor "Unknown")
+- **Estructura Desacoplada en 3 Componentes (`src/core/tags.js`)**:
+  - `[Autor]` (Prefijo: `「Autor」` o `「Unknown」` si es N/A).
+  - `[Título]` (Cuerpo: título base limpio sin sitio web ni autores repetidos).
+  - `[Tags]` (Sufijo: etiquetas concatenadas con delimitadores configurables `┃`, `⟨⟩`, `[]`, `()`).
+- **Gestión y Edición de Autor por Ítem (`src/core/author.js`, `src/ui/modal.js` & `src/core/presence.js`)**:
+  - Si el autor es `"N/A"`, `"n/a"`, `"none"` o está vacío y el usuario lo mantiene así, se sobreescribe como `"Unknown"` (`「Unknown」`) para evitar errores de formato en el sistema de archivos de Windows.
+  - Inclusión de caja de texto editable para autor (`.hitomi-input-autor-item`) al lado del título en la interfaz modal por cada ítem.
+  - Propagación de `autorPersonalizado` a través de IPC y órdenes locales.
+
 ## Versión 1.6.2 (Optimización de Código y Cierre de Mantenimiento)
 - **Capitalización Uniforme (`src/core/author.js`)**:
   - Optimización de `capitalizarNombre()` para normalizar palabras en mayúsculas/minúsculas mixtas (`NODO` -> `Nodo`).

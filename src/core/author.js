@@ -61,12 +61,28 @@ export function extraerNombreAutor() {
 
 /**
  * Formatea un nombre de autor capitalizándolo y envolviéndolo en comillas japonesas 「xxxx」.
+ * Si el autor es "N/A", "n/a", "none" o está vacío, se sobreescribe como 「Unknown」
+ * para prevenir errores de nombrado en el sistema de archivos de Windows.
  * Ejemplo: "nodo" -> "「Nodo」"
+ * Ejemplo: "N/A"  -> "「Unknown」"
  * @param {string} autor - Nombre del autor.
- * @returns {string} Nombre formateado como 「Nodo」 o vacío si autor no es válido.
+ * @returns {string} Nombre formateado en comillas japonesas 「xxxx」.
  */
 export function formatearNombreAutor(autor) {
-  const nombreLimpio = capitalizarNombre(autor || "");
-  if (!nombreLimpio) return "";
-  return `「${nombreLimpio}」`;
+  let autorLimpio = (autor || "").trim();
+  // Eliminar comillas japonesas preexistentes si el usuario las introdujo manualmente
+  autorLimpio = autorLimpio.replace(/^「\s*/, "").replace(/\s*」$/, "").trim();
+
+  const esInvalidoOSinAutor =
+    !autorLimpio ||
+    /^n\/?a$/i.test(autorLimpio) ||
+    /^none$/i.test(autorLimpio) ||
+    /^unknown$/i.test(autorLimpio);
+
+  if (esInvalidoOSinAutor) {
+    return "「Unknown」";
+  }
+
+  const nombreCapitalizado = capitalizarNombre(autorLimpio);
+  return `「${nombreCapitalizado}」`;
 }
