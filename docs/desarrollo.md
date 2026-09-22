@@ -2,6 +2,16 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.4.0 (Sincronización Global IPC de Pestañas, Re-Escaneo Normalizado y Fallback H1)
+- **Sincronización Global IPC entre Pestañas (`src/core/presence.js`, `src/config/constants.js` & `src/index.js`)**:
+  - Implementación de `solicitarSincronizacionGlobalPestanas()` y la clave IPC `CLAVES.pingPresencia`.
+  - Al hacer clic en `🔄 Escanear Pestañas` o al abrir la interfaz flotante desde cualquier pestaña, se transmite una señal IPC broadcast a todas las demás pestañas abiertas en el navegador.
+  - Cada pestaña activa re-evalúa de inmediato su DOM, re-extrae su título, autor y etiquetas, y actualiza su estado en almacenamiento con un marcador de tiempo (heartbeat).
+- **Normalización de Títulos con Fallback a Elementos H1 (`src/core/tags.js`)**:
+  - Actualización de `limpiarTituloBase()`: si `document.title` aún no ha sido renderizado o contiene solo el texto genérico del sitio (`Hitomi.la`), la función consulta proactivamente la etiqueta `h1 a`, `#gallery-brand a` o `.gallery-info h1` para capturar de inmediato el título real del cómic.
+- **Purga de Pestañas Inactivas / Caducadas (`src/core/presence.js`)**:
+  - Optimización de `limpiarRegistrosPestanasAntiguas()` para eliminar automáticamente registros obsoletos o pestañas cerradas sin latido en los últimos 60 segundos.
+
 ## Versión 2.3.0 (Aislamiento Total de Intercepción: Tags, Navegación y Lectura Intactos)
 - **Filtro Estricto Anti-Intercepción en Enlaces de Navegación y Tags (`src/core/download.js`)**:
   - Ampliación de `esElementoBotonDescarga()` para bloquear la asignación de atributos `download` a enlaces de etiquetas (`/tag/`), artistas (`/artist/`), grupos (`/group/`), series (`/series/`), personajes (`/character/`), idiomas (`/language/`), lectores (`/reader/`) y contenedores de tags (`.tags`, `#tags`).

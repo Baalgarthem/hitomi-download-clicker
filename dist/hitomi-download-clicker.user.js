@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.3.0
+// @version      2.4.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -125,6 +125,8 @@
         tituloPestana: (id) => `hitomi_titulo_${id}`,
         autorPestana: (id) => `hitomi_autor_${id}`,
         tagsPestana: (id) => `hitomi_tags_${id}`,
+        timestampPestana: (id) => `hitomi_timestamp_${id}`,
+        pingPresencia: "hitomi_ping_presencia_global",
         estiloSeparador: "hitomi_estilo_separador_tags",
         usarCbz: "hitomi_usar_extension_cbz",
         cerrarPestana: "hitomi_cerrar_pestana_al_descargar",
@@ -553,7 +555,16 @@
     return tag.replace(/\s+/g, " ");
   }
   function limpiarTituloBase(rawTitle = "", autorNombre = "") {
-    let titulo = (rawTitle || document.title || "").trim();
+    let titulo = (rawTitle || "").trim();
+    if (!titulo || /^(?:hitomi(?:\.la)?|read online at hitomi(?:\.la)?)$/i.test(titulo) || titulo.startsWith("http")) {
+      const elH1 = typeof document !== "undefined" ? document.querySelector("h1 a, #gallery-brand a, .gallery-info h1, h1") : null;
+      if (elH1 && elH1.textContent) {
+        titulo = elH1.textContent.trim();
+      }
+    }
+    if (!titulo && typeof document !== "undefined") {
+      titulo = document.title || location.href || "";
+    }
     titulo = titulo.replace(/\s*[\|║\-\/┃]\s*Hitomi(?:\.la)?.*$/i, "").trim();
     titulo = titulo.replace(/^Read online at Hitomi(?:\.la)?\s*[\|║\-\/┃]\s*/i, "").trim();
     titulo = titulo.replace(/「[^」]+」/g, "").trim();
@@ -2095,7 +2106,13 @@
       backdrop.querySelector("#hitomi-btn-cerrar-modal").addEventListener("click", cerrarModal);
       backdrop.querySelector("#hitomi-btn-cancelar").addEventListener("click", cerrarModal);
       backdrop.querySelector("#hitomi-btn-reescanear").addEventListener("click", async () => {
-        await publicarEstadoPestana();
+        const btnReescanear = backdrop.querySelector("#hitomi-btn-reescanear");
+        if (btnReescanear) {
+          btnReescanear.disabled = true;
+          btnReescanear.style.opacity = "0.7";
+          btnReescanear.innerHTML = "\u{1F504} Escaneando...";
+        }
+        await solicitarSincronizacionGlobalPestanas(modoForzado);
         renderizarContenidoModal();
       });
       backdrop.querySelector("#hitomi-btn-limpiar-memoria").addEventListener("click", async () => {
@@ -2105,7 +2122,7 @@
         ESTADO.autoresEditadosPorPestana.clear();
         ESTADO.tagsSeleccionadosPorPestana.clear();
         pestanasMarcadasSet.clear();
-        await publicarEstadoPestana();
+        await solicitarSincronizacionGlobalPestanas(modoForzado);
         renderizarContenidoModal();
       });
       const btnAbrirRuta = backdrop.querySelector("#hitomi-btn-abrir-ruta");
@@ -2152,6 +2169,12 @@
     }
     interfaz.appendChild(backdrop);
     renderizarContenidoModal();
+    solicitarSincronizacionGlobalPestanas(modoForzado).then(() => {
+      if (document.getElementById(CONFIGURACION.ids.modalBackdrop)) {
+        renderizarContenidoModal();
+      }
+    }).catch(() => {
+    });
   }
   var init_modal = __esm({
     "src/ui/modal.js"() {
@@ -2298,28 +2321,28 @@
 /* ════════════════════════════════════════════════════════════ */
 /*                MÓDULO: src/core/presence.js                */
 /* ════════════════════════════════════════════════════════════ */
-  async function publicarEstadoPestana() {
+  async function publicarEstadoPestana(forzar = false) {
     if (!esPaginaHitomi() || publicandoEstado) return;
     publicandoEstado = true;
     try {
-      const boton = await buscarBotonDescarga({ intentos: 5, pausa: 100 });
+      const boton = await buscarBotonDescarga({ intentos: 3, pausa: 80 });
       const memoria = obtenerMemoriaPaginasProcesadas();
       const estadoActual = obtenerEstadoPaginaProcesada(location.href, memoria);
       if (boton && estadoActual.procesada) {
         marcarBotonComoProcesado(boton, estadoActual.esForzada);
       }
       const tieneBoton = boton && elementoVisible(boton) ? 1 : 0;
-      if (ESTADO.ultimoEstadoPublicado !== tieneBoton) {
-        const autorDetectado = obtenerAutorOEstadoInicial();
-        const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
-        const tagsDisponibles = extraerTagsPagina();
-        guardarValorGM(CLAVES.presencia(ID_PESTANA), tieneBoton);
-        guardarValorGM(CLAVES.urlPestana(ID_PESTANA), location.href);
-        guardarValorGM(CLAVES.tituloPestana(ID_PESTANA), tituloLimpio);
-        guardarValorGM(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
-        guardarValorGM(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
-        ESTADO.ultimoEstadoPublicado = tieneBoton;
-      }
+      const autorDetectado = obtenerAutorOEstadoInicial();
+      const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
+      const tagsDisponibles = extraerTagsPagina();
+      const ahora = Date.now();
+      guardarValorGM(CLAVES.presencia(ID_PESTANA), tieneBoton);
+      guardarValorGM(CLAVES.urlPestana(ID_PESTANA), location.href);
+      guardarValorGM(CLAVES.tituloPestana(ID_PESTANA), tituloLimpio);
+      guardarValorGM(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
+      guardarValorGM(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
+      guardarValorGM(CLAVES.timestampPestana(ID_PESTANA), ahora);
+      ESTADO.ultimoEstadoPublicado = tieneBoton;
     } catch (e) {
       console.error("Error al publicar estado de pesta\xF1a:", e);
     } finally {
@@ -2333,6 +2356,7 @@
       eliminarValorGM(CLAVES.tituloPestana(ID_PESTANA));
       eliminarValorGM(CLAVES.autorPestana(ID_PESTANA));
       eliminarValorGM(CLAVES.tagsPestana(ID_PESTANA));
+      eliminarValorGM(CLAVES.timestampPestana(ID_PESTANA));
     } catch {
     }
   }
@@ -2436,21 +2460,44 @@
   }
   function limpiarRegistrosPestanasAntiguas() {
     try {
-      const prefijo = "hitomi_url_";
+      const prefijoUrl = "hitomi_url_";
       const todasLasClaves = typeof GM_listValues !== "undefined" ? GM_listValues() : Object.keys(localStorage);
-      const claves = todasLasClaves.filter((clave) => clave.startsWith(prefijo));
-      for (const clave of claves) {
-        const id = clave.replace(prefijo, "");
+      const clavesUrl = todasLasClaves.filter((clave) => clave.startsWith(prefijoUrl));
+      const ahora = Date.now();
+      const UMBRAL_EXPIRACION_MS = 6e4;
+      for (const clave of clavesUrl) {
+        const id = clave.replace(prefijoUrl, "");
         const presencia = leerValorGM(CLAVES.presencia(id), null);
-        if (presencia === null) {
+        const timestamp = Number(leerValorGM(CLAVES.timestampPestana(id), 0));
+        const caducado = id !== ID_PESTANA && timestamp > 0 && ahora - timestamp > UMBRAL_EXPIRACION_MS;
+        if (presencia === null || presencia === 0 || caducado) {
           eliminarValorGM(clave);
+          eliminarValorGM(CLAVES.presencia(id));
           eliminarValorGM(CLAVES.tituloPestana(id));
           eliminarValorGM(CLAVES.autorPestana(id));
           eliminarValorGM(CLAVES.tagsPestana(id));
+          eliminarValorGM(CLAVES.timestampPestana(id));
         }
       }
-    } catch {
+    } catch (e) {
+      console.error("Error al limpiar registros de pesta\xF1as antiguas:", e);
     }
+  }
+  async function solicitarSincronizacionGlobalPestanas(modoForzado = false) {
+    try {
+      const noncePing = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      guardarValorGM(CLAVES.pingPresencia, {
+        solicitante: ID_PESTANA,
+        nonce: noncePing,
+        timestamp: Date.now()
+      });
+    } catch (e) {
+      console.error("Error al emitir ping de presencia IPC:", e);
+    }
+    await publicarEstadoPestana(true);
+    await esperar(180);
+    limpiarRegistrosPestanasAntiguas();
+    return obtenerInformacionPestanas(modoForzado);
   }
   var publicandoEstado;
   var init_presence = __esm({
@@ -2523,6 +2570,17 @@
                 }
               }
             );
+            GM_addValueChangeListener(
+              CLAVES.pingPresencia,
+              async (_clave, _valorAnterior, valorNuevo, cambioRemoto) => {
+                if (!cambioRemoto || !valorNuevo || typeof valorNuevo !== "object") {
+                  return;
+                }
+                if (valorNuevo.solicitante !== ID_PESTANA) {
+                  await publicarEstadoPestana(true);
+                }
+              }
+            );
           } else if (typeof window !== "undefined" && window.addEventListener) {
             window.addEventListener("storage", async (e) => {
               if (e.key === CLAVES.orden && e.newValue) {
@@ -2542,6 +2600,14 @@
                     } else {
                       localStorage.setItem(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
                     }
+                  }
+                } catch {
+                }
+              } else if (e.key === CLAVES.pingPresencia && e.newValue) {
+                try {
+                  const valorNuevo = JSON.parse(e.newValue);
+                  if (valorNuevo && typeof valorNuevo === "object" && valorNuevo.solicitante !== ID_PESTANA) {
+                    await publicarEstadoPestana(true);
                   }
                 } catch {
                 }

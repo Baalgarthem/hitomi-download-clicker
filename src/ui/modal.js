@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────
 
 import { CONFIGURACION, ESTADO, CLAVES } from '../config/constants.js';
-import { obtenerInformacionPestanas, publicarEstadoPestana, recorrerPestanasDescarga } from '../core/presence.js';
+import { obtenerInformacionPestanas, publicarEstadoPestana, solicitarSincronizacionGlobalPestanas, recorrerPestanasDescarga } from '../core/presence.js';
 import { limpiarMemoriaProcesadas } from '../core/memory.js';
 import { resetearEstadoBotonDescarga } from './badge.js';
 import { obtenerOCrearAnfitrionUI, escapeHtml, inyectarEstilos, leerValorGM, guardarValorGM, eliminarValorGM, sanearRutaSubcarpeta } from '../utils/dom.js';
@@ -1137,7 +1137,14 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
     backdrop.querySelector("#hitomi-btn-cancelar").addEventListener("click", cerrarModal);
 
     backdrop.querySelector("#hitomi-btn-reescanear").addEventListener("click", async () => {
-      await publicarEstadoPestana();
+      const btnReescanear = backdrop.querySelector("#hitomi-btn-reescanear");
+      if (btnReescanear) {
+        btnReescanear.disabled = true;
+        btnReescanear.style.opacity = "0.7";
+        btnReescanear.innerHTML = "🔄 Escaneando...";
+      }
+
+      await solicitarSincronizacionGlobalPestanas(modoForzado);
       renderizarContenidoModal();
     });
 
@@ -1148,7 +1155,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
       ESTADO.autoresEditadosPorPestana.clear();
       ESTADO.tagsSeleccionadosPorPestana.clear();
       pestanasMarcadasSet.clear();
-      await publicarEstadoPestana();
+      await solicitarSincronizacionGlobalPestanas(modoForzado);
       renderizarContenidoModal();
     });
 
@@ -1204,4 +1211,11 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
 
   interfaz.appendChild(backdrop);
   renderizarContenidoModal();
+
+  // Sincronización global IPC en segundo plano al abrir el modal para refrescar títulos y estados de otras pestañas
+  solicitarSincronizacionGlobalPestanas(modoForzado).then(() => {
+    if (document.getElementById(CONFIGURACION.ids.modalBackdrop)) {
+      renderizarContenidoModal();
+    }
+  }).catch(() => {});
 }

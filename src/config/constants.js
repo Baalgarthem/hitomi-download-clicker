@@ -87,6 +87,8 @@ export const CLAVES = {
   tituloPestana: id => `hitomi_titulo_${id}`,
   autorPestana: id => `hitomi_autor_${id}`,
   tagsPestana: id => `hitomi_tags_${id}`,
+  timestampPestana: id => `hitomi_timestamp_${id}`,
+  pingPresencia: "hitomi_ping_presencia_global",
   estiloSeparador: "hitomi_estilo_separador_tags",
   usarCbz: "hitomi_usar_extension_cbz",
   cerrarPestana: "hitomi_cerrar_pestana_al_descargar",

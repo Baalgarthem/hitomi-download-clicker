@@ -14,12 +14,12 @@ import { extraerTagsPagina, limpiarTituloBase } from './tags.js';
 
 let publicandoEstado = false;
 
-export async function publicarEstadoPestana() {
+export async function publicarEstadoPestana(forzar = false) {
   if (!esPaginaHitomi() || publicandoEstado) return;
   publicandoEstado = true;
 
   try {
-    const boton = await buscarBotonDescarga({ intentos: 5, pausa: 100 });
+    const boton = await buscarBotonDescarga({ intentos: 3, pausa: 80 });
     const memoria = obtenerMemoriaPaginasProcesadas();
     const estadoActual = obtenerEstadoPaginaProcesada(location.href, memoria);
 
@@ -28,19 +28,19 @@ export async function publicarEstadoPestana() {
     }
 
     const tieneBoton = (boton && elementoVisible(boton)) ? 1 : 0;
+    const autorDetectado = obtenerAutorOEstadoInicial();
+    const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
+    const tagsDisponibles = extraerTagsPagina();
+    const ahora = Date.now();
 
-    if (ESTADO.ultimoEstadoPublicado !== tieneBoton) {
-      const autorDetectado = obtenerAutorOEstadoInicial();
-      const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
-      const tagsDisponibles = extraerTagsPagina();
+    guardarValorGM(CLAVES.presencia(ID_PESTANA), tieneBoton);
+    guardarValorGM(CLAVES.urlPestana(ID_PESTANA), location.href);
+    guardarValorGM(CLAVES.tituloPestana(ID_PESTANA), tituloLimpio);
+    guardarValorGM(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
+    guardarValorGM(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
+    guardarValorGM(CLAVES.timestampPestana(ID_PESTANA), ahora);
 
-      guardarValorGM(CLAVES.presencia(ID_PESTANA), tieneBoton);
-      guardarValorGM(CLAVES.urlPestana(ID_PESTANA), location.href);
-      guardarValorGM(CLAVES.tituloPestana(ID_PESTANA), tituloLimpio);
-      guardarValorGM(CLAVES.autorPestana(ID_PESTANA), autorDetectado);
-      guardarValorGM(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
-      ESTADO.ultimoEstadoPublicado = tieneBoton;
-    }
+    ESTADO.ultimoEstadoPublicado = tieneBoton;
   } catch (e) {
     console.error("Error al publicar estado de pestaña:", e);
   } finally {
@@ -55,6 +55,7 @@ export function eliminarPresenciaPestana() {
     eliminarValorGM(CLAVES.tituloPestana(ID_PESTANA));
     eliminarValorGM(CLAVES.autorPestana(ID_PESTANA));
     eliminarValorGM(CLAVES.tagsPestana(ID_PESTANA));
+    eliminarValorGM(CLAVES.timestampPestana(ID_PESTANA));
   } catch { }
 }
 
@@ -180,19 +181,59 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
 
 export function limpiarRegistrosPestanasAntiguas() {
   try {
-    const prefijo = "hitomi_url_";
+    const prefijoUrl = "hitomi_url_";
     const todasLasClaves = (typeof GM_listValues !== "undefined") ? GM_listValues() : Object.keys(localStorage);
-    const claves = todasLasClaves.filter(clave => clave.startsWith(prefijo));
+    const clavesUrl = todasLasClaves.filter(clave => clave.startsWith(prefijoUrl));
+    const ahora = Date.now();
+    const UMBRAL_EXPIRACION_MS = 60000; // 60 segundos de inactividad máxima
 
-    for (const clave of claves) {
-      const id = clave.replace(prefijo, "");
+    for (const clave of clavesUrl) {
+      const id = clave.replace(prefijoUrl, "");
       const presencia = leerValorGM(CLAVES.presencia(id), null);
-      if (presencia === null) {
+      const timestamp = Number(leerValorGM(CLAVES.timestampPestana(id), 0));
+      const caducado = (id !== ID_PESTANA) && (timestamp > 0) && (ahora - timestamp > UMBRAL_EXPIRACION_MS);
+
+      if (presencia === null || presencia === 0 || caducado) {
         eliminarValorGM(clave);
+        eliminarValorGM(CLAVES.presencia(id));
         eliminarValorGM(CLAVES.tituloPestana(id));
         eliminarValorGM(CLAVES.autorPestana(id));
         eliminarValorGM(CLAVES.tagsPestana(id));
+        eliminarValorGM(CLAVES.timestampPestana(id));
       }
     }
-  } catch { }
+  } catch (e) {
+    console.error("Error al limpiar registros de pestañas antiguas:", e);
+  }
+}
+
+/**
+ * Emite un mensaje IPC de sincronización a todas las pestañas de Hitomi abiertas en el navegador.
+ * Cada pestaña activa responderá actualizando su título, autor, tags y presencia.
+ * @param {boolean} modoForzado - Si es true, incluye pestañas ya procesadas en la lista devuelta.
+ * @returns {Promise<Array>} Lista normalizada y actualizada de pestañas detectadas.
+ */
+export async function solicitarSincronizacionGlobalPestanas(modoForzado = false) {
+  try {
+    const noncePing = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    guardarValorGM(CLAVES.pingPresencia, {
+      solicitante: ID_PESTANA,
+      nonce: noncePing,
+      timestamp: Date.now()
+    });
+  } catch (e) {
+    console.error("Error al emitir ping de presencia IPC:", e);
+  }
+
+  // Publicar inmediatamente el estado de la pestaña actual
+  await publicarEstadoPestana(true);
+
+  // Pausa corta para permitir que las otras pestañas procesen el evento IPC y publiquen sus estados
+  await esperar(180);
+
+  // Limpiar pestañas caducadas o cerradas
+  limpiarRegistrosPestanasAntiguas();
+
+  // Devolver el arreglo consolidado de pestañas
+  return obtenerInformacionPestanas(modoForzado);
 }

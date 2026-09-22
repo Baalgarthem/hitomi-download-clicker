@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.3.0
+// @version      2.4.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -96,6 +96,19 @@ function registrarEscuchadorOrdenesIPC() {
           }
         }
       );
+
+      // Escuchador de ping de presencia global para normalizar pestañas remotas
+      GM_addValueChangeListener(
+        CLAVES.pingPresencia,
+        async (_clave, _valorAnterior, valorNuevo, cambioRemoto) => {
+          if (!cambioRemoto || !valorNuevo || typeof valorNuevo !== "object") {
+            return;
+          }
+          if (valorNuevo.solicitante !== ID_PESTANA) {
+            await publicarEstadoPestana(true);
+          }
+        }
+      );
     } else if (typeof window !== "undefined" && window.addEventListener) {
       window.addEventListener("storage", async (e) => {
         if (e.key === CLAVES.orden && e.newValue) {
@@ -115,6 +128,13 @@ function registrarEscuchadorOrdenesIPC() {
               } else {
                 localStorage.setItem(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
               }
+            }
+          } catch { }
+        } else if (e.key === CLAVES.pingPresencia && e.newValue) {
+          try {
+            const valorNuevo = JSON.parse(e.newValue);
+            if (valorNuevo && typeof valorNuevo === "object" && valorNuevo.solicitante !== ID_PESTANA) {
+              await publicarEstadoPestana(true);
             }
           } catch { }
         }

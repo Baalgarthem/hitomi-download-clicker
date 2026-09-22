@@ -32,7 +32,19 @@ export function limpiarNombreTag(rawTag = "") {
  * @returns {string} Título base completamente limpio.
  */
 export function limpiarTituloBase(rawTitle = "", autorNombre = "") {
-  let titulo = (rawTitle || document.title || "").trim();
+  let titulo = (rawTitle || "").trim();
+
+  // Si el título viene vacío, es genérico del sitio o es una URL, buscar en elementos H1 del DOM
+  if (!titulo || /^(?:hitomi(?:\.la)?|read online at hitomi(?:\.la)?)$/i.test(titulo) || titulo.startsWith("http")) {
+    const elH1 = typeof document !== "undefined" ? document.querySelector("h1 a, #gallery-brand a, .gallery-info h1, h1") : null;
+    if (elH1 && elH1.textContent) {
+      titulo = elH1.textContent.trim();
+    }
+  }
+
+  if (!titulo && typeof document !== "undefined") {
+    titulo = document.title || location.href || "";
+  }
 
   // 1. Eliminar sufijos del sitio web (ej. | Hitomi.la, - Hitomi.la, / Hitomi.la, ┃ Hitomi.la)
   titulo = titulo.replace(/\s*[\|║\-\/┃]\s*Hitomi(?:\.la)?.*$/i, "").trim();
