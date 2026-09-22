@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.8.1
+// @version      1.9.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -59,6 +59,7 @@
     "src/config/constants.js"() {
       CONFIGURACION = {
         dominio: "hitomi.la",
+        urlIcono: "https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.png",
         selectorBotonDescarga: "#dl-button",
         selectoresAlternativosBoton: [
           "a#dl-button",
@@ -966,8 +967,8 @@
     .hitomi-modal-backdrop, .hitomi-tag-modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(4px);
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(5px);
       z-index: 2147483647;
       display: flex;
       align-items: center;
@@ -982,33 +983,33 @@
     }
 
     .hitomi-modal-contenedor, .hitomi-tag-modal-contenedor {
-      background: #0d1117;
+      background: #11151c;
       color: #c9d1d9;
       border: 1px solid #30363d;
-      border-radius: 16px;
+      border-radius: 14px;
       width: 100%;
-      max-width: 640px;
+      max-width: 660px;
       max-height: 85vh;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       overflow: hidden;
       pointer-events: auto;
     }
 
     .hitomi-modal-header {
-      padding: 18px 24px;
-      border-bottom: 1px solid #21262d;
+      padding: 14px 20px;
+      border-bottom: 2px solid #b580b5;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: #161b22;
+      background: linear-gradient(135deg, #2d3b47 0%, #1c232b 100%);
     }
 
     .hitomi-modal-titulo {
       margin: 0;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       color: #f0f6fc;
       display: flex;
@@ -1017,11 +1018,12 @@
     }
 
     .hitomi-modal-badge-modo {
-      font-size: 11px;
-      padding: 3px 8px;
+      font-size: 10px;
+      padding: 2px 8px;
       border-radius: 999px;
-      font-weight: 600;
+      font-weight: 700;
       text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
 
     .hitomi-modal-badge-modo.normal {
@@ -1032,7 +1034,7 @@
 
     .hitomi-modal-badge-modo.forzado {
       background: rgba(217, 119, 6, 0.2);
-      color: #f59e0b;
+      color: #fbbf24;
       border: 1px solid rgba(245, 158, 11, 0.4);
     }
 
@@ -1040,30 +1042,31 @@
       background: transparent;
       border: none;
       color: #8b949e;
-      font-size: 20px;
+      font-size: 18px;
       cursor: pointer;
       padding: 4px 8px;
       border-radius: 6px;
       line-height: 1;
+      transition: background 0.15s ease, color 0.15s ease;
     }
 
     .hitomi-modal-cerrar:hover {
-      background: #21262d;
+      background: rgba(255, 255, 255, 0.1);
       color: #f0f6fc;
     }
 
     .hitomi-modal-body {
-      padding: 16px 24px;
+      padding: 16px 20px;
       overflow-y: auto;
       flex: 1;
-      max-height: 50vh;
+      max-height: 52vh;
     }
 
     .hitomi-modal-instruccion {
-      font-size: 13px;
-      color: #8b949e;
-      margin: 0 0 14px 0;
-      line-height: 1.4;
+      font-size: 12px;
+      color: #9ab0c7;
+      margin: 0 0 12px 0;
+      line-height: 1.45;
     }
 
     .hitomi-modal-lista {
@@ -1075,18 +1078,18 @@
     .hitomi-modal-item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 10px 14px;
-      background: #161b22;
-      border: 1px solid #21262d;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #192028;
+      border: 1px solid #2d3748;
       border-radius: 8px;
       transition: border-color 0.15s ease, background 0.15s ease;
       user-select: none;
     }
 
     .hitomi-modal-item:hover {
-      border-color: #30363d;
-      background: #1c2128;
+      border-color: #4a5568;
+      background: #202934;
     }
 
     .hitomi-modal-item.es-forzada {
@@ -1094,9 +1097,9 @@
     }
 
     .hitomi-modal-item input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      accent-color: #238636;
+      width: 15px;
+      height: 15px;
+      accent-color: #4f6275;
       cursor: pointer;
     }
 
@@ -1108,16 +1111,16 @@
     .hitomi-modal-inputs-row {
       display: flex;
       gap: 6px;
-      margin-bottom: 3px;
+      margin-bottom: 2px;
     }
 
     .hitomi-input-autor-item {
-      background: #0d1117;
+      background: #0f141a;
       color: #3fb950;
-      border: 1px solid #30363d;
+      border: 1px solid #2d3748;
       border-radius: 6px;
-      padding: 4px 8px;
-      font-size: 13px;
+      padding: 3px 8px;
+      font-size: 12px;
       font-weight: 600;
       width: 120px;
       box-sizing: border-box;
@@ -1125,19 +1128,19 @@
     }
 
     .hitomi-input-autor-item:focus {
-      border-color: #58a6ff;
+      border-color: #b580b5;
       outline: none;
-      background: #161b22;
-      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+      background: #161c24;
+      box-shadow: 0 0 0 2px rgba(181, 128, 181, 0.25);
     }
 
     .hitomi-input-titulo-item {
-      background: #0d1117;
+      background: #0f141a;
       color: #f0f6fc;
-      border: 1px solid #30363d;
+      border: 1px solid #2d3748;
       border-radius: 6px;
-      padding: 4px 8px;
-      font-size: 13px;
+      padding: 3px 8px;
+      font-size: 12px;
       font-weight: 600;
       flex: 1;
       min-width: 0;
@@ -1146,23 +1149,23 @@
     }
 
     .hitomi-input-titulo-item:focus {
-      border-color: #58a6ff;
+      border-color: #b580b5;
       outline: none;
-      background: #161b22;
-      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+      background: #161c24;
+      box-shadow: 0 0 0 2px rgba(181, 128, 181, 0.25);
     }
 
     .hitomi-modal-item-url {
       font-size: 11px;
-      color: #8b949e;
+      color: #768390;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     .hitomi-item-tag {
-      font-size: 11px;
-      padding: 3px 8px;
+      font-size: 10px;
+      padding: 2px 7px;
       border-radius: 4px;
       font-weight: 600;
       white-space: nowrap;
@@ -1171,11 +1174,12 @@
     .hitomi-tag-nueva {
       background: rgba(46, 160, 67, 0.15);
       color: #3fb950;
+      border: 1px solid rgba(63, 185, 80, 0.3);
     }
 
     .hitomi-tag-forzada {
-      background: rgba(217, 119, 6, 0.2);
-      color: #f59e0b;
+      background: rgba(217, 119, 6, 0.18);
+      color: #fbbf24;
       border: 1px solid rgba(245, 158, 11, 0.3);
     }
 
@@ -1184,43 +1188,44 @@
       font-size: 11px;
       padding: 4px 8px;
       border-radius: 6px;
-      background: #21262d;
-      color: #58a6ff;
-      border: 1px solid #30363d;
+      background: #252e38;
+      color: #9ab0c7;
+      border: 1px solid #3b4754;
       cursor: pointer;
       font-weight: 600;
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      transition: background 0.15s ease, border-color 0.15s ease;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
 
     .hitomi-btn-abrir-tags:hover {
-      background: #30363d;
-      border-color: #58a6ff;
+      background: #323e4c;
+      border-color: #b580b5;
+      color: #ffffff;
     }
 
     .hitomi-btn-abrir-tags.tiene-tags {
-      background: rgba(88, 166, 255, 0.15);
-      color: #79c0ff;
-      border-color: rgba(88, 166, 255, 0.4);
+      background: rgba(181, 128, 181, 0.15);
+      color: #d8b4d8;
+      border-color: rgba(181, 128, 181, 0.4);
     }
 
     .hitomi-estilo-separador-contenedor, .hitomi-custom-tags-contenedor {
-      margin-bottom: 14px;
-      padding: 10px 14px;
-      background: #161b22;
-      border: 1px solid #21262d;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      background: #192028;
+      border: 1px solid #2d3748;
       border-radius: 8px;
     }
 
     .hitomi-input-custom-tag-field {
-      background: #0d1117;
+      background: #0f141a;
       color: #f0f6fc;
-      border: 1px solid #30363d;
+      border: 1px solid #2d3748;
       border-radius: 6px;
-      padding: 6px 12px;
-      font-size: 13px;
+      padding: 5px 10px;
+      font-size: 12px;
       flex: 1;
       min-width: 0;
       box-sizing: border-box;
@@ -1228,25 +1233,25 @@
     }
 
     .hitomi-input-custom-tag-field:focus {
-      border-color: #58a6ff;
+      border-color: #b580b5;
       outline: none;
-      background: #161b22;
-      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+      background: #161c24;
+      box-shadow: 0 0 0 2px rgba(181, 128, 181, 0.25);
     }
 
     .hitomi-selector-estilos {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
     }
 
     .hitomi-btn-estilo-tag {
       font-size: 11px;
-      padding: 5px 10px;
+      padding: 4px 9px;
       border-radius: 6px;
-      background: #21262d;
-      color: #8b949e;
-      border: 1px solid #30363d;
+      background: #252e38;
+      color: #9ab0c7;
+      border: 1px solid #3b4754;
       cursor: pointer;
       font-weight: 500;
       transition: all 0.15s ease;
@@ -1254,33 +1259,33 @@
     }
 
     .hitomi-btn-estilo-tag:hover {
-      border-color: #58a6ff;
-      color: #c9d1d9;
+      border-color: #b580b5;
+      color: #f0f6fc;
     }
 
     .hitomi-btn-estilo-tag.activo {
-      background: rgba(35, 134, 54, 0.2);
-      color: #3fb950;
-      border-color: #3fb950;
+      background: rgba(181, 128, 181, 0.2);
+      color: #e2c2e2;
+      border-color: #b580b5;
       font-weight: 600;
     }
 
     .hitomi-grid-tags {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      padding: 12px 0;
-      max-height: 40vh;
+      gap: 6px;
+      padding: 10px 0;
+      max-height: 38vh;
       overflow-y: auto;
     }
 
     .hitomi-pill-tag {
-      font-size: 12px;
-      padding: 6px 12px;
+      font-size: 11px;
+      padding: 5px 10px;
       border-radius: 999px;
-      background: #21262d;
-      color: #8b949e;
-      border: 1px solid #30363d;
+      background: #252e38;
+      color: #9ab0c7;
+      border: 1px solid #3b4754;
       cursor: pointer;
       user-select: none;
       font-weight: 500;
@@ -1288,112 +1293,122 @@
     }
 
     .hitomi-pill-tag:hover {
-      border-color: #58a6ff;
-      color: #c9d1d9;
+      border-color: #b580b5;
+      color: #ffffff;
     }
 
     .hitomi-pill-tag.activa {
-      background: #1f6feb;
+      background: linear-gradient(135deg, #4f6275 0%, #3a4b5c 100%);
       color: #ffffff;
-      border-color: #58a6ff;
+      border-color: #b580b5;
       font-weight: 600;
-      box-shadow: 0 0 8px rgba(31, 111, 235, 0.4);
+      box-shadow: 0 0 8px rgba(181, 128, 181, 0.4);
     }
 
     .hitomi-modal-vacio {
       text-align: center;
-      padding: 30px 16px;
-      color: #8b949e;
-      font-size: 14px;
+      padding: 24px 16px;
+      color: #768390;
+      font-size: 13px;
     }
 
     .hitomi-modal-footer {
-      padding: 16px 24px;
-      border-top: 1px solid #21262d;
-      background: #161b22;
+      padding: 12px 20px;
+      border-top: 1px solid #2d3748;
+      background: #161c24;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
     }
 
     .hitomi-modal-acciones-secundarias {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
     }
 
     .hitomi-modal-acciones-principales {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .hitomi-btn {
-      padding: 8px 14px;
+      padding: 6px 12px;
       border-radius: 6px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       border: 1px solid transparent;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      transition: background 0.15s ease, opacity 0.15s ease;
+      gap: 5px;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
       user-select: none;
     }
 
+    .hitomi-btn:hover {
+      transform: translateY(-1px);
+    }
+
     .hitomi-btn-secundario {
-      background: #21262d;
+      background: #252e38;
       color: #c9d1d9;
-      border-color: #30363d;
+      border-color: #3b4754;
     }
 
     .hitomi-btn-secundario:hover {
-      background: #30363d;
+      background: #323e4c;
       color: #f0f6fc;
+      border-color: #4a5568;
     }
 
     .hitomi-btn-peligro {
-      background: rgba(176, 0, 32, 0.15);
+      background: rgba(176, 0, 32, 0.18);
       color: #f87171;
-      border-color: rgba(176, 0, 32, 0.4);
+      border-color: rgba(239, 68, 68, 0.4);
     }
 
     .hitomi-btn-peligro:hover {
-      background: rgba(176, 0, 32, 0.3);
+      background: rgba(176, 0, 32, 0.35);
       color: #fca5a5;
+      border-color: rgba(239, 68, 68, 0.6);
     }
 
     .hitomi-btn-advertencia {
-      background: rgba(217, 119, 6, 0.15);
-      color: #f59e0b;
+      background: rgba(217, 119, 6, 0.18);
+      color: #fbbf24;
       border-color: rgba(245, 158, 11, 0.4);
     }
 
     .hitomi-btn-advertencia:hover {
-      background: rgba(217, 119, 6, 0.3);
-      color: #fbbf24;
+      background: rgba(217, 119, 6, 0.35);
+      color: #fde047;
+      border-color: rgba(245, 158, 11, 0.6);
     }
 
     .hitomi-btn-primario {
-      background: #238636;
+      background: linear-gradient(to bottom, #4f6275, #3a4b5c);
       color: #ffffff;
+      border-color: #5d738a;
     }
 
     .hitomi-btn-primario:hover {
-      background: #2ea043;
+      background: linear-gradient(to bottom, #5a6f84, #44576b);
+      border-color: #b580b5;
     }
 
     .hitomi-btn-forzado-confirmar {
-      background: #d97706;
+      background: linear-gradient(to bottom, #d97706, #b45309);
       color: #ffffff;
+      border-color: #f59e0b;
     }
 
     .hitomi-btn-forzado-confirmar:hover {
-      background: #b45309;
+      background: linear-gradient(to bottom, #f59e0b, #d97706);
     }
   `);
   }
@@ -1441,16 +1456,17 @@
       }
       return listaOrdenada.map((tagClean) => {
         const estaActivo = tagsSeleccionadosSet.has(tagClean);
-        return `<div class="hitomi-pill-tag ${estaActivo ? "activa" : ""}" data-tag="${escapeHtml(tagClean)}">${escapeHtml(tagClean)}</div>`;
+        return `<div class="hitomi-pill-tag ${estaActivo ? "activa" : ""}" data-tag="${escapeHtml(tagClean)}" title="Clic para ${estaActivo ? "desmarcar" : "seleccionar"} la etiqueta '${escapeHtml(tagClean)}'">${escapeHtml(tagClean)}</div>`;
       }).join("");
     }
     backdropTag.innerHTML = `
     <div class="hitomi-tag-modal-contenedor">
       <div class="hitomi-modal-header">
         <h3 class="hitomi-modal-titulo">
-          <span>\u{1F3F7}\uFE0F Seleccionar Tags para: ${escapeHtml(tituloPestana)}</span>
+          <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" style="width:20px;height:20px;border-radius:4px;object-fit:contain;" alt="Hitomi Logo" />
+          <span>\u{1F3F7}\uFE0F Seleccionar Tags: ${escapeHtml(tituloPestana)}</span>
         </h3>
-        <button class="hitomi-modal-cerrar" id="hitomi-tag-btn-cerrar">\u2715</button>
+        <button class="hitomi-modal-cerrar" id="hitomi-tag-btn-cerrar" title="Cerrar esta ventana">\u2715</button>
       </div>
 
       <div class="hitomi-modal-body">
@@ -1459,16 +1475,16 @@
             \u{1F4D0} Estilo del Separador de Tags:
           </div>
           <div class="hitomi-selector-estilos" id="hitomi-selector-estilos-tags">
-            <button class="hitomi-btn-estilo-tag ${estiloActual === "pipe" ? "activo" : ""}" data-estilo="pipe">
+            <button class="hitomi-btn-estilo-tag ${estiloActual === "pipe" ? "activo" : ""}" data-estilo="pipe" title="Formato Pipe: Concatenar con ' \u2503 tag1 tag2'">
               \u2503 Pipe ( \u2503 tags)
             </button>
-            <button class="hitomi-btn-estilo-tag ${estiloActual === "angle" ? "activo" : ""}" data-estilo="angle">
+            <button class="hitomi-btn-estilo-tag ${estiloActual === "angle" ? "activo" : ""}" data-estilo="angle" title="Formato Angular: Envolver entre ' \u27E8tag1 tag2\u27E9'">
               \u27E8\u27E9 Angular ( \u27E8tags\u27E9)
             </button>
-            <button class="hitomi-btn-estilo-tag ${estiloActual === "square" ? "activo" : ""}" data-estilo="square">
+            <button class="hitomi-btn-estilo-tag ${estiloActual === "square" ? "activo" : ""}" data-estilo="square" title="Formato Corchete: Envolver entre ' [tag1 tag2]'">
               [] Corchete ( [tags])
             </button>
-            <button class="hitomi-btn-estilo-tag ${estiloActual === "paren" ? "activo" : ""}" data-estilo="paren">
+            <button class="hitomi-btn-estilo-tag ${estiloActual === "paren" ? "activo" : ""}" data-estilo="paren" title="Formato Par\xE9ntesis: Envolver entre ' (tag1 tag2)'">
               () Par\xE9ntesis ( (tags))
             </button>
           </div>
@@ -1479,13 +1495,13 @@
             \u270D\uFE0F Ingresar Tags Personalizados Manualmente:
           </div>
           <div style="display: flex; gap: 8px;">
-            <input type="text" id="hitomi-input-custom-tag" placeholder="Escribe un tag (o varios separados por comas) y presiona Enter..." class="hitomi-input-custom-tag-field" />
-            <button type="button" id="hitomi-btn-add-custom-tag" class="hitomi-btn hitomi-btn-secundario" style="white-space: nowrap;">\u2795 A\xF1adir Tag</button>
+            <input type="text" id="hitomi-input-custom-tag" placeholder="Escribe un tag (o varios separados por comas) y presiona Enter..." class="hitomi-input-custom-tag-field" title="Escribe etiquetas adicionales separadas por comas (ej. schoolgirl, color) y presiona Enter o el bot\xF3n A\xF1adir" />
+            <button type="button" id="hitomi-btn-add-custom-tag" class="hitomi-btn hitomi-btn-secundario" style="white-space: nowrap;" title="A\xF1adir la etiqueta escrita a la lista de selecci\xF3n">\u2795 A\xF1adir Tag</button>
           </div>
         </div>
 
         <p class="hitomi-modal-instruccion">
-          Selecciona las etiquetas que deseas a\xF1adir al nombre del archivo concatenadas:
+          Selecciona las etiquetas que deseas incluir en el nombre final del archivo:
         </p>
 
         <div class="hitomi-grid-tags" id="hitomi-contenedor-pills">
@@ -1495,12 +1511,12 @@
 
       <div class="hitomi-modal-footer">
         <div class="hitomi-modal-acciones-secundarias">
-          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-tag-btn-todos">Seleccionar Todos</button>
-          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-tag-btn-ninguno">Limpiar Selecci\xF3n</button>
+          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-tag-btn-todos" title="Marcar todas las etiquetas disponibles">Seleccionar Todos</button>
+          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-tag-btn-ninguno" title="Desmarcar todas las etiquetas seleccionadas">Limpiar Selecci\xF3n</button>
         </div>
         <div class="hitomi-modal-acciones-principales">
-          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-tag-btn-cancelar">Cancelar</button>
-          <button class="hitomi-btn hitomi-btn-primario" id="hitomi-tag-btn-guardar">Guardar Tags</button>
+          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-tag-btn-cancelar" title="Descartar cambios y cerrar ventana">Cancelar</button>
+          <button class="hitomi-btn hitomi-btn-primario" id="hitomi-tag-btn-guardar" title="Guardar etiquetas seleccionadas para este archivo">Guardar Tags</button>
         </div>
       </div>
     </div>
@@ -1608,28 +1624,29 @@
       <div class="hitomi-modal-contenedor">
         <div class="hitomi-modal-header">
           <h3 class="hitomi-modal-titulo">
+            <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" style="width:20px;height:20px;border-radius:4px;object-fit:contain;" alt="Hitomi Logo" />
             <span>\u{1F4CB} Pesta\xF1as Detectadas (${totalPestanas})</span>
-            <span class="hitomi-modal-badge-modo ${modoForzado ? "forzado" : "normal"}">
+            <span class="hitomi-modal-badge-modo ${modoForzado ? "forzado" : "normal"}" title="${modoForzado ? "Modo Forzado: Re-descarga c\xF3mics que ya han sido procesados previamente" : "Modo Normal: Omite c\xF3mics ya procesados y solo descarga c\xF3mics nuevos"}">
               ${modoForzado ? "\u26A1 Modo Forzado" : "\u2713 Modo Normal"}
             </span>
           </h3>
-          <button class="hitomi-modal-cerrar" id="hitomi-btn-cerrar-modal" title="Cerrar">\u2715</button>
+          <button class="hitomi-modal-cerrar" id="hitomi-btn-cerrar-modal" title="Cerrar esta ventana">\u2715</button>
         </div>
 
         <div class="hitomi-modal-body">
           <p class="hitomi-modal-instruccion">
-            ${modoForzado ? `Se re-ejecutar\xE1n descargas. Las marcadas como <strong>[\u26A0\uFE0F Re-descargada]</strong> o <strong>[\u26A0\uFE0F Ya descargada]</strong> volver\xE1n a ser clickeadas (${forzadasCount} en total).<br><small style="color:#8b949e">Usa <strong>Shift + Clic</strong> para seleccionar rangos o la casilla <strong>\u{1F3F7}\uFE0F Tags</strong> para personalizar etiquetas.</small>` : 'Selecciona las pesta\xF1as a las que deseas enviar la orden de descarga:<br><small style="color:#8b949e">Usa <strong>Shift + Clic</strong> para seleccionar rangos o la casilla <strong>\u{1F3F7}\uFE0F Tags</strong> para personalizar etiquetas.</small>'}
+            ${modoForzado ? `\u26A1 <strong>Modo Forzado Activo:</strong> Se volver\xE1n a descargar los c\xF3mics seleccionados aunque ya hayan sido procesados (${forzadasCount} ya descargados).<br><small style="color:#768390">Usa <strong>Shift + Clic</strong> para seleccionar rangos o <strong>\u{1F3F7}\uFE0F Tags</strong> para personalizar etiquetas.</small>` : 'Selecciona los c\xF3mics que deseas descargar en lote desde tus pesta\xF1as abiertas:<br><small style="color:#768390">Usa <strong>Shift + Clic</strong> para seleccionar rangos o <strong>\u{1F3F7}\uFE0F Tags</strong> para personalizar etiquetas.</small>'}
           </p>
 
           ${totalPestanas === 0 ? `<div class="hitomi-modal-vacio">
-                   <p>No se encontraron pesta\xF1as ${modoForzado ? "disponibles" : "pendientes"}.</p>
+                   <p>No se encontraron pesta\xF1as de Hitomi ${modoForzado ? "disponibles" : "pendientes"}.</p>
                  </div>` : `
-                 <div class="hitomi-bar-master-toggle" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 8px 12px; background: #161b22; border: 1px solid #21262d; border-radius: 8px; user-select: none;">
-                   <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #f0f6fc; cursor: pointer;">
-                     <input type="checkbox" id="hitomi-check-master-pestanas" checked style="width: 16px; height: 16px; accent-color: #238636; cursor: pointer;" />
+                 <div class="hitomi-bar-master-toggle" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 8px 12px; background: #192028; border: 1px solid #2d3748; border-radius: 8px; user-select: none;">
+                   <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #f0f6fc; cursor: pointer;" title="Seleccionar o deseleccionar todas las pesta\xF1as de la lista">
+                     <input type="checkbox" id="hitomi-check-master-pestanas" checked style="width: 15px; height: 15px; accent-color: #4f6275; cursor: pointer;" title="Clic para marcar o desmarcar todo" />
                      <span id="hitomi-label-master-pestanas">Deseleccionar Todo</span>
                    </label>
-                   <span style="font-size: 11px; color: #8b949e;">Usa <strong>Shift + Clic</strong> para seleccionar rangos</span>
+                   <span style="font-size: 11px; color: #768390;" title="Tip: Mant\xE9n presionado Shift al hacer clic en las casillas para marcar/desmarcar rangos enteros">\u{1F4A1} Tip: Usa <strong>Shift + Clic</strong> para rangos</span>
                  </div>
                  <div class="hitomi-modal-lista" id="hitomi-modal-lista-items">
                    ${pestanasInfo.map(
@@ -1647,18 +1664,18 @@
           const tituloMostrar = tituloEditado !== void 0 && tituloEditado !== null ? tituloEditado : p.titulo;
           return `
                            <div class="hitomi-modal-item ${p.yaProcesada ? "es-forzada" : ""}">
-                             <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" checked />
+                             <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" checked title="Marcar/desmarcar este c\xF3mic para la descarga" />
                              <div class="hitomi-modal-item-info">
                                <div class="hitomi-modal-inputs-row">
-                                 <input type="text" class="hitomi-input-autor-item" data-id="${p.id}" value="${escapeHtml(autorMostrar)}" title="Editar autor (Prefijo \u300C...\u300D)" placeholder="Autor..." />
-                                 <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Haz clic para editar el nombre detectado de este archivo" placeholder="T\xEDtulo del archivo..." />
+                                 <input type="text" class="hitomi-input-autor-item" data-id="${p.id}" value="${escapeHtml(autorMostrar)}" title="Editar autor o grupo (se antepondr\xE1 entre corchetes \u300C...\u300D)" placeholder="Autor..." />
+                                 <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Editar el nombre de archivo con el que se guardar\xE1 este c\xF3mic" placeholder="T\xEDtulo del archivo..." />
                                </div>
-                               <div class="hitomi-modal-item-url">${escapeHtml(p.url)}</div>
+                               <div class="hitomi-modal-item-url" title="${escapeHtml(p.url)}">${escapeHtml(p.url)}</div>
                              </div>
-                             <button class="hitomi-btn-abrir-tags ${tieneTags ? "tiene-tags" : ""}" data-id="${p.id}" title="Seleccionar etiquetas para concatenar con \u2503">
+                             <button class="hitomi-btn-abrir-tags ${tieneTags ? "tiene-tags" : ""}" data-id="${p.id}" title="Seleccionar y ordenar etiquetas para concatenar al nombre de este archivo">
                                \u{1F3F7}\uFE0F Tags ${tieneTags ? `(${tagsSel.length})` : ""}
                              </button>
-                             ${p.yaProcesada ? `<span class="hitomi-item-tag hitomi-tag-forzada">${p.esForzada ? "\u26A0\uFE0F Re-descargada (Forzada)" : "\u26A0\uFE0F Ya descargada (Forzada)"}</span>` : `<span class="hitomi-item-tag hitomi-tag-nueva">Nueva</span>`}
+                             ${p.yaProcesada ? `<span class="hitomi-item-tag hitomi-tag-forzada" title="Este c\xF3mic ya fue descargado previamente">${p.esForzada ? "\u26A0\uFE0F Re-descargada" : "\u26A0\uFE0F Ya descargada"}</span>` : `<span class="hitomi-item-tag hitomi-tag-nueva" title="C\xF3mic nuevo pendiente de descarga">Nueva</span>`}
                            </div>
                          `;
         }
@@ -1668,29 +1685,29 @@
 
         <div class="hitomi-modal-footer">
           <div class="hitomi-modal-acciones-secundarias">
-            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-reescanear" title="Volver a escanear pesta\xF1as abiertas">
-              \u{1F504} Re-escanear
+            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-reescanear" title="Vuelve a escanear las pesta\xF1as abiertas en el navegador y actualiza la lista de c\xF3mics.">
+              \u{1F504} Escanear Pesta\xF1as
             </button>
-            <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar historial y olvidar todas las p\xE1ginas procesadas">
+            <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borra el historial de c\xF3mics procesados y restablece el estado del script.">
               \u{1F5D1}\uFE0F Limpiar Memoria
             </button>
-            <label class="hitomi-toggle-cbz" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer; user-select: none; background: #21262d; padding: 6px 12px; border-radius: 6px; border: 1px solid #30363d; font-weight: 600;" title="Renombrar la extensi\xF3n de todos los archivos descargados a .cbz (archivado de c\xF3mics)">
-              <input type="checkbox" id="hitomi-check-usar-cbz" ${usarCbz ? "checked" : ""} style="accent-color: #238636; cursor: pointer; width: 14px; height: 14px;" />
+            <label class="hitomi-toggle-cbz" style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #c9d1d9; cursor: pointer; user-select: none; background: #252e38; padding: 5px 10px; border-radius: 6px; border: 1px solid #3b4754; font-weight: 600;" title="Al marcar esta opci\xF3n, los archivos de c\xF3mics descargados cambiar\xE1n su extensi\xF3n a .cbz.">
+              <input type="checkbox" id="hitomi-check-usar-cbz" ${usarCbz ? "checked" : ""} style="accent-color: #4f6275; cursor: pointer; width: 14px; height: 14px;" title="Activar/desactivar guardado con extensi\xF3n .cbz" />
               <span>\u{1F4E6} Renombrar a <strong>.cbz</strong></span>
             </label>
-            ${!modoForzado ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Forzar descarga en todas las pesta\xF1as">
-                     \u26A1 Clic Forzado
-                   </button>` : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Volver al modo normal">
-                     \u2713 Modo Normal
+            ${!modoForzado ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Activa el Modo Forzado para permitir la re-descarga de c\xF3mics que ya han sido procesados anteriormente.">
+                     \u26A1 Modo Forzado (Re-descargar)
+                   </button>` : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Regresa al Modo Normal para omitir c\xF3mics ya descargados previamente y procesar solo nuevos.">
+                     \u2713 Modo Normal (Pendientes)
                    </button>`}
           </div>
 
           <div class="hitomi-modal-acciones-principales">
-            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-cancelar">
+            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-cancelar" title="Cerrar este panel sin realizar descargas">
               Cancelar
             </button>
-            <button class="hitomi-btn ${modoForzado ? "hitomi-btn-forzado-confirmar" : "hitomi-btn-primario"}" id="hitomi-btn-confirmar" ${totalPestanas === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ""}>
-              ${modoForzado ? "\u26A1 Iniciar Descarga Forzada" : "\u25B6 Iniciar Descarga"}
+            <button class="hitomi-btn ${modoForzado ? "hitomi-btn-forzado-confirmar" : "hitomi-btn-primario"}" id="hitomi-btn-confirmar" ${totalPestanas === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ""} title="${modoForzado ? "Forzar la re-descarga inmediata de los c\xF3mics seleccionados" : "Iniciar la descarga en lote de los c\xF3mics seleccionados"}">
+              ${modoForzado ? `\u26A1 Re-descargar Forzado (${totalPestanas})` : `\u25B6 Iniciar Descarga (${totalPestanas})`}
             </button>
           </div>
         </div>
@@ -1720,6 +1737,7 @@
           btnConfirmar2.disabled = marcadosCount === 0;
           btnConfirmar2.style.opacity = marcadosCount === 0 ? "0.5" : "1";
           btnConfirmar2.style.cursor = marcadosCount === 0 ? "not-allowed" : "pointer";
+          btnConfirmar2.textContent = modoForzado ? `\u26A1 Re-descargar Forzado (${marcadosCount})` : `\u25B6 Iniciar Descarga (${marcadosCount})`;
         }
       }
       if (checkMaster && listaItems) {
@@ -1731,10 +1749,12 @@
           });
           labelMaster.textContent = estadoNuevo ? "Deseleccionar Todo" : "Seleccionar Todo";
           const btnConfirmar2 = backdrop.querySelector("#hitomi-btn-confirmar");
+          const marcadosCount = estadoNuevo ? checkboxes.length : 0;
           if (btnConfirmar2) {
             btnConfirmar2.disabled = !estadoNuevo;
             btnConfirmar2.style.opacity = estadoNuevo ? "1" : "0.5";
             btnConfirmar2.style.cursor = estadoNuevo ? "pointer" : "not-allowed";
+            btnConfirmar2.textContent = modoForzado ? `\u26A1 Re-descargar Forzado (${marcadosCount})` : `\u25B6 Iniciar Descarga (${marcadosCount})`;
           }
         });
       }
@@ -1846,21 +1866,32 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 16px;
+      padding: 8px 14px;
       border-radius: 999px;
-      background: #0d1117;
+      background: linear-gradient(135deg, #3d4e5e 0%, #2d3b47 100%);
       color: #ffffff;
-      border: 1px solid #30363d;
-      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+      border: 1px solid #4f6275;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
       font: 700 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       cursor: pointer;
       user-select: none;
       pointer-events: auto;
-      transition: transform .2s ease, background .2s ease, color .2s ease;
+      transition: transform .2s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
     }
 
     #${CONFIGURACION.ids.pastilla}:hover {
       transform: translateY(-2px);
+      background: linear-gradient(135deg, #4f6275 0%, #3a4b5c 100%);
+      border-color: #b580b5;
+      box-shadow: 0 8px 24px rgba(181, 128, 181, 0.3);
+    }
+
+    .hitomi-logo-img {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      object-fit: contain;
+      vertical-align: middle;
     }
 
     .hitomi-punto {
@@ -1868,6 +1899,7 @@
       height: 8px;
       border-radius: 50%;
       background: #238636;
+      box-shadow: 0 0 6px rgba(35, 134, 54, 0.6);
     }
 
     .hitomi-ok {
@@ -1879,13 +1911,13 @@
     }
 
     @keyframes animacion_exito {
-      0% { background: #0d1117; }
+      0% { background: linear-gradient(135deg, #3d4e5e 0%, #2d3b47 100%); }
       50% { background: #12b886; color: #06140f; }
-      100% { background: #0d1117; }
+      100% { background: linear-gradient(135deg, #3d4e5e 0%, #2d3b47 100%); }
     }
 
     @keyframes animacion_error {
-      0%, 100% { background: #0d1117; }
+      0%, 100% { background: linear-gradient(135deg, #3d4e5e 0%, #2d3b47 100%); }
       50% { background: #b00020; }
     }
   `);
@@ -1896,8 +1928,13 @@
       clearTimeout(timerMostrarEstado);
       timerMostrarEstado = null;
     }
-    const textoBase = `<span class="hitomi-punto"></span><strong>Hitomi DL</strong>`;
+    const textoBase = `
+    <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" alt="Hitomi Logo" />
+    <span class="hitomi-punto"></span>
+    <strong>Hitomi DL</strong>
+  `;
     elemento.innerHTML = `
+    <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" alt="Hitomi Logo" />
     <span class="hitomi-punto"></span>
     <strong>${mensaje}</strong>
   `;
@@ -1915,10 +1952,11 @@
     const pastilla = document.createElement("div");
     pastilla.id = CONFIGURACION.ids.pastilla;
     pastilla.innerHTML = `
+    <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" alt="Hitomi Logo" />
     <span class="hitomi-punto"></span>
     <strong>Hitomi DL</strong>
   `;
-    pastilla.title = "Click para procesar pesta\xF1as.\nShift + Click limpia memoria.";
+    pastilla.title = "\u26A1 Hitomi Download Manager\n- Clic normal: Abrir panel de descargas de pesta\xF1as abiertas\n- Shift + Clic: Limpiar memoria de p\xE1ginas procesadas";
     pastilla.addEventListener("click", (evento) => {
       if (evento.shiftKey) {
         limpiarMemoriaProcesadas();

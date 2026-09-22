@@ -19,21 +19,32 @@ export function aplicarEstilosPastilla() {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 16px;
+      padding: 8px 14px;
       border-radius: 999px;
-      background: #0d1117;
+      background: linear-gradient(135deg, #3d4e5e 0%, #2d3b47 100%);
       color: #ffffff;
-      border: 1px solid #30363d;
-      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+      border: 1px solid #4f6275;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
       font: 700 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       cursor: pointer;
       user-select: none;
       pointer-events: auto;
-      transition: transform .2s ease, background .2s ease, color .2s ease;
+      transition: transform .2s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
     }
 
     #${CONFIGURACION.ids.pastilla}:hover {
       transform: translateY(-2px);
+      background: linear-gradient(135deg, #4f6275 0%, #3a4b5c 100%);
+      border-color: #b580b5;
+      box-shadow: 0 8px 24px rgba(181, 128, 181, 0.3);
+    }
+
+    .hitomi-logo-img {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      object-fit: contain;
+      vertical-align: middle;
     }
 
     .hitomi-punto {
@@ -41,6 +52,7 @@ export function aplicarEstilosPastilla() {
       height: 8px;
       border-radius: 50%;
       background: #238636;
+      box-shadow: 0 0 6px rgba(35, 134, 54, 0.6);
     }
 
     .hitomi-ok {
@@ -52,13 +64,13 @@ export function aplicarEstilosPastilla() {
     }
 
     @keyframes animacion_exito {
-      0% { background: #0d1117; }
+      0% { background: linear-gradient(135deg, #3d4e5e 0%, #2d3b47 100%); }
       50% { background: #12b886; color: #06140f; }
-      100% { background: #0d1117; }
+      100% { background: linear-gradient(135deg, #3d4e5e 0%, #2d3b47 100%); }
     }
 
     @keyframes animacion_error {
-      0%, 100% { background: #0d1117; }
+      0%, 100% { background: linear-gradient(135deg, #3d4e5e 0%, #2d3b47 100%); }
       50% { background: #b00020; }
     }
   `);
@@ -74,9 +86,14 @@ export function mostrarEstado(elemento, mensaje, tipo) {
     timerMostrarEstado = null;
   }
 
-  const textoBase = `<span class="hitomi-punto"></span><strong>Hitomi DL</strong>`;
+  const textoBase = `
+    <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" alt="Hitomi Logo" />
+    <span class="hitomi-punto"></span>
+    <strong>Hitomi DL</strong>
+  `;
 
   elemento.innerHTML = `
+    <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" alt="Hitomi Logo" />
     <span class="hitomi-punto"></span>
     <strong>${mensaje}</strong>
   `;
@@ -99,10 +116,11 @@ export function montarPastilla() {
 
   pastilla.id = CONFIGURACION.ids.pastilla;
   pastilla.innerHTML = `
+    <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" alt="Hitomi Logo" />
     <span class="hitomi-punto"></span>
     <strong>Hitomi DL</strong>
   `;
-  pastilla.title = "Click para procesar pestañas.\nShift + Click limpia memoria.";
+  pastilla.title = "⚡ Hitomi Download Manager\n- Clic normal: Abrir panel de descargas de pestañas abiertas\n- Shift + Clic: Limpiar memoria de páginas procesadas";
 
   pastilla.addEventListener("click", evento => {
     if (evento.shiftKey) {

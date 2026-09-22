@@ -4,6 +4,7 @@
 
 export const CONFIGURACION = {
   dominio: "hitomi.la",
+  urlIcono: "https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.png",
   selectorBotonDescarga: "#dl-button",
   selectoresAlternativosBoton: [
     "a#dl-button",

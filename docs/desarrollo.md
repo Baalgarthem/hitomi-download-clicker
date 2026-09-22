@@ -2,6 +2,18 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.9.0 (Rediseño Estético Paleta Hitomi, Icono Oficial, Botones Compactos y Tooltips Informativos)
+- **Rediseño Visual con Paleta Oficial de Hitomi (`src/ui/pill.js` & `src/ui/modal.js`)**:
+  - Aplicación del esquema de colores oficial de Hitomi (`#3d4e5e` / `#2d3b47` en degradados de cabecera, acento púrpura suave `#b580b5` en bordes inferiores de títulos, contenedores en gris oscuro slate `#11151c` y tarjetas `#192028`).
+- **Integración del Icono Oficial (`src/config/constants.js`, `src/ui/pill.js` & `src/ui/modal.js`)**:
+  - Incorporación del logo oficial del proyecto (`hitomi-logo.png`) en la pastilla flotante principal y en las cabeceras del modal principal y del sub-modal de selección de etiquetas.
+- **Botones Compactos y Alineación pulida (`src/ui/modal.js`)**:
+  - Reducción uniforme de `padding: 6px 12px` y `font-size: 12px` con `border-radius: 6px` en todos los controles para una interfaz más limpia, compacta y profesional.
+- **Textos Clarificados para Modo Forzado y Botón Escanear (`src/ui/modal.js`)**:
+  - Clarificación de los textos y estados: botón `🔄 Escanear Pestañas` (para refrescar pestañas abiertas) y selector conmutable `⚡ Modo Forzado (Re-descargar)` / `✓ Modo Normal (Pendientes)` (explicando que el Modo Forzado fuerza la re-descarga de cómics que ya han sido procesados anteriormente).
+- **Tooltips Explicativos en Todos los Controles Interactivos (`src/ui/pill.js` & `src/ui/modal.js`)**:
+  - Adición del atributo `title="..."` en el 100% de los botones, botones de cierre `✕`, casillas de verificación, casillas máster, entradas de texto, etiquetas pill y selectores del sistema para guiar al usuario al pasar el cursor (hover).
+
 ## Versión 1.8.1 (Documentación Pedagógica de Interceptación y Diagrama de Flujo)
 - **Guía Pedagógica Completa (`docs/guia-intercepcion-descargas.md`)**:
   - Incorporación del documento explicativo con analogías didácticas ("La Fábrica de Donas") para explicar la separación entre `document.title` (identidad interna) y `a.download` (etiqueta de archivo en disco).
