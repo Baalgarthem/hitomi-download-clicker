@@ -3,7 +3,8 @@
 // ─────────────────────────────────────────────
 
 import { CONFIGURACION, ESTADO, CLAVES, ID_PESTANA } from '../config/constants.js';
-import { elementoVisible, esperar, obtenerHora, leerValorGM } from '../utils/dom.js';
+import { elementoVisible, esperar, obtenerHora, leerValorGM, sanearRutaSubcarpeta } from '../utils/dom.js';
+
 
 import { obtenerEstadoPaginaProcesada, guardarPaginaProcesada } from './memory.js';
 import { vincularEventosBotonDescarga, marcarBotonComoProcesado } from '../ui/badge.js';
@@ -101,20 +102,28 @@ export function generarNombreFinalConExtension(referenciaUrl = "") {
   if (!nombreBase) return "";
 
   const usarCbz = leerValorGM(CLAVES.usarCbz, false);
+  const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
+  const rutaLimpia = sanearRutaSubcarpeta(rutaCustom);
   const baseLimpia = nombreBase.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
 
-
+  let nombreConExt = "";
   if (usarCbz) {
-    return `${baseLimpia}.cbz`;
+    nombreConExt = `${baseLimpia}.cbz`;
+  } else {
+    const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
+    let extension = matchExt ? `.${matchExt[1]}` : ".zip";
+    if (extension.toLowerCase() === ".cbz" && !usarCbz) {
+      extension = ".zip";
+    }
+    nombreConExt = `${baseLimpia}${extension}`;
   }
 
-  const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
-  let extension = matchExt ? `.${matchExt[1]}` : ".zip";
-  if (extension.toLowerCase() === ".cbz" && !usarCbz) {
-    extension = ".zip";
+  if (rutaLimpia) {
+    return `${rutaLimpia}/${nombreConExt}`;
   }
-  return `${baseLimpia}${extension}`;
+  return nombreConExt;
 }
+
 
 let interceptorRegistrado = false;
 

@@ -6,7 +6,8 @@ import { CONFIGURACION, ESTADO, CLAVES } from '../config/constants.js';
 import { obtenerInformacionPestanas, publicarEstadoPestana, recorrerPestanasDescarga } from '../core/presence.js';
 import { limpiarMemoriaProcesadas } from '../core/memory.js';
 import { resetearEstadoBotonDescarga } from './badge.js';
-import { obtenerOCrearAnfitrionUI, escapeHtml, inyectarEstilos, leerValorGM, guardarValorGM } from '../utils/dom.js';
+import { obtenerOCrearAnfitrionUI, escapeHtml, inyectarEstilos, leerValorGM, guardarValorGM, eliminarValorGM, sanearRutaSubcarpeta } from '../utils/dom.js';
+
 import { capitalizarNombre } from '../core/author.js';
 import { limpiarNombreTag } from '../core/tags.js';
 
@@ -736,7 +737,101 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
   });
 }
 
+/**
+ * Muestra el sub-modal de configuración para la ruta de descarga personalizada.
+ */
+export function mostrarModalRutaDescarga(callbackGuardar) {
+  const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
+  const backdropRuta = document.createElement("div");
+  backdropRuta.className = "hitomi-tag-modal-backdrop";
+
+  const rutaActualBruta = leerValorGM(CLAVES.rutaDescarga, "");
+  const rutaActualSaneada = sanearRutaSubcarpeta(rutaActualBruta);
+
+  backdropRuta.innerHTML = `
+    <div class="hitomi-tag-modal-contenedor" style="max-width: 520px;">
+      <div class="hitomi-modal-header">
+        <h3 class="hitomi-modal-titulo">
+          <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" style="width:20px;height:20px;border-radius:4px;object-fit:contain;" alt="Hitomi Logo" />
+          <span>📂 Ruta Personalizada de Descargas</span>
+        </h3>
+        <button class="hitomi-modal-cerrar" id="hitomi-ruta-btn-cerrar" title="Cerrar esta ventana">✕</button>
+      </div>
+
+      <div class="hitomi-modal-body">
+        <div style="margin-bottom: 14px; padding: 10px 12px; background: #192028; border: 1px solid #2d3748; border-radius: 8px;">
+          <div style="font-size: 11px; font-weight: 700; color: #b580b5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+            📍 Estado de la Ruta Actual:
+          </div>
+          <div id="hitomi-ruta-estado-label" style="font-size: 13px; font-weight: 600; color: ${rutaActualSaneada ? '#3fb950' : '#9ab0c7'}; display: flex; align-items: center; gap: 6px;">
+            ${
+              rutaActualSaneada
+                ? `<span>📁 Subcarpeta: <strong>${escapeHtml(rutaActualSaneada)}/</strong></span>`
+                : `<span>📥 Predeterminada (Carpeta Descargas de tu navegador)</span>`
+            }
+          </div>
+        </div>
+
+        <div class="hitomi-custom-tags-contenedor" style="margin-bottom: 12px;">
+          <label for="hitomi-input-ruta-custom" style="display: block; font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 6px;">
+            ✍️ Subcarpeta de Descargas (relativa a la carpeta Descargas):
+          </label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" id="hitomi-input-ruta-custom" value="${escapeHtml(rutaActualSaneada)}" placeholder="Ej. Hitomi/Comics..." class="hitomi-input-custom-tag-field" title="Ingresa el nombre de la subcarpeta (ej. Comics o Hitomi/Doujins). Dejar en blanco para usar la carpeta por defecto." />
+          </div>
+        </div>
+
+        <p class="hitomi-modal-instruccion" style="margin-bottom: 0;">
+          💡 <strong>Nota del Navegador:</strong> Por razones de seguridad de Chromium y Firefox, los archivos se guardan dentro de tu carpeta principal de Descargas. Especificar <code>Hitomi/Comics</code> guardará los archivos en <code>Descargas/Hitomi/Comics/</code>. Si no especificas nada o la reseteas, se guardará en tu carpeta por defecto.
+        </p>
+      </div>
+
+      <div class="hitomi-modal-footer">
+        <div class="hitomi-modal-acciones-secundarias">
+          <button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-ruta-btn-reset" title="Restaurar la ruta al estado por defecto (carpeta Descargas predeterminada)">
+            🔄 Resetear a Predeterminado
+          </button>
+        </div>
+        <div class="hitomi-modal-acciones-principales">
+          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-ruta-btn-cancelar" title="Cancelar sin guardar cambios">Cancelar</button>
+          <button class="hitomi-btn hitomi-btn-primario" id="hitomi-ruta-btn-guardar" title="Guardar esta ruta de descarga">Guardar Ruta</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  interfaz.appendChild(backdropRuta);
+
+  const inputRuta = backdropRuta.querySelector("#hitomi-input-ruta-custom");
+  const cerrar = () => backdropRuta.remove();
+
+  backdropRuta.querySelector("#hitomi-ruta-btn-cerrar").addEventListener("click", cerrar);
+  backdropRuta.querySelector("#hitomi-ruta-btn-cancelar").addEventListener("click", cerrar);
+
+  backdropRuta.querySelector("#hitomi-ruta-btn-reset").addEventListener("click", () => {
+    eliminarValorGM(CLAVES.rutaDescarga);
+    if (inputRuta) inputRuta.value = "";
+    cerrar();
+    if (typeof callbackGuardar === "function") callbackGuardar("");
+  });
+
+  backdropRuta.querySelector("#hitomi-ruta-btn-guardar").addEventListener("click", () => {
+    const valorIngresado = inputRuta ? inputRuta.value : "";
+    const rutaFinal = sanearRutaSubcarpeta(valorIngresado);
+
+    if (rutaFinal) {
+      guardarValorGM(CLAVES.rutaDescarga, rutaFinal);
+    } else {
+      eliminarValorGM(CLAVES.rutaDescarga);
+    }
+
+    cerrar();
+    if (typeof callbackGuardar === "function") callbackGuardar(rutaFinal);
+  });
+}
+
 export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
+
   let modoForzado = modoForzadoInicial !== null ? modoForzadoInicial : leerValorGM(CLAVES.modoForzado, false);
   const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
 
@@ -757,7 +852,9 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
     const forzadasCount = pestanasInfo.filter(p => p.yaProcesada).length;
     const usarCbz = leerValorGM(CLAVES.usarCbz, false);
     const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
-
+    const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
+    const rutaSaneada = sanearRutaSubcarpeta(rutaCustom);
+    const rutaFormateada = rutaSaneada ? escapeHtml(rutaSaneada) : "Predeterminada";
 
     // Inicializar la selección por defecto solo la primera vez que se abre la ventana
     if (!pestanasInicializadas) {
@@ -796,7 +893,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                    <p>No se encontraron pestañas de Hitomi ${modoForzado ? 'disponibles' : 'pendientes'}.</p>
                  </div>`
               : `
-                 <!-- SECCIÓN DE OPCIONES Y CONFIGURACIÓN (CHECKBOXES) -->
+                 <!-- SECCIÓN DE OPCIONES Y CONFIGURACIÓN (CHECKBOXES Y RUTAS) -->
                  <div class="hitomi-seccion-opciones" style="margin-bottom: 12px; padding: 10px 14px; background: #192028; border: 1px solid #2d3748; border-radius: 10px;">
                    <div style="font-size: 11px; font-weight: 700; color: #b580b5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                      ⚙️ OPCIONES DE DESCARGA
@@ -819,7 +916,11 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                        </label>
                      </div>
 
-                     <div>
+                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                       <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-abrir-ruta" title="Configurar o cambiar la subcarpeta personalizada donde se guardarán tus descargas (ej. Hitomi/Comics)">
+                         📂 Ruta: <strong>${rutaFormateada}</strong>
+                       </button>
+
                        ${
                          !modoForzado
                            ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Permitir volver a descargar cómics que ya habías guardado anteriormente">
@@ -832,6 +933,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                      </div>
                    </div>
                  </div>
+
 
                  <!-- SECCIÓN DE CÓMICS DETECTADOS -->
                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
@@ -1040,7 +1142,18 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
       renderizarContenidoModal();
     });
 
+    const btnAbrirRuta = backdrop.querySelector("#hitomi-btn-abrir-ruta");
+    if (btnAbrirRuta) {
+      btnAbrirRuta.addEventListener("click", () => {
+        sincronizarEstadoCheckboxes();
+        mostrarModalRutaDescarga(() => {
+          renderizarContenidoModal();
+        });
+      });
+    }
+
     const btnForzado = backdrop.querySelector("#hitomi-btn-modo-forzado");
+
     if (btnForzado) {
       btnForzado.addEventListener("click", () => {
         modoForzado = true;

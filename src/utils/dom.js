@@ -197,3 +197,30 @@ export function eliminarValorGM(clave) {
   }
 }
 
+/**
+ * Sanea y valida una subcarpeta de descarga personalizada para garantizar que sea una ruta relativa limpia
+ * compatible con las políticas de descarga del navegador (Chromium/Firefox) y libre de path traversal.
+ * @param {string} ruta - Ruta ingresada por el usuario (ej. "Comics\Hitomi").
+ * @returns {string} Subcarpeta limpia relativa a Descargas (ej. "Comics/Hitomi") o vacía "".
+ */
+export function sanearRutaSubcarpeta(ruta = "") {
+  if (!ruta || typeof ruta !== "string") return "";
+
+  let saneada = ruta.trim();
+  // 1. Reemplazar barras invertidas \ por /
+  saneada = saneada.replace(/\\/g, "/");
+  // 2. Eliminar letras de unidad (ej. C:)
+  saneada = saneada.replace(/^[a-zA-Z]:/g, "");
+  // 3. Eliminar secuencias de path traversal ../ o ./
+  saneada = saneada.replace(/(?:\.\.\/|\.\/)/g, "");
+  // 4. Eliminar caracteres ilícitos (\x00-\x1F, *, ?, ", <, >, |)
+  saneada = saneada.replace(/[\x00-\x1F\*\?"<>\|:]/g, "");
+  // 5. Reducir múltiples barras consecutivas
+  saneada = saneada.replace(/\/+/g, "/");
+  // 6. Eliminar barras y espacios al inicio y al final
+  saneada = saneada.replace(/^[\/\s]+|[\/\s]+$/g, "");
+
+  return saneada;
+}
+
+

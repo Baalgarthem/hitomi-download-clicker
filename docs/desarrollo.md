@@ -2,7 +2,19 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.2.0 (Subcarpeta de Descargas Personalizada y Restablecimiento a Predeterminado)
+- **Opción de Ruta Personalizada (`src/config/constants.js`, `src/utils/dom.js`, `src/core/download.js` & `src/ui/modal.js`)**:
+  - Adición de la constante `CLAVES.rutaDescarga` (`hitomi_ruta_descarga_personalizada`) para almacenar persistentemente la subcarpeta elegida por el usuario.
+  - Implementación del botón `📂 Ruta: <Ruta Actual>` en el panel `⚙️ OPCIONES DE DESCARGA` de la pantalla principal.
+- **Sub-Modal de Configuración de Ruta (`src/ui/modal.js`)**:
+  - Creación de `mostrarModalRutaDescarga()` para visualizar la ruta activa (predeterminada o subcarpeta relativa ej. `Hitomi/Comics`), ingresar una nueva subcarpeta o presionar **`🔄 Resetear a Predeterminado`**.
+- **Sanitización y Anti Path-Traversal (`src/utils/dom.js`)**:
+  - Implementación de `sanearRutaSubcarpeta()` para formatear la ruta, remover caracteres ilícitos y neutralizar intentos de path traversal (`../`, `./`, `/`).
+- **Inyección Automática en Descargas Nativas (`src/core/download.js`)**:
+  - En `generarNombreFinalConExtension()`, si existe una ruta personalizada activa, se antepone `${rutaLimpia}/` a las descargas nativas del script (`a.download`), manteniendo `document.title` limpio para evitar alteraciones en los ZIPs del sitio.
+
 ## Versión 2.1.0 (Persistencia 100% Permanente de Configuración, Storage Wrappers y Guía Pedagógica)
+
 - **Persistencia Permanente de Opciones (`src/ui/modal.js`, `src/config/constants.js` & `src/utils/dom.js`)**:
   - Implementación de almacenamiento 100% persistente para todas las elecciones y configuraciones del usuario (`usarCbz`, `cerrarPestana`, `modoForzado` y `estiloSeparador`).
   - Incorporación de la constante `CLAVES.modoForzado` (`hitomi_modo_forzado`) para recordar la preferencia de modo normal vs forzado entre sesiones y reinicios.

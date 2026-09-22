@@ -38,11 +38,13 @@ Para comprender en detalle las guías pedagógicas del sistema:
 
 ## 🌐 Módulo: `src/utils/dom.js`
 - **`sanearNombreArchivoFileSystem(nombre)`**: Sanea nombres de archivo para eliminar caracteres ilícitos en Linux/Windows (`/ \ : * ? " < > |`).
+- **`sanearRutaSubcarpeta(ruta)`**: Sanea subcarpetas de descarga relativas limpiando barras invertidas, removiendo path-traversal (`../`) y caracteres prohibidos.
 - **`inyectarEstilos(css)`**: Inyecta estilos CSS de forma segura con fallback a `<style>` si `GM_addStyle` no está disponible.
 - **`elementoVisible(elemento)`**: Verifica visibilidad real en el viewport (display, visibility, opacity, dimensions).
 - **`escapeHtml(texto)`**: Sanitiza entidades HTML para prevenir inyecciones XSS en la UI.
 - **`leerValorGM(clave, valorDefecto)`**: Lee valores del almacenamiento de Tampermonkey/Violentmonkey con fallback automático a `localStorage`.
 - **`guardarValorGM(clave, valor)`**: Guarda valores en el almacenamiento de Tampermonkey/Violentmonkey con fallback automático a `localStorage`.
 - **`eliminarValorGM(clave)`**: Elimina valores del almacenamiento de Tampermonkey/Violentmonkey con fallback automático a `localStorage`.
+
 
 

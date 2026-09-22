@@ -31,12 +31,20 @@ Con solo marcar la casilla **📦 Renombrar a .cbz** en el menú de confirmació
 
 ---
 
-### 📋 4. Intercomunicación entre Pestañas (IPC)
+### 📂 4. Subcarpeta de Descargas Personalizada
+Desde el botón **`📂 Ruta`** en el menú de opciones puedes configurar una subcarpeta personalizada (ej. `Hitomi/Comics`) dentro de tu directorio de descargas predeterminado.
+- **Restablecimiento Sencillo**: Incluye el botón **`🔄 Resetear a Predeterminado`** para volver a descargar directamente en tu carpeta de Descargas habitual.
+- **Persistencia**: El script recuerda tu ruta elegida entre sesiones.
+
+---
+
+### 📋 5. Intercomunicación entre Pestañas (IPC)
 No necesitas ir pestaña por pestaña. Desde cualquier pestaña abierta puedes presionar el botón de la pastilla flotante y enviar la orden de descarga a **todas las demás pestañas abiertas en segundo plano**.
 
 ---
 
-### 🧠 5. Memoria Estructurada y Prevención de Duplicados
+### 🧠 6. Memoria Estructurada y Prevención de Duplicados
+
 - El script recuerda qué páginas ya fueron descargadas (incluso si cierras y vuelves a abrir el navegador).
 - Si una pestaña ya se procesó, la marca con un distintivo verde **✓ Descargado** y evita descargas duplicadas.
 - ¿Quieres volver a descargar? Usa el botón **⚡ Clic Forzado** en el menú modal.
