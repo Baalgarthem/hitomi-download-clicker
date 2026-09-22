@@ -20,6 +20,14 @@ Hitomi Clicker es un userscript que recorre pestañas abiertas de Hitomi y pulsa
 
 1. **Gestión de Errores (Bug Trace):** Todo bug sin excepción se debe revisar, reportar y analizar desde el archivo `docs/bug-trace.md`, siguiendo estrictamente la estructura tabular y las reglas irrevocables definidas en la cabecera de ese archivo.
 2. **Registro de Cambios (Diario de Desarrollo):** Todo cambio en el código se debe documentar obligatoriamente en el archivo `docs/desarrollo.md`. El archivo debe estar seccionado por módulos. Si se crea un nuevo módulo, se añade una nueva sección. Si los módulos se relacionan o interactúan, se debe indicar claramente en este documento el porqué, de qué forma y con qué elementos o funciones del otro módulo se vinculan.
+3. **Control de Versiones y Despliegue Continuo:**
+   - Cada conjunto de cambios o mejoras aplicadas debe acompañarse **obligatoriamente** de un incremento de versión inteligente siguiendo SemVer (`major`, `minor` o `patch`) en función del impacto de la solicitud.
+   - La subida de versión es crítica: si no se incrementa la versión en los metadatos, los gestores de userscripts (Tampermonkey, Violentmonkey) **nunca podrán auto-actualizar** el script para el usuario final.
+   - La versión debe sincronizarse de manera coherente en:
+     - `src/index.js` (cabecera `// @version`)
+     - `package.json` (campo `"version"`)
+     - `docs/desarrollo.md` (sección de changelog correspondiente)
+   - Tras cada modificación, se debe compilar (`node build.js`), validar sintaxis (`node --check dist/hitomi-download-clicker.user.js`), crear el commit representativo y hacer push al repositorio remoto.
 
 ## Verificación
 

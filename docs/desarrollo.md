@@ -2,6 +2,14 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.10.1 (Auditoría de Cierre de Procesadas, Diagnóstico y Protocolo de Auto-Actualización)
+- **Protocolo de Versiones y Despliegue en `AGENTS.md`**:
+  - Incorporado el punto 3 en los Protocolos Obligatorios: incremento semántico continuo e inteligente (`major`/`minor`/`patch`) en cada ciclo de trabajo para habilitar la auto-actualización automática en Tampermonkey/Violentmonkey.
+- **Auditoría y Blindaje en `cerrarPestanasProcesadas()` (`src/core/presence.js`)**:
+  - Verificada la compatibilidad con las etiquetas `" ✓ Descargado"` (descarga normal) y `" ✓ Re-descargado"` (descarga forzada) mapeadas bajo la propiedad unificada `yaProcesada`.
+  - Añadido registro estructurado en consola para trazabilidad y diagnóstico al ejecutar el cierre masivo de pestañas procesadas mediante IPC.
+  - Sincronización estricta de versiones y empaquetado del bundle.
+
 ## Versión 2.10.0 (Botón de Cierre Masivo de Pestañas Procesadas cuando Detectadas = 0)
 - **Botón Extra de Icono ✕ al lado de 'Limpiar Memoria' (`src/ui/modal.js`)**:
   - Cuando el número de pestañas detectadas es 0 (sin pestañas nuevas pendientes de descargar), se muestra un único botón extra al lado de "🗑️ Limpiar Memoria" que contiene exclusivamente el ícono `✕` sin texto innecesario.
