@@ -2,6 +2,13 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.3.0 (Aislamiento Total de Intercepción: Tags, Navegación y Lectura Intactos)
+- **Filtro Estricto Anti-Intercepción en Enlaces de Navegación y Tags (`src/core/download.js`)**:
+  - Ampliación de `esElementoBotonDescarga()` para bloquear la asignación de atributos `download` a enlaces de etiquetas (`/tag/`), artistas (`/artist/`), grupos (`/group/`), series (`/series/`), personajes (`/character/`), idiomas (`/language/`), lectores (`/reader/`) y contenedores de tags (`.tags`, `#tags`).
+  - Cumplimiento estricto del principio de diseño: la interacción con la página principal y su navegación funciona de forma nativa e inalterada, limitando la ejecución del script exclusivamente al botón `#dl-button` y a las herramientas/paneles propios del userscript.
+- **Saneamiento Automático de Atributos `download` (`src/core/download.js`)**:
+  - Actualización de `limpiarAtributosDescargaInvalidos()` para remover de forma inmediata cualquier atributo `download` erróneo en enlaces de etiquetas, navegación y miniaturas.
+
 ## Versión 2.2.2 (Corrección Crítica: Discriminación Estricta de Enlaces de Lectura y Miniaturas)
 - **Filtro Estricto de Descargas vs Lectores (`src/core/download.js`)**:
   - Implementación de `esElementoBotonDescarga()` para discriminar estrictamente los botones y enlaces de descarga reales del sitio (`#dl-button`, endpoints `.zip`/`.cbz`/`/download/`, `blob:`, ó clics forzados).

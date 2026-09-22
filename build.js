@@ -116,7 +116,9 @@ async function ejecutarDeploymentManager() {
     console.log(`📦 Preparando commit y staging de git...`);
     try {
       execSync('git add .', { cwd: RUTA_RAIZ, stdio: 'inherit' });
-      const msgCommit = `style: rediseño visual paleta Hitomi, icono oficial, botones compactos y tooltips (v${nuevaVersion})`;
+      const argMessage = args.find(a => a.startsWith('--message='));
+      const customCommitMsg = argMessage ? argMessage.split('=').slice(1).join('=') : null;
+      const msgCommit = customCommitMsg || `fix: aislamiento total de intercepción en tags, navegación y lector (v${nuevaVersion})`;
       execSync(`git commit -m "${msgCommit}"`, { cwd: RUTA_RAIZ, stdio: 'inherit' });
       console.log(`🎉 Commit creado exitosamente: "${msgCommit}"`);
     } catch (err) {
