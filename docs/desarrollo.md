@@ -2,6 +2,11 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.5.1 (Sincronización en Tiempo Real de Tags Personalizados en Contadores)
+- **Reflejo Inmediato de Tags Personalizados en Contadores (`src/ui/modal.js`)**:
+  - Implementación de `actualizarContadoresTags()` para actualizar dinámicamente en tiempo real los contadores del sub-modal (`#hitomi-tag-badge-count`, `#hitomi-count-sel` y `#hitomi-count-total`).
+  - Al ingresar etiquetas manuales separadas por espacios y pulsar `➕ Añadir Tag` o `Enter`, las nuevas etiquetas personalizadas se añaden a la selección y se reflejan al instante en la cabecera, en el texto descriptivo del sub-modal y en el botón del menú principal `🏷️ Tags (N)`.
+
 ## Versión 2.5.0 (Opción de Bloqueo del Botón de Descarga Nativo de la Página)
 - **Opción de Bloqueo Anti-Descarga Accidental (`src/config/constants.js`, `src/ui/badge.js`, `src/core/download.js` & `src/ui/modal.js`)**:
   - Incorporación de la constante `CLAVES.bloquearBotonNativo` (`hitomi_bloquear_boton_nativo`) para recordar persistentemente la preferencia del usuario.

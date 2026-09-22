@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.5.0
+// @version      2.5.1
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -1651,7 +1651,7 @@
       <div class="hitomi-modal-header">
         <h3 class="hitomi-modal-titulo">
           <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" style="width:20px;height:20px;border-radius:4px;object-fit:contain;" alt="Hitomi Logo" />
-          <span>\u{1F3F7}\uFE0F Seleccionar Tags: ${escapeHtml(tituloPestana)}</span>
+          <span>\u{1F3F7}\uFE0F Seleccionar Tags: ${escapeHtml(tituloPestana)} <span id="hitomi-tag-badge-count" style="font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(236,72,153,0.2); color: #ec4899; border: 1px solid rgba(236,72,153,0.4); margin-left: 6px;" title="Total de etiquetas seleccionadas actualmente">(${tagsSeleccionadosSet.size} seleccionados)</span></span>
         </h3>
         <button class="hitomi-modal-cerrar" id="hitomi-tag-btn-cerrar" title="Cerrar esta ventana">\u2715</button>
       </div>
@@ -1690,8 +1690,8 @@
           </div>
         </div>
 
-        <p class="hitomi-modal-instruccion">
-          Selecciona las etiquetas que deseas incluir en el nombre final del archivo:
+        <p class="hitomi-modal-instruccion" id="hitomi-tag-instruccion-contador">
+          Selecciona las etiquetas que deseas incluir en el nombre final del archivo (<strong style="color:#ec4899;" id="hitomi-count-sel">${tagsSeleccionadosSet.size}</strong> de <strong style="color:#9ab0c7;" id="hitomi-count-total">${todosLosTagsDisponibles.size}</strong> seleccionadas):
         </p>
 
         <div class="hitomi-grid-tags" id="hitomi-contenedor-pills">
@@ -1740,10 +1740,25 @@
         }, 1500);
       }
     }
+    function actualizarContadoresTags() {
+      const badgeCount = backdropTag.querySelector("#hitomi-tag-badge-count");
+      if (badgeCount) {
+        badgeCount.textContent = `(${tagsSeleccionadosSet.size} seleccionados)`;
+      }
+      const countSel = backdropTag.querySelector("#hitomi-count-sel");
+      if (countSel) {
+        countSel.textContent = tagsSeleccionadosSet.size;
+      }
+      const countTotal = backdropTag.querySelector("#hitomi-count-total");
+      if (countTotal) {
+        countTotal.textContent = todosLosTagsDisponibles.size;
+      }
+    }
     function actualizarGridPills() {
       if (contenedorPills) {
         contenedorPills.innerHTML = generarHtmlPills();
       }
+      actualizarContadoresTags();
     }
     function agregarTagPersonalizado() {
       if (!inputCustom) return;
@@ -1796,6 +1811,7 @@
           tagsSeleccionadosSet.add(tagNombre);
           pill.classList.add("activa");
         }
+        actualizarContadoresTags();
       });
     }
     const btnTodos = backdropTag.querySelector("#hitomi-tag-btn-todos");
