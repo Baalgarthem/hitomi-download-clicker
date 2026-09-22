@@ -250,3 +250,44 @@ export async function solicitarSincronizacionGlobalPestanas(modoForzado = false)
   // Devolver el arreglo consolidado de pestañas
   return obtenerInformacionPestanas(modoForzado);
 }
+
+/**
+ * Cierra todas las pestañas de Hitomi abiertas que tengan la etiqueta de procesadas (descargadas o re-descargadas).
+ * Emite una orden global por IPC a las pestañas remotas y cierra la pestaña local si también está procesada.
+ * @returns {number} Cantidad de pestañas que fueron ordenadas a cerrar.
+ */
+export function cerrarPestanasProcesadas() {
+  try {
+    const pestanasTodas = obtenerInformacionPestanas(true);
+    const pestanasCerrar = pestanasTodas.filter(p => p.yaProcesada);
+    const idsCerrar = pestanasCerrar.map(p => p.id);
+
+    if (idsCerrar.length === 0) {
+      return 0;
+    }
+
+    const payload = {
+      timestamp: Date.now(),
+      ids: idsCerrar,
+      origen: ID_PESTANA
+    };
+
+    guardarValorGM(CLAVES.ordenCerrarPestanas, payload);
+
+    // Si la pestaña local está entre las que deben cerrarse, cerrarla tras un breve respiro
+    if (idsCerrar.includes(ID_PESTANA)) {
+      setTimeout(() => {
+        try {
+          window.close();
+        } catch (e) {
+          console.warn("No se pudo cerrar la pestaña actual local:", e);
+        }
+      }, 300);
+    }
+
+    return idsCerrar.length;
+  } catch (e) {
+    console.error("Error al emitir orden de cierre de pestañas procesadas:", e);
+    return 0;
+  }
+}

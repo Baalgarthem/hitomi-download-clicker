@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.9.3
+// @version      2.10.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz, sufijo de serie 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -111,6 +111,25 @@ function registrarEscuchadorOrdenesIPC() {
           }
         }
       );
+      // Escuchador de orden para cerrar pestañas procesadas
+      GM_addValueChangeListener(
+        CLAVES.ordenCerrarPestanas,
+        (_clave, _valorAnterior, valorNuevo, cambioRemoto) => {
+          if (!cambioRemoto || !valorNuevo || typeof valorNuevo !== "object") {
+            return;
+          }
+          const { ids } = valorNuevo;
+          if (Array.isArray(ids) && ids.includes(ID_PESTANA)) {
+            setTimeout(() => {
+              try {
+                window.close();
+              } catch (e) {
+                console.warn("No se pudo cerrar la pestaña automáticamente por orden remota:", e);
+              }
+            }, 100);
+          }
+        }
+      );
     } else if (typeof window !== "undefined" && window.addEventListener) {
       window.addEventListener("storage", async (e) => {
         if (e.key === CLAVES.orden && e.newValue) {
@@ -138,6 +157,21 @@ function registrarEscuchadorOrdenesIPC() {
             const valorNuevo = JSON.parse(e.newValue);
             if (valorNuevo && typeof valorNuevo === "object" && valorNuevo.solicitante !== ID_PESTANA) {
               await publicarEstadoPestana(true);
+            }
+          } catch { }
+        } else if (e.key === CLAVES.ordenCerrarPestanas && e.newValue) {
+          try {
+            const valorNuevo = JSON.parse(e.newValue);
+            if (valorNuevo && typeof valorNuevo === "object" && Array.isArray(valorNuevo.ids)) {
+              if (valorNuevo.ids.includes(ID_PESTANA)) {
+                setTimeout(() => {
+                  try {
+                    window.close();
+                  } catch (err) {
+                    console.warn("No se pudo cerrar la pestaña automáticamente por orden storage:", err);
+                  }
+                }, 100);
+              }
             }
           } catch { }
         }

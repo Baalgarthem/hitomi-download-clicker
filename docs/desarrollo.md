@@ -2,6 +2,16 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.10.0 (Botón de Cierre Masivo de Pestañas Procesadas cuando Detectadas = 0)
+- **Botón Extra de Cierre Rápido de Pestañas Procesadas (`src/ui/modal.js`)**:
+  - Cuando el número de pestañas detectadas es 0 (sin pestañas nuevas pendientes de descargar), se habilita un botón extra destacado con una `✕` tanto en el encabezado del modal junto al botón de cerrar como en el área central vacía (`hitomi-modal-vacio`).
+  - Al posar el cursor sobre el botón (hover), muestra el texto explicativo: *"Cerrar todas las pestañas de Hitomi descargadas o re-descargadas (procesadas)"*.
+  - Al hacer clic, ejecuta la función masiva de cierre, cerrando inmediatamente todas las pestañas que tengan la etiqueta de descargadas o re-descargadas.
+- **Comunicación IPC Global para Cierre Masivo (`src/core/presence.js` y `src/index.js`)**:
+  - Implementada `cerrarPestanasProcesadas()` que recopila las pestañas con `yaProcesada === true` y emite una orden IPC `CLAVES.ordenCerrarPestanas`.
+  - Las pestañas remotas escuchan la orden vía `GM_addValueChangeListener` (y fallback `storage`) y se cierran automáticamente con `window.close()`.
+  - La pestaña actual que emite la orden también se cierra si pertenece al grupo de pestañas ya procesadas.
+
 ## Versión 2.9.3 (Hardening: Ruta Personalizada Deshabilitada + Candados de Seguridad)
 - **Ruta Personalizada Deshabilitada en UI (`src/ui/modal.js`)**:
   - El botón de ruta personalizada ahora muestra "📂 Ruta: **Por defecto** `WIP`" con `opacity: 0.45` y `cursor: not-allowed`.

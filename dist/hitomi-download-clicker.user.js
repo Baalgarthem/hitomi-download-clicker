@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.9.3
+// @version      2.10.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz, sufijo de serie 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -22,6 +22,7 @@
 
 
 (() => {
+  var __defProp = Object.defineProperty;
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __esm = (fn, res, err) => function __init() {
     if (err) throw err[0];
@@ -37,6 +38,10 @@
     } catch (e) {
       throw mod = 0, e;
     }
+  };
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
   };
 
 /* ════════════════════════════════════════════════════════════ */
@@ -153,7 +158,8 @@
         modoForzado: "hitomi_modo_forzado",
         rutaDescarga: "hitomi_ruta_descarga_personalizada",
         bloquearBotonNativo: "hitomi_bloquear_boton_nativo",
-        incluirSerie: "hitomi_incluir_serie_sufijo"
+        incluirSerie: "hitomi_incluir_serie_sufijo",
+        ordenCerrarPestanas: "hitomi_orden_cerrar_pestanas"
       };
       ESTADO = {
         bloqueado: false,
@@ -1330,6 +1336,29 @@
       color: #f0f6fc;
     }
 
+    .hitomi-modal-btn-cerrar-procesadas {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #f87171;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 3px 8px;
+      border-radius: 6px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .hitomi-modal-btn-cerrar-procesadas:hover {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: #ef4444;
+      color: #ffffff;
+      transform: scale(1.05);
+    }
+
     .hitomi-modal-body {
       padding: 16px 20px;
       overflow-y: auto;
@@ -2018,7 +2047,10 @@
               ${modoForzado ? "\u26A1 Modo Forzado" : "\u2713 Modo Normal"}
             </span>
           </h3>
-          <button class="hitomi-modal-cerrar" id="hitomi-btn-cerrar-modal" title="Cerrar esta ventana">\u2715</button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            ${totalPestanas === 0 ? `<button class="hitomi-modal-btn-cerrar-procesadas" id="hitomi-btn-cerrar-procesadas-header" title="Cerrar todas las pesta\xF1as de Hitomi descargadas o re-descargadas (procesadas)">\u2715 Cerrar Procesadas</button>` : ""}
+            <button class="hitomi-modal-cerrar" id="hitomi-btn-cerrar-modal" title="Cerrar esta ventana">\u2715</button>
+          </div>
         </div>
 
         <div class="hitomi-modal-body">
@@ -2027,7 +2059,10 @@
           </p>
 
           ${totalPestanas === 0 ? `<div class="hitomi-modal-vacio">
-                   <p>No se encontraron pesta\xF1as de Hitomi ${modoForzado ? "disponibles" : "pendientes"}.</p>
+                   <p style="margin-bottom: 12px;">No se encontraron pesta\xF1as de Hitomi ${modoForzado ? "disponibles" : "pendientes"}.</p>
+                   <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-cerrar-procesadas-vacio" title="Cerrar todas las pesta\xF1as de Hitomi descargadas o re-descargadas (procesadas)" style="margin: 0 auto; display: inline-flex; align-items: center; gap: 6px;">
+                     \u2715 Cerrar pesta\xF1as descargadas/procesadas
+                   </button>
                  </div>` : `
                  <!-- SECCI\xD3N DE OPCIONES Y CONFIGURACI\xD3N (CHECKBOXES Y RUTAS) -->
                  <div class="hitomi-seccion-opciones" style="margin-bottom: 12px; padding: 10px 14px; background: #192028; border: 1px solid #2d3748; border-radius: 10px;">
@@ -2249,6 +2284,24 @@
       }
       backdrop.querySelector("#hitomi-btn-cerrar-modal").addEventListener("click", cerrarModal);
       backdrop.querySelector("#hitomi-btn-cancelar").addEventListener("click", cerrarModal);
+      const ejecutarCierreProcesadas = () => {
+        const cantidad = cerrarPestanasProcesadas();
+        cerrarModal();
+        if (typeof pastilla !== "undefined" && pastilla) {
+          Promise.resolve().then(() => (init_pill(), pill_exports)).then(({ mostrarEstado: mostrarEstado2 }) => {
+            mostrarEstado2(pastilla, `${cantidad} cerradas`, "correcto");
+          }).catch(() => {
+          });
+        }
+      };
+      const btnCerrarHeader = backdrop.querySelector("#hitomi-btn-cerrar-procesadas-header");
+      if (btnCerrarHeader) {
+        btnCerrarHeader.addEventListener("click", ejecutarCierreProcesadas);
+      }
+      const btnCerrarVacio = backdrop.querySelector("#hitomi-btn-cerrar-procesadas-vacio");
+      if (btnCerrarVacio) {
+        btnCerrarVacio.addEventListener("click", ejecutarCierreProcesadas);
+      }
       backdrop.querySelector("#hitomi-btn-reescanear").addEventListener("click", async () => {
         const btnReescanear = backdrop.querySelector("#hitomi-btn-reescanear");
         if (btnReescanear) {
@@ -2334,6 +2387,12 @@
 /* ════════════════════════════════════════════════════════════ */
 /*                   MÓDULO: src/ui/pill.js                   */
 /* ════════════════════════════════════════════════════════════ */
+  var pill_exports = {};
+  __export(pill_exports, {
+    aplicarEstilosPastilla: () => aplicarEstilosPastilla,
+    montarPastilla: () => montarPastilla,
+    mostrarEstado: () => mostrarEstado
+  });
   function aplicarEstilosPastilla() {
     inyectarEstilos(`
     #${CONFIGURACION.ids.pastilla} {
@@ -2655,6 +2714,35 @@
     limpiarRegistrosPestanasAntiguas();
     return obtenerInformacionPestanas(modoForzado);
   }
+  function cerrarPestanasProcesadas() {
+    try {
+      const pestanasTodas = obtenerInformacionPestanas(true);
+      const pestanasCerrar = pestanasTodas.filter((p) => p.yaProcesada);
+      const idsCerrar = pestanasCerrar.map((p) => p.id);
+      if (idsCerrar.length === 0) {
+        return 0;
+      }
+      const payload = {
+        timestamp: Date.now(),
+        ids: idsCerrar,
+        origen: ID_PESTANA
+      };
+      guardarValorGM(CLAVES.ordenCerrarPestanas, payload);
+      if (idsCerrar.includes(ID_PESTANA)) {
+        setTimeout(() => {
+          try {
+            window.close();
+          } catch (e) {
+            console.warn("No se pudo cerrar la pesta\xF1a actual local:", e);
+          }
+        }, 300);
+      }
+      return idsCerrar.length;
+    } catch (e) {
+      console.error("Error al emitir orden de cierre de pesta\xF1as procesadas:", e);
+      return 0;
+    }
+  }
   var publicandoEstado;
   var init_presence = __esm({
     "src/core/presence.js"() {
@@ -2738,6 +2826,24 @@
                 }
               }
             );
+            GM_addValueChangeListener(
+              CLAVES.ordenCerrarPestanas,
+              (_clave, _valorAnterior, valorNuevo, cambioRemoto) => {
+                if (!cambioRemoto || !valorNuevo || typeof valorNuevo !== "object") {
+                  return;
+                }
+                const { ids } = valorNuevo;
+                if (Array.isArray(ids) && ids.includes(ID_PESTANA)) {
+                  setTimeout(() => {
+                    try {
+                      window.close();
+                    } catch (e) {
+                      console.warn("No se pudo cerrar la pesta\xF1a autom\xE1ticamente por orden remota:", e);
+                    }
+                  }, 100);
+                }
+              }
+            );
           } else if (typeof window !== "undefined" && window.addEventListener) {
             window.addEventListener("storage", async (e) => {
               if (e.key === CLAVES.orden && e.newValue) {
@@ -2766,6 +2872,22 @@
                   const valorNuevo = JSON.parse(e.newValue);
                   if (valorNuevo && typeof valorNuevo === "object" && valorNuevo.solicitante !== ID_PESTANA) {
                     await publicarEstadoPestana(true);
+                  }
+                } catch {
+                }
+              } else if (e.key === CLAVES.ordenCerrarPestanas && e.newValue) {
+                try {
+                  const valorNuevo = JSON.parse(e.newValue);
+                  if (valorNuevo && typeof valorNuevo === "object" && Array.isArray(valorNuevo.ids)) {
+                    if (valorNuevo.ids.includes(ID_PESTANA)) {
+                      setTimeout(() => {
+                        try {
+                          window.close();
+                        } catch (err) {
+                          console.warn("No se pudo cerrar la pesta\xF1a autom\xE1ticamente por orden storage:", err);
+                        }
+                      }, 100);
+                    }
                   }
                 } catch {
                 }
