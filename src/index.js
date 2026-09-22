@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.2.1
+// @version      2.2.2
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -39,7 +39,8 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
 import { ID_PESTANA, CLAVES } from './config/constants.js';
 import { esPaginaHitomi, obtenerHora } from './utils/dom.js';
 import { publicarEstadoPestana, eliminarPresenciaPestana, limpiarRegistrosPestanasAntiguas } from './core/presence.js';
-import { ejecutarOrdenDescarga, interceptarDescargasNativas } from './core/download.js';
+import { ejecutarOrdenDescarga, interceptarDescargasNativas, limpiarAtributosDescargaInvalidos } from './core/download.js';
+
 import { aplicarEstilosModal } from './ui/modal.js';
 import { aplicarEstilosPastilla, montarPastilla } from './ui/pill.js';
 
@@ -131,7 +132,9 @@ function iniciarScript() {
   aplicarEstilosModal();
 
   interceptarDescargasNativas();
+  limpiarAtributosDescargaInvalidos();
   limpiarRegistrosPestanasAntiguas();
+
   montarPastilla();
   publicarEstadoPestana();
   registrarObservadorDOM();

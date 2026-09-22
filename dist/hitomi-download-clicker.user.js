@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.2.1
+// @version      2.2.2
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -713,17 +713,66 @@
     }
     return nombreConExt;
   }
+  function esElementoBotonDescarga(elemento) {
+    if (!elemento || typeof elemento !== "object") return false;
+    try {
+      const href = elemento.getAttribute && elemento.getAttribute("href") || elemento.href || "";
+      const hrefLower = typeof href === "string" ? href.toLowerCase() : "";
+      const claseStr = (elemento.className || "").toString().toLowerCase();
+      const idStr = (elemento.id || "").toLowerCase();
+      if (hrefLower.includes("/reader/") || hrefLower.includes("/galleries/") || hrefLower.includes("/artist/") || hrefLower.includes("/group/") || hrefLower.includes("/tag/") || hrefLower.includes("/series/") || hrefLower.includes("/character/") || hrefLower.includes("/language/") || claseStr.includes("thumbnail") || elemento.closest && elemento.closest(".thumbnail-container, .thumbnail-list, #gallery-images, .gallery-preview")) {
+        if (elemento.hasAttribute && elemento.hasAttribute("download")) {
+          elemento.removeAttribute("download");
+        }
+        return false;
+      }
+      if (ESTADO.permitirClicForzado) {
+        return true;
+      }
+      if (idStr === "dl-button" || claseStr.includes("dl-button") || elemento.hasAttribute && elemento.hasAttribute("data-hitomi-nombre-final")) {
+        return true;
+      }
+      if (claseStr.includes("download") || idStr && idStr.includes("download")) {
+        return true;
+      }
+      if (hrefLower.includes("/download/") || hrefLower.endsWith(".zip") || hrefLower.endsWith(".cbz") || hrefLower.startsWith("blob:")) {
+        return true;
+      }
+      if (elemento.hasAttribute && elemento.hasAttribute("download")) {
+        const downloadVal = (elemento.getAttribute("download") || "").toLowerCase();
+        if (downloadVal && (downloadVal.endsWith(".zip") || downloadVal.endsWith(".cbz") || downloadVal.includes("."))) {
+          return true;
+        }
+      }
+    } catch (e) {
+      console.error("Error al evaluar esElementoBotonDescarga:", e);
+    }
+    return false;
+  }
+  function limpiarAtributosDescargaInvalidos() {
+    try {
+      if (typeof document === "undefined") return;
+      const enlacesLectura = document.querySelectorAll("a[href*='/reader/'], .thumbnail-container a, .thumbnail-list a");
+      enlacesLectura.forEach((a) => {
+        if (a.hasAttribute("download")) {
+          a.removeAttribute("download");
+        }
+      });
+    } catch {
+    }
+  }
   function interceptarDescargasNativas() {
     if (interceptorRegistrado) return;
     interceptorRegistrado = true;
     try {
+      limpiarAtributosDescargaInvalidos();
       if (typeof document !== "undefined") {
         document.addEventListener("click", (evento) => {
           try {
+            limpiarAtributosDescargaInvalidos();
             const target = evento.target ? evento.target.closest("a, button, #dl-button, .download-button, [download]") || evento.target : null;
             if (!target) return;
-            const esEnlaceODescarga = target.tagName === "A" || target.hasAttribute("download") || target.id === "dl-button" || target.className && typeof target.className === "string" && target.className.includes("download");
-            if (esEnlaceODescarga) {
+            if (esElementoBotonDescarga(target)) {
               const ref = target.getAttribute("download") || target.download || target.getAttribute("href") || target.href || "";
               const nombreConExt = generarNombreFinalConExtension(ref);
               if (nombreConExt) {
@@ -731,11 +780,6 @@
                 if ("download" in target) {
                   target.download = nombreConExt;
                 }
-                const enlacesHijos = target.querySelectorAll ? target.querySelectorAll("a") : [];
-                enlacesHijos.forEach((a) => {
-                  a.setAttribute("download", nombreConExt);
-                  a.download = nombreConExt;
-                });
               }
             }
           } catch (err) {
@@ -747,11 +791,13 @@
         const originalClick = HTMLAnchorElement.prototype.click;
         HTMLAnchorElement.prototype.click = function(...args) {
           try {
-            const ref = this.getAttribute("download") || this.download || this.getAttribute("href") || this.href || "";
-            const nombreConExt = generarNombreFinalConExtension(ref);
-            if (nombreConExt) {
-              this.setAttribute("download", nombreConExt);
-              this.download = nombreConExt;
+            if (esElementoBotonDescarga(this)) {
+              const ref = this.getAttribute("download") || this.download || this.getAttribute("href") || this.href || "";
+              const nombreConExt = generarNombreFinalConExtension(ref);
+              if (nombreConExt) {
+                this.setAttribute("download", nombreConExt);
+                this.download = nombreConExt;
+              }
             }
           } catch (err) {
             console.error("Error en HTMLAnchorElement.prototype.click:", err);
@@ -764,8 +810,11 @@
             const originalSet = descriptor.set;
             Object.defineProperty(HTMLAnchorElement.prototype, "download", {
               set: function(valor) {
-                const nombreConExt = generarNombreFinalConExtension(valor || this.href || "");
-                return originalSet.call(this, nombreConExt || valor);
+                if (esElementoBotonDescarga(this)) {
+                  const nombreConExt = generarNombreFinalConExtension(valor || this.href || "");
+                  return originalSet.call(this, nombreConExt || valor);
+                }
+                return originalSet.call(this, valor);
               },
               get: descriptor.get,
               configurable: true,
@@ -778,8 +827,11 @@
           const originalSetAttribute = HTMLAnchorElement.prototype.setAttribute;
           HTMLAnchorElement.prototype.setAttribute = function(nombreAtributo, valorAtributo, ...restoArgs) {
             if (typeof nombreAtributo === "string" && nombreAtributo.toLowerCase() === "download") {
-              const nombreConExt = generarNombreFinalConExtension(valorAtributo || this.href || "");
-              return originalSetAttribute.call(this, nombreAtributo, nombreConExt || valorAtributo, ...restoArgs);
+              if (esElementoBotonDescarga(this)) {
+                const nombreConExt = generarNombreFinalConExtension(valorAtributo || this.href || "");
+                return originalSetAttribute.call(this, nombreAtributo, nombreConExt || valorAtributo, ...restoArgs);
+              }
+              return;
             }
             return originalSetAttribute.call(this, nombreAtributo, valorAtributo, ...restoArgs);
           };
@@ -793,7 +845,7 @@
               set: function(valor) {
                 const res = originalSetHref.call(this, valor);
                 try {
-                  if (this.hasAttribute("download") || this.id === "dl-button" || this.className && typeof this.className === "string" && this.className.includes("download")) {
+                  if (esElementoBotonDescarga(this)) {
                     const ref = valor || this.getAttribute("download") || this.download || "";
                     const nombreConExt = generarNombreFinalConExtension(ref);
                     if (nombreConExt) {
@@ -826,8 +878,10 @@
                     try {
                       const enlacesConBlob = document.querySelectorAll(`a[href="${url}"]`);
                       enlacesConBlob.forEach((a) => {
-                        a.setAttribute("download", nombreConExt);
-                        a.download = nombreConExt;
+                        if (esElementoBotonDescarga(a)) {
+                          a.setAttribute("download", nombreConExt);
+                          a.download = nombreConExt;
+                        }
                       });
                     } catch {
                     }
@@ -2503,6 +2557,7 @@
         aplicarEstilosPastilla();
         aplicarEstilosModal();
         interceptarDescargasNativas();
+        limpiarAtributosDescargaInvalidos();
         limpiarRegistrosPestanasAntiguas();
         montarPastilla();
         publicarEstadoPestana();

@@ -125,6 +125,89 @@ export function generarNombreFinalConExtension(referenciaUrl = "") {
 }
 
 
+/**
+ * Determina estrictamente si un elemento DOM es el botón de descarga objetivo o un enlace explícito de descarga.
+ * Excluye explícitamente enlaces de navegación, lectores (/reader/), galerías o miniaturas (thumbnails).
+ * @param {Element} elemento - Elemento DOM a evaluar.
+ * @returns {boolean} True si es un botón o enlace de descarga real.
+ */
+export function esElementoBotonDescarga(elemento) {
+  if (!elemento || typeof elemento !== "object") return false;
+
+  try {
+    const href = (elemento.getAttribute && elemento.getAttribute("href")) || elemento.href || "";
+    const hrefLower = typeof href === "string" ? href.toLowerCase() : "";
+    const claseStr = (elemento.className || "").toString().toLowerCase();
+    const idStr = (elemento.id || "").toLowerCase();
+
+    // 1. Descartar explícitamente cualquier enlace de lector, miniaturas o navegación general
+    if (
+      hrefLower.includes("/reader/") ||
+      hrefLower.includes("/galleries/") ||
+      hrefLower.includes("/artist/") ||
+      hrefLower.includes("/group/") ||
+      hrefLower.includes("/tag/") ||
+      hrefLower.includes("/series/") ||
+      hrefLower.includes("/character/") ||
+      hrefLower.includes("/language/") ||
+      claseStr.includes("thumbnail") ||
+      (elemento.closest && elemento.closest(".thumbnail-container, .thumbnail-list, #gallery-images, .gallery-preview"))
+    ) {
+      if (elemento.hasAttribute && elemento.hasAttribute("download")) {
+        elemento.removeAttribute("download");
+      }
+      return false;
+    }
+
+    // 2. Si se está ejecutando nuestra orden programática de descarga
+    if (ESTADO.permitirClicForzado) {
+      return true;
+    }
+
+    // 3. Es el botón principal `#dl-button` o posee nuestro atributo procesado
+    if (idStr === "dl-button" || claseStr.includes("dl-button") || (elemento.hasAttribute && elemento.hasAttribute("data-hitomi-nombre-final"))) {
+      return true;
+    }
+
+    // 4. Es una etiqueta o botón con clase/id específica de descarga
+    if (claseStr.includes("download") || (idStr && idStr.includes("download"))) {
+      return true;
+    }
+
+    // 5. Apunta explícitamente a un archivo o endpoint de descarga (.zip, .cbz, /download/, blob:)
+    if (hrefLower.includes("/download/") || hrefLower.endsWith(".zip") || hrefLower.endsWith(".cbz") || hrefLower.startsWith("blob:")) {
+      return true;
+    }
+
+    // 6. Si ya tiene atributo download Y su valor o destino indica un archivo descargable
+    if (elemento.hasAttribute && elemento.hasAttribute("download")) {
+      const downloadVal = (elemento.getAttribute("download") || "").toLowerCase();
+      if (downloadVal && (downloadVal.endsWith(".zip") || downloadVal.endsWith(".cbz") || downloadVal.includes("."))) {
+        return true;
+      }
+    }
+  } catch (e) {
+    console.error("Error al evaluar esElementoBotonDescarga:", e);
+  }
+
+  return false;
+}
+
+/**
+ * Limpia proactivamente cualquier atributo download asignado erróneamente a enlaces de lectura o miniaturas.
+ */
+export function limpiarAtributosDescargaInvalidos() {
+  try {
+    if (typeof document === "undefined") return;
+    const enlacesLectura = document.querySelectorAll("a[href*='/reader/'], .thumbnail-container a, .thumbnail-list a");
+    enlacesLectura.forEach(a => {
+      if (a.hasAttribute("download")) {
+        a.removeAttribute("download");
+      }
+    });
+  } catch { }
+}
+
 let interceptorRegistrado = false;
 
 /**
@@ -143,20 +226,18 @@ export function interceptarDescargasNativas() {
   interceptorRegistrado = true;
 
   try {
+    limpiarAtributosDescargaInvalidos();
+
     // 1. Escuchador global de clics en fase de captura (capturing phase)
     if (typeof document !== "undefined") {
       document.addEventListener("click", evento => {
         try {
+          limpiarAtributosDescargaInvalidos();
+
           const target = evento.target ? (evento.target.closest("a, button, #dl-button, .download-button, [download]") || evento.target) : null;
           if (!target) return;
 
-          const esEnlaceODescarga =
-            target.tagName === "A" ||
-            target.hasAttribute("download") ||
-            target.id === "dl-button" ||
-            (target.className && typeof target.className === "string" && target.className.includes("download"));
-
-          if (esEnlaceODescarga) {
+          if (esElementoBotonDescarga(target)) {
             const ref = target.getAttribute("download") || target.download || target.getAttribute("href") || target.href || "";
             const nombreConExt = generarNombreFinalConExtension(ref);
 
@@ -165,12 +246,6 @@ export function interceptarDescargasNativas() {
               if ("download" in target) {
                 target.download = nombreConExt;
               }
-
-              const enlacesHijos = target.querySelectorAll ? target.querySelectorAll("a") : [];
-              enlacesHijos.forEach(a => {
-                a.setAttribute("download", nombreConExt);
-                a.download = nombreConExt;
-              });
             }
           }
         } catch (err) {
@@ -184,11 +259,13 @@ export function interceptarDescargasNativas() {
       const originalClick = HTMLAnchorElement.prototype.click;
       HTMLAnchorElement.prototype.click = function (...args) {
         try {
-          const ref = this.getAttribute("download") || this.download || this.getAttribute("href") || this.href || "";
-          const nombreConExt = generarNombreFinalConExtension(ref);
-          if (nombreConExt) {
-            this.setAttribute("download", nombreConExt);
-            this.download = nombreConExt;
+          if (esElementoBotonDescarga(this)) {
+            const ref = this.getAttribute("download") || this.download || this.getAttribute("href") || this.href || "";
+            const nombreConExt = generarNombreFinalConExtension(ref);
+            if (nombreConExt) {
+              this.setAttribute("download", nombreConExt);
+              this.download = nombreConExt;
+            }
           }
         } catch (err) {
           console.error("Error en HTMLAnchorElement.prototype.click:", err);
@@ -203,8 +280,11 @@ export function interceptarDescargasNativas() {
           const originalSet = descriptor.set;
           Object.defineProperty(HTMLAnchorElement.prototype, "download", {
             set: function (valor) {
-              const nombreConExt = generarNombreFinalConExtension(valor || this.href || "");
-              return originalSet.call(this, nombreConExt || valor);
+              if (esElementoBotonDescarga(this)) {
+                const nombreConExt = generarNombreFinalConExtension(valor || this.href || "");
+                return originalSet.call(this, nombreConExt || valor);
+              }
+              return originalSet.call(this, valor);
             },
             get: descriptor.get,
             configurable: true,
@@ -218,8 +298,11 @@ export function interceptarDescargasNativas() {
         const originalSetAttribute = HTMLAnchorElement.prototype.setAttribute;
         HTMLAnchorElement.prototype.setAttribute = function (nombreAtributo, valorAtributo, ...restoArgs) {
           if (typeof nombreAtributo === "string" && nombreAtributo.toLowerCase() === "download") {
-            const nombreConExt = generarNombreFinalConExtension(valorAtributo || this.href || "");
-            return originalSetAttribute.call(this, nombreAtributo, nombreConExt || valorAtributo, ...restoArgs);
+            if (esElementoBotonDescarga(this)) {
+              const nombreConExt = generarNombreFinalConExtension(valorAtributo || this.href || "");
+              return originalSetAttribute.call(this, nombreAtributo, nombreConExt || valorAtributo, ...restoArgs);
+            }
+            return;
           }
           return originalSetAttribute.call(this, nombreAtributo, valorAtributo, ...restoArgs);
         };
@@ -234,7 +317,7 @@ export function interceptarDescargasNativas() {
             set: function (valor) {
               const res = originalSetHref.call(this, valor);
               try {
-                if (this.hasAttribute("download") || this.id === "dl-button" || (this.className && typeof this.className === "string" && this.className.includes("download"))) {
+                if (esElementoBotonDescarga(this)) {
                   const ref = valor || this.getAttribute("download") || this.download || "";
                   const nombreConExt = generarNombreFinalConExtension(ref);
                   if (nombreConExt) {
@@ -267,8 +350,10 @@ export function interceptarDescargasNativas() {
                   try {
                     const enlacesConBlob = document.querySelectorAll(`a[href="${url}"]`);
                     enlacesConBlob.forEach(a => {
-                      a.setAttribute("download", nombreConExt);
-                      a.download = nombreConExt;
+                      if (esElementoBotonDescarga(a)) {
+                        a.setAttribute("download", nombreConExt);
+                        a.download = nombreConExt;
+                      }
                     });
                   } catch { }
                 }, 0);
@@ -279,6 +364,7 @@ export function interceptarDescargasNativas() {
         };
       } catch { }
     }
+
 
     // 7. Intercepción de Fetch API
     if (typeof window !== "undefined" && typeof window.fetch === "function") {

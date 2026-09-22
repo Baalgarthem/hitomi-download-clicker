@@ -2,7 +2,16 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.2.2 (Corrección Crítica: Discriminación Estricta de Enlaces de Lectura y Miniaturas)
+- **Filtro Estricto de Descargas vs Lectores (`src/core/download.js`)**:
+  - Implementación de `esElementoBotonDescarga()` para discriminar estrictamente los botones y enlaces de descarga reales del sitio (`#dl-button`, endpoints `.zip`/`.cbz`/`/download/`, `blob:`, ó clics forzados).
+  - Exclusión explícita de enlaces de lectura online (`/reader/`), galerías, artistas, grupos, etiquetas y contenedores de miniaturas (`.thumbnail-container`, `.thumbnail-list`).
+  - Solución definitiva al bug que provocaba que al hacer clic en las miniaturas de un cómic para leerlo online, el navegador iniciara una descarga no deseada de la página HTML en lugar de abrir el lector.
+- **Limpieza Proactiva de Atributos Inválidos (`src/core/download.js` & `src/index.js`)**:
+  - Implementación de `limpiarAtributosDescargaInvalidos()` que remueve automáticamente cualquier atributo `download` asignado por error a enlaces de miniaturas o lectores al interactuar con la página.
+
 ## Versión 2.2.1 (Refinamiento de Calidad de Código, Tecla Enter en Sub-Modals y Robusteza de Storage)
+
 - **Refinamiento de Sanitización de Rutas y Fallbacks (`src/utils/dom.js`)**:
   - Reestructuración de `sanearRutaSubcarpeta()` dividiendo por componentes para neutralizar navegaciones relativas aisladas (`.` y `..`).
   - Robustecimiento de `leerValorGM()` para manejar strings no JSON en `localStorage` sin lanzar excepciones innecesarias.

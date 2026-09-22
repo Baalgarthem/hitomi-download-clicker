@@ -8,13 +8,15 @@ Para comprender en detalle las guías pedagógicas del sistema:
 
 ---
 
-## 🛠️ Módulo: `src/core/download.js`
+- **`esElementoBotonDescarga(elemento)`**: Determina si un elemento DOM es un botón/enlace de descarga real, excluyendo explícitamente enlaces de lectores (`/reader/`), miniaturas (`.thumbnail-container`) y navegación general del sitio.
+- **`limpiarAtributosDescargaInvalidos()`**: Elimina proactivamente cualquier atributo `download` asignado erróneamente a enlaces de lector o miniaturas en el DOM.
 - **`obtenerElementoBotonDescarga()`**: Busca dinámicamente el botón de descarga principal `#dl-button` o botones alternativos por selectores e inspección de texto/atributos.
 - **`buscarBotonDescarga(opciones)`**: Ejecuta una búsqueda reintentada con pausa asíncrona hasta encontrar el botón de descarga.
 - **`generarNombreFinalConExtension(referenciaUrl)`**: Resuelve el nombre final completo del archivo con la extensión correspondiente (`.cbz` si la casilla está activa o la extensión del enlace/`.zip`).
 - **`interceptarDescargasNativas()`**: Registra la estrategia de **interceptación multinivel en 8 capas** (fase de captura de clics, prototype `click`, descriptor `download`, `setAttribute`, descriptor `href`, `URL.createObjectURL`, `fetch` y `XMLHttpRequest.prototype.open`).
 - **`confirmarYEjecutarClic(boton, ...)`**: Aplica los 3 componentes del nombre (`「Autor/Grupo」 Título ┃ tags`), ajusta `document.title` sin extensiones para evitar compresión anidada, asigna el atributo `download` y dispara el clic real.
 - **`ejecutarOrdenDescarga(identificadorOrden, opciones)`**: Maneja la orden de descarga por pestaña guardando en `ESTADO` los parámetros recibidos por IPC y registrando el resultado en memoria.
+
 
 ---
 
