@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.7.5
+// @version      1.7.6
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -588,8 +588,8 @@
   function generarNombreFinalConExtension(referenciaUrl = "") {
     let nombreBase = ESTADO.ultimoNombreFinal;
     if (!nombreBase) {
-      const autor = obtenerAutorOEstadoInicial();
-      const tituloBase = document.title || "";
+      const autor = ESTADO.autoresEditadosPorPestana.get(ID_PESTANA) || obtenerAutorOEstadoInicial();
+      const tituloBase = ESTADO.titulosEditadosPorPestana.get(ID_PESTANA) || document.title || "";
       const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(ID_PESTANA) || [];
       const estiloSeparador = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe";
       nombreBase = obtenerNombreFinalCompleto({
@@ -606,7 +606,10 @@
       return `${baseLimpia}.cbz`;
     }
     const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
-    const extension = matchExt ? `.${matchExt[1]}` : nombreBase.endsWith(".cbz") || nombreBase.endsWith(".zip") ? "" : ".zip";
+    let extension = matchExt ? `.${matchExt[1]}` : ".zip";
+    if (extension.toLowerCase() === ".cbz" && !usarCbz) {
+      extension = ".zip";
+    }
     return `${baseLimpia}${extension}`;
   }
   function interceptarDescargasNativas() {
@@ -632,11 +635,6 @@
                   a.setAttribute("download", nombreConExt);
                   a.download = nombreConExt;
                 });
-                try {
-                  const baseTitle = nombreConExt.replace(/\.cbz$/i, "").replace(/\.zip$/i, "");
-                  document.title = baseTitle;
-                } catch {
-                }
               }
             }
           } catch (err) {
@@ -694,11 +692,13 @@
               set: function(valor) {
                 const res = originalSetHref.call(this, valor);
                 try {
-                  const ref = valor || this.getAttribute("download") || this.download || "";
-                  const nombreConExt = generarNombreFinalConExtension(ref);
-                  if (nombreConExt) {
-                    this.setAttribute("download", nombreConExt);
-                    this.download = nombreConExt;
+                  if (this.hasAttribute("download") || this.id === "dl-button" || this.className && typeof this.className === "string" && this.className.includes("download")) {
+                    const ref = valor || this.getAttribute("download") || this.download || "";
+                    const nombreConExt = generarNombreFinalConExtension(ref);
+                    if (nombreConExt) {
+                      this.setAttribute("download", nombreConExt);
+                      this.download = nombreConExt;
+                    }
                   }
                 } catch {
                 }
@@ -746,15 +746,8 @@
           window.fetch = async function(input, init) {
             try {
               const urlStr = typeof input === "string" ? input : input && input.url ? input.url : "";
-              if (urlStr && (urlStr.includes("download") || urlStr.includes(".zip") || urlStr.includes(".cbz") || urlStr.includes("hitomi.la"))) {
-                const nombreConExt = generarNombreFinalConExtension(urlStr);
-                if (nombreConExt) {
-                  try {
-                    const baseTitle = nombreConExt.replace(/\.cbz$/i, "").replace(/\.zip$/i, "");
-                    document.title = baseTitle;
-                  } catch {
-                  }
-                }
+              if (urlStr && (urlStr.endsWith(".zip") || urlStr.endsWith(".cbz") || urlStr.includes("/download/"))) {
+                generarNombreFinalConExtension(urlStr);
               }
             } catch {
             }
@@ -769,15 +762,8 @@
           XMLHttpRequest.prototype.open = function(method, url, ...resto) {
             try {
               const urlStr = typeof url === "string" ? url : url ? url.toString() : "";
-              if (urlStr && (urlStr.includes("download") || urlStr.includes(".zip") || urlStr.includes(".cbz") || urlStr.includes("hitomi.la"))) {
-                const nombreConExt = generarNombreFinalConExtension(urlStr);
-                if (nombreConExt) {
-                  try {
-                    const baseTitle = nombreConExt.replace(/\.cbz$/i, "").replace(/\.zip$/i, "");
-                    document.title = baseTitle;
-                  } catch {
-                  }
-                }
+              if (urlStr && (urlStr.endsWith(".zip") || urlStr.endsWith(".cbz") || urlStr.includes("/download/"))) {
+                generarNombreFinalConExtension(urlStr);
               }
             } catch {
             }
@@ -795,28 +781,39 @@
     let fueClickeadoConExito = false;
     try {
       interceptarDescargasNativas();
+      if (Array.isArray(tagsSeleccionados)) {
+        ESTADO.tagsSeleccionadosPorPestana.set(ID_PESTANA, tagsSeleccionados);
+      }
+      if (tituloPersonalizado && typeof tituloPersonalizado === "string" && tituloPersonalizado.trim()) {
+        ESTADO.titulosEditadosPorPestana.set(ID_PESTANA, tituloPersonalizado.trim());
+      }
+      if (autorPersonalizado && typeof autorPersonalizado === "string" && autorPersonalizado.trim()) {
+        ESTADO.autoresEditadosPorPestana.set(ID_PESTANA, autorPersonalizado.trim());
+      }
       const teniaProcesado = boton.getAttribute("data-hitomi-procesado");
       const estiloPointerPrevio = boton.style.pointerEvents;
       const deshabilitadoPrevio = boton.disabled;
       const estiloActivo = estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
-      const autorTarget = autorPersonalizado && typeof autorPersonalizado === "string" && autorPersonalizado.trim() ? autorPersonalizado.trim() : obtenerAutorOEstadoInicial();
-      const tituloBase = tituloPersonalizado && typeof tituloPersonalizado === "string" && tituloPersonalizado.trim() ? tituloPersonalizado.trim() : document.title;
+      const autorTarget = autorPersonalizado && typeof autorPersonalizado === "string" && autorPersonalizado.trim() ? autorPersonalizado.trim() : ESTADO.autoresEditadosPorPestana.get(ID_PESTANA) || obtenerAutorOEstadoInicial();
+      const tituloBase = tituloPersonalizado && typeof tituloPersonalizado === "string" && tituloPersonalizado.trim() ? tituloPersonalizado.trim() : ESTADO.titulosEditadosPorPestana.get(ID_PESTANA) || document.title;
+      const tagsEfectivos = Array.isArray(tagsSeleccionados) && tagsSeleccionados.length > 0 ? tagsSeleccionados : ESTADO.tagsSeleccionadosPorPestana.get(ID_PESTANA) || [];
       const nombreFinalCompleto = obtenerNombreFinalCompleto({
         tituloOriginal: tituloBase,
         autor: autorTarget,
-        tagsSeleccionados,
+        tagsSeleccionados: tagsEfectivos,
         estiloSeparador: estiloActivo
       });
       if (nombreFinalCompleto) {
         ESTADO.ultimoNombreFinal = nombreFinalCompleto;
         const nombreFinalConExt = generarNombreFinalConExtension();
         try {
-          document.title = nombreFinalCompleto;
+          const tituloLimpioSinExt = nombreFinalCompleto.replace(/\.cbz$/i, "").replace(/\.zip$/i, "");
+          document.title = tituloLimpioSinExt;
         } catch {
         }
         boton.setAttribute("data-hitomi-nombre-final", nombreFinalConExt);
-        if (tagsSeleccionados.length > 0) {
-          boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsSeleccionados, estiloActivo));
+        if (tagsEfectivos.length > 0) {
+          boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsEfectivos, estiloActivo));
         }
         boton.setAttribute("title", nombreFinalConExt);
         boton.setAttribute("download", nombreFinalConExt);
@@ -870,6 +867,15 @@
   }
   async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
     const { forzar = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null, autorPersonalizado = null } = opciones;
+    if (Array.isArray(tagsSeleccionados)) {
+      ESTADO.tagsSeleccionadosPorPestana.set(ID_PESTANA, tagsSeleccionados);
+    }
+    if (tituloPersonalizado) {
+      ESTADO.titulosEditadosPorPestana.set(ID_PESTANA, tituloPersonalizado);
+    }
+    if (autorPersonalizado) {
+      ESTADO.autoresEditadosPorPestana.set(ID_PESTANA, autorPersonalizado);
+    }
     if (ESTADO.ordenesEjecutadas.has(identificadorOrden)) {
       return "orden_repetida";
     }

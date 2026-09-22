@@ -2,6 +2,15 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.7.6 (Corrección de Compresión .cbz/.zip y Propagación de Tags)
+- **Prevención de Doble Compresión y Gestión Limpia de `document.title` (`src/core/download.js`)**:
+  - Eliminación de la modificación de `document.title` con extensiones de archivo (`.zip` / `.cbz`) en los interceptores de red y clics.
+  - Asegura que `document.title` conserve el nombre sin extensiones para evitar que los generadores de ZIP del sitio empaqueten carpetas o archivos `.cbz` anidados internamente.
+  - Garantiza que la descarga resultante sea el archivo comprimido original de imágenes renombrado limpia y únicamente en la extensión (`.cbz` o `.zip`).
+- **Garantía de Inclusión de Tags en Pestañas Remotas (`src/core/download.js`)**:
+  - Almacenamiento inmediato de `tagsSeleccionados`, `tituloPersonalizado` y `autorPersonalizado` en el estado local de cada pestaña (`ESTADO.tagsSeleccionadosPorPestana`) al recibir la orden IPC.
+  - Garantiza que los tags configurados por el usuario aparezcan 100% en el nombre final descargado (`「Autor/Grupo」 Título ┃ tags.cbz`).
+
 ## Versión 1.7.5 (Interceptación Dinámica de Red y Objetos Blob URL)
 - **Intercepción de Objetos Blob y Atributos Dinámicos (`URL.createObjectURL` & `HTMLAnchorElement.prototype.href`)**:
   - Parcheo de `HTMLAnchorElement.prototype.href` setter para detectar cuando el sitio actualiza dinámicamente el enlace de descarga e inyectar automáticamente el atributo `download` personalizado.
