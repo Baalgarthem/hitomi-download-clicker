@@ -14,6 +14,7 @@
 // @grant        GM_addValueChangeListener
 // @grant        GM_listValues
 // @grant        GM_deleteValue
+// @grant        GM_download
 // @run-at       document-idle
 // @noframes
 // @license      MIT
@@ -942,10 +943,18 @@
               const ref = target.getAttribute("download") || target.download || target.getAttribute("href") || target.href || "";
               const nombreConExt = generarNombreFinalConExtension(ref);
               if (nombreConExt) {
-                target.setAttribute("download", nombreConExt);
-                if ("download" in target) {
-                  target.download = nombreConExt;
-                }
+                const elementosTarget = /* @__PURE__ */ new Set([
+                  target,
+                  target.closest ? target.closest("a") : null,
+                  ...Array.from(target.querySelectorAll ? target.querySelectorAll("a") : [])
+                ]);
+                elementosTarget.forEach((el) => {
+                  if (!el) return;
+                  el.setAttribute("download", nombreConExt);
+                  if ("download" in el) {
+                    el.download = nombreConExt;
+                  }
+                });
               }
             }
           } catch (err) {
@@ -1137,18 +1146,35 @@
           document.title = tituloLimpioSinExt;
         } catch {
         }
-        boton.setAttribute("data-hitomi-nombre-final", nombreFinalConExt);
-        if (tagsEfectivos.length > 0) {
-          boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsEfectivos, estiloActivo));
-        }
-        boton.setAttribute("title", nombreFinalConExt);
-        boton.setAttribute("download", nombreFinalConExt);
-        if ("download" in boton) boton.download = nombreFinalConExt;
-        const enlacesHijos = boton.querySelectorAll("a");
-        enlacesHijos.forEach((a) => {
-          a.setAttribute("download", nombreFinalConExt);
-          a.download = nombreFinalConExt;
+        const elementosTarget = /* @__PURE__ */ new Set([
+          boton,
+          boton.closest ? boton.closest("a") : null,
+          ...Array.from(boton.querySelectorAll ? boton.querySelectorAll("a") : [])
+        ]);
+        elementosTarget.forEach((el) => {
+          if (!el) return;
+          el.setAttribute("data-hitomi-nombre-final", nombreFinalConExt);
+          if (tagsEfectivos.length > 0) {
+            el.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsEfectivos, estiloActivo));
+          }
+          el.setAttribute("title", nombreFinalConExt);
+          el.setAttribute("download", nombreFinalConExt);
+          if ("download" in el) el.download = nombreFinalConExt;
         });
+        if (typeof GM_download === "function") {
+          try {
+            const hrefTarget = (boton.getAttribute("href") || boton.href || (boton.closest && boton.closest("a") ? boton.closest("a").getAttribute("href") || boton.closest("a").href : "") || "").trim();
+            if (hrefTarget && (hrefTarget.startsWith("http") || hrefTarget.startsWith("blob"))) {
+              GM_download({
+                url: hrefTarget,
+                name: nombreFinalConExt,
+                saveAs: false
+              });
+            }
+          } catch (errGM) {
+            console.warn("Aviso en ejecuci\xF3n de GM_download:", errGM);
+          }
+        }
       }
       ESTADO.permitirClicForzado = true;
       boton.removeAttribute("data-hitomi-procesado");

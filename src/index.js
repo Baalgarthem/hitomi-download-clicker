@@ -14,6 +14,7 @@
 // @grant        GM_addValueChangeListener
 // @grant        GM_listValues
 // @grant        GM_deleteValue
+// @grant        GM_download
 // @run-at       document-idle
 // @noframes
 // @license      MIT
