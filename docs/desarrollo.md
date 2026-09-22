@@ -2,6 +2,16 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.9.2 (Checkboxes Rosados, Corrección de Selección Persistente y Agrupación Intuitiva de UX)
+- **Ajuste de Color de Checkboxes Rosados (`src/ui/modal.js`)**:
+  - Cambio de `accent-color` en casillas de verificación máster, individuales e ítem `.cbz` a tono rosa brillante (`#ec4899`), aportando mayor contraste y coherencia estética con los tonos violeta y rosa de la paleta.
+- **Corrección del Bug de Selección Persistente (`src/ui/modal.js`)**:
+  - Implementación de `pestanasMarcadasSet` en el modal popup para registrar de forma persistente qué casillas desmarcó o marcó el usuario.
+  - Al abrir el sub-modal de `🏷️ Tags` o re-escuchar el DOM, el menú respeta 100% el estado exacto de selección definido previamente por el usuario, impidiendo que las casillas desmarcadas vuelvan a marcarse automáticamente.
+- **Agrupación Intuitiva de Secciones UX (`src/ui/modal.js`)**:
+  - Reorganización estructural: la barra superior (toolbar) agrupa el control maestro `Deseleccionar/Seleccionar Todo` a la izquierda, y las configuraciones de formato (`📦 Formato .cbz`) y modo (`⚡ Modo Forzado`) a la derecha.
+  - El pie del modal queda reservado limpiamente a botones de acción: utilidades a la izquierda (`🔄 Escanear Pestañas`, `🗑️ Limpiar Memoria`) y botones de ejecución a la derecha (`Cancelar`, `▶ Iniciar Descarga`).
+
 ## Versión 1.9.1 (Validación Estricta de Tags Personalizados por Espacios y Bloqueador de Caracteres)
 - **Separación Obligatoria por Espacios (`src/ui/modal.js`)**:
   - Actualización del parsing de tags manuales para separar los términos utilizando espacios (`\s+`) en lugar de comas.

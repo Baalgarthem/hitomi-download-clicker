@@ -147,7 +147,7 @@ export function aplicarEstilosModal() {
     .hitomi-modal-item input[type="checkbox"] {
       width: 15px;
       height: 15px;
-      accent-color: #4f6275;
+      accent-color: #ec4899;
       cursor: pointer;
     }
 
@@ -482,6 +482,7 @@ export function vincularSeleccionMultipleCheckboxes(listaContenedor) {
         for (let i = inicio; i <= fin; i++) {
           todosCheckboxes[i].checked = estadoMarcado;
         }
+        checkbox.dispatchEvent(new Event("change", { bubbles: true }));
       }
     }
 
@@ -746,11 +747,24 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
   backdrop.id = CONFIGURACION.ids.modalBackdrop;
   backdrop.className = "hitomi-modal-backdrop";
 
+  // Estado de selección persistente durante la sesión activa del modal
+  const pestanasMarcadasSet = new Set();
+  let pestanasInicializadas = false;
+
   function renderizarContenidoModal() {
     const pestanasInfo = obtenerInformacionPestanas(modoForzado);
     const totalPestanas = pestanasInfo.length;
     const forzadasCount = pestanasInfo.filter(p => p.yaProcesada).length;
     const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
+
+    // Inicializar la selección por defecto solo la primera vez que se abre la ventana
+    if (!pestanasInicializadas) {
+      pestanasInfo.forEach(p => pestanasMarcadasSet.add(p.id));
+      pestanasInicializadas = true;
+    }
+
+    const marcadosInicialCount = pestanasInfo.filter(p => pestanasMarcadasSet.has(p.id)).length;
+    const todosMarcadosInicial = totalPestanas > 0 && marcadosInicialCount === totalPestanas;
 
     backdrop.innerHTML = `
       <div class="hitomi-modal-contenedor">
@@ -780,17 +794,34 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
                    <p>No se encontraron pestañas de Hitomi ${modoForzado ? 'disponibles' : 'pendientes'}.</p>
                  </div>`
               : `
-                 <div class="hitomi-bar-master-toggle" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 8px 12px; background: #192028; border: 1px solid #2d3748; border-radius: 8px; user-select: none;">
+                 <div class="hitomi-toolbar-opciones" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; padding: 8px 12px; background: #192028; border: 1px solid #2d3748; border-radius: 8px; flex-wrap: wrap; user-select: none;">
                    <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #f0f6fc; cursor: pointer;" title="Seleccionar o deseleccionar todas las pestañas de la lista">
-                     <input type="checkbox" id="hitomi-check-master-pestanas" checked style="width: 15px; height: 15px; accent-color: #4f6275; cursor: pointer;" title="Clic para marcar o desmarcar todo" />
-                     <span id="hitomi-label-master-pestanas">Deseleccionar Todo</span>
+                     <input type="checkbox" id="hitomi-check-master-pestanas" ${todosMarcadosInicial ? 'checked' : ''} style="width: 15px; height: 15px; accent-color: #ec4899; cursor: pointer;" title="Clic para marcar o desmarcar todo" />
+                     <span id="hitomi-label-master-pestanas">${todosMarcadosInicial ? 'Deseleccionar Todo' : 'Seleccionar Todo'}</span>
                    </label>
-                   <span style="font-size: 11px; color: #768390;" title="Tip: Mantén presionado Shift al hacer clic en las casillas para marcar/desmarcar rangos enteros">💡 Tip: Usa <strong>Shift + Clic</strong> para rangos</span>
+                   
+                   <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                     <label class="hitomi-toggle-cbz" style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #c9d1d9; cursor: pointer; user-select: none; background: #252e38; padding: 4px 10px; border-radius: 6px; border: 1px solid #3b4754; font-weight: 600;" title="Al marcar esta opción, los archivos de cómics descargados cambiarán su extensión a .cbz.">
+                       <input type="checkbox" id="hitomi-check-usar-cbz" ${usarCbz ? 'checked' : ''} style="accent-color: #ec4899; cursor: pointer; width: 14px; height: 14px;" title="Activar/desactivar guardado con extensión .cbz" />
+                       <span>📦 Formato <strong>.cbz</strong></span>
+                     </label>
+                     ${
+                       !modoForzado
+                         ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Activa el Modo Forzado para permitir la re-descarga de cómics que ya han sido procesados anteriormente.">
+                              ⚡ Modo Forzado
+                            </button>`
+                         : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Regresa al Modo Normal para omitir cómics ya descargados previamente y procesar solo nuevos.">
+                              ✓ Modo Normal
+                            </button>`
+                     }
+                   </div>
                  </div>
+
                  <div class="hitomi-modal-lista" id="hitomi-modal-lista-items">
                    ${pestanasInfo
                      .map(
                        p => {
+                         const estaMarcada = pestanasMarcadasSet.has(p.id);
                          const tagsSel = ESTADO.tagsSeleccionadosPorPestana.get(p.id) || [];
                          const tieneTags = tagsSel.length > 0;
 
@@ -806,7 +837,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
                          const tituloMostrar = (tituloEditado !== undefined && tituloEditado !== null) ? tituloEditado : p.titulo;
                          return `
                            <div class="hitomi-modal-item ${p.yaProcesada ? 'es-forzada' : ''}">
-                             <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" checked title="Marcar/desmarcar este cómic para la descarga" />
+                             <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" ${estaMarcada ? 'checked' : ''} style="accent-color: #ec4899;" title="Marcar/desmarcar este cómic para la descarga" />
                              <div class="hitomi-modal-item-info">
                                <div class="hitomi-modal-inputs-row">
                                  <input type="text" class="hitomi-input-autor-item" data-id="${p.id}" value="${escapeHtml(autorMostrar)}" title="Editar autor o grupo (se antepondrá entre corchetes 「...」)" placeholder="Autor..." />
@@ -839,27 +870,14 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
             <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borra el historial de cómics procesados y restablece el estado del script.">
               🗑️ Limpiar Memoria
             </button>
-            <label class="hitomi-toggle-cbz" style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #c9d1d9; cursor: pointer; user-select: none; background: #252e38; padding: 5px 10px; border-radius: 6px; border: 1px solid #3b4754; font-weight: 600;" title="Al marcar esta opción, los archivos de cómics descargados cambiarán su extensión a .cbz.">
-              <input type="checkbox" id="hitomi-check-usar-cbz" ${usarCbz ? 'checked' : ''} style="accent-color: #4f6275; cursor: pointer; width: 14px; height: 14px;" title="Activar/desactivar guardado con extensión .cbz" />
-              <span>📦 Renombrar a <strong>.cbz</strong></span>
-            </label>
-            ${
-              !modoForzado
-                ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Activa el Modo Forzado para permitir la re-descarga de cómics que ya han sido procesados anteriormente.">
-                     ⚡ Modo Forzado (Re-descargar)
-                   </button>`
-                : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Regresa al Modo Normal para omitir cómics ya descargados previamente y procesar solo nuevos.">
-                     ✓ Modo Normal (Pendientes)
-                   </button>`
-            }
           </div>
 
           <div class="hitomi-modal-acciones-principales">
             <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-cancelar" title="Cerrar este panel sin realizar descargas">
               Cancelar
             </button>
-            <button class="hitomi-btn ${modoForzado ? 'hitomi-btn-forzado-confirmar' : 'hitomi-btn-primario'}" id="hitomi-btn-confirmar" ${totalPestanas === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''} title="${modoForzado ? 'Forzar la re-descarga inmediata de los cómics seleccionados' : 'Iniciar la descarga en lote de los cómics seleccionados'}">
-              ${modoForzado ? `⚡ Re-descargar Forzado (${totalPestanas})` : `▶ Iniciar Descarga (${totalPestanas})`}
+            <button class="hitomi-btn ${modoForzado ? 'hitomi-btn-forzado-confirmar' : 'hitomi-btn-primario'}" id="hitomi-btn-confirmar" ${marcadosInicialCount === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''} title="${modoForzado ? 'Forzar la re-descarga inmediata de los cómics seleccionados' : 'Iniciar la descarga en lote de los cómics seleccionados'}">
+              ${modoForzado ? `⚡ Re-descargar Forzado (${marcadosInicialCount})` : `▶ Iniciar Descarga (${marcadosInicialCount})`}
             </button>
           </div>
         </div>
@@ -879,17 +897,29 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     const labelMaster = backdrop.querySelector("#hitomi-label-master-pestanas");
     const listaItems = backdrop.querySelector("#hitomi-modal-lista-items");
 
-    function actualizarEstadoMaster() {
-      if (!listaItems || !checkMaster || !labelMaster) return;
+    function sincronizarEstadoCheckboxes() {
+      if (!listaItems) return;
       const checkboxes = Array.from(listaItems.querySelectorAll(".hitomi-check-pestana"));
       if (checkboxes.length === 0) return;
 
-      const todosMarcados = checkboxes.every(cb => cb.checked);
-      checkMaster.checked = todosMarcados;
-      labelMaster.textContent = todosMarcados ? "Deseleccionar Todo" : "Seleccionar Todo";
+      checkboxes.forEach(cb => {
+        const id = cb.getAttribute("data-id");
+        if (cb.checked) {
+          pestanasMarcadasSet.add(id);
+        } else {
+          pestanasMarcadasSet.delete(id);
+        }
+      });
+
+      const marcadosCount = checkboxes.filter(cb => cb.checked).length;
+      const todosMarcados = marcadosCount === checkboxes.length;
+
+      if (checkMaster && labelMaster) {
+        checkMaster.checked = todosMarcados;
+        labelMaster.textContent = todosMarcados ? "Deseleccionar Todo" : "Seleccionar Todo";
+      }
 
       const btnConfirmar = backdrop.querySelector("#hitomi-btn-confirmar");
-      const marcadosCount = checkboxes.filter(cb => cb.checked).length;
       if (btnConfirmar) {
         btnConfirmar.disabled = marcadosCount === 0;
         btnConfirmar.style.opacity = marcadosCount === 0 ? "0.5" : "1";
@@ -904,19 +934,13 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
       checkMaster.addEventListener("change", () => {
         const estadoNuevo = checkMaster.checked;
         const checkboxes = listaItems.querySelectorAll(".hitomi-check-pestana");
-        checkboxes.forEach(cb => { cb.checked = estadoNuevo; });
-        labelMaster.textContent = estadoNuevo ? "Deseleccionar Todo" : "Seleccionar Todo";
-
-        const btnConfirmar = backdrop.querySelector("#hitomi-btn-confirmar");
-        const marcadosCount = estadoNuevo ? checkboxes.length : 0;
-        if (btnConfirmar) {
-          btnConfirmar.disabled = !estadoNuevo;
-          btnConfirmar.style.opacity = estadoNuevo ? "1" : "0.5";
-          btnConfirmar.style.cursor = estadoNuevo ? "pointer" : "not-allowed";
-          btnConfirmar.textContent = modoForzado
-            ? `⚡ Re-descargar Forzado (${marcadosCount})`
-            : `▶ Iniciar Descarga (${marcadosCount})`;
-        }
+        checkboxes.forEach(cb => {
+          cb.checked = estadoNuevo;
+          const id = cb.getAttribute("data-id");
+          if (estadoNuevo) pestanasMarcadasSet.add(id);
+          else pestanasMarcadasSet.delete(id);
+        });
+        sincronizarEstadoCheckboxes();
       });
     }
 
@@ -925,7 +949,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
 
       listaItems.addEventListener("change", ev => {
         if (ev.target.classList.contains("hitomi-check-pestana")) {
-          actualizarEstadoMaster();
+          sincronizarEstadoCheckboxes();
         }
       });
 
@@ -954,6 +978,8 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
         const pInfo = pestanasInfo.find(item => item.id === pId);
         if (!pInfo) return;
 
+        sincronizarEstadoCheckboxes();
+
         mostrarModalSeleccionTags(
           pId,
           ESTADO.titulosEditadosPorPestana.get(pId) || pInfo.titulo,
@@ -978,6 +1004,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
       ESTADO.titulosEditadosPorPestana.clear();
       ESTADO.autoresEditadosPorPestana.clear();
       ESTADO.tagsSeleccionadosPorPestana.clear();
+      pestanasMarcadasSet.clear();
       await publicarEstadoPestana();
       renderizarContenidoModal();
     });
@@ -986,6 +1013,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     if (btnForzado) {
       btnForzado.addEventListener("click", () => {
         modoForzado = true;
+        sincronizarEstadoCheckboxes();
         renderizarContenidoModal();
       });
     }
@@ -994,6 +1022,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     if (btnNormal) {
       btnNormal.addEventListener("click", () => {
         modoForzado = false;
+        sincronizarEstadoCheckboxes();
         renderizarContenidoModal();
       });
     }
@@ -1001,8 +1030,8 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     const btnConfirmar = backdrop.querySelector("#hitomi-btn-confirmar");
     if (btnConfirmar && totalPestanas > 0) {
       btnConfirmar.addEventListener("click", () => {
-        const checkboxes = backdrop.querySelectorAll(".hitomi-check-pestana:checked");
-        const idsSeleccionados = Array.from(checkboxes).map(cb => cb.getAttribute("data-id"));
+        sincronizarEstadoCheckboxes();
+        const idsSeleccionados = Array.from(pestanasMarcadasSet);
         cerrarModal();
 
         if (idsSeleccionados.length > 0) {
