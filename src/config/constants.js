@@ -86,5 +86,6 @@ export const ESTADO = {
   botonPastilla: null,
   ultimoEstadoPublicado: null,
   tagsSeleccionadosPorPestana: new Map(),
+  titulosEditadosPorPestana: new Map(),
   ultimoNombreFinal: null
 };

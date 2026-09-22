@@ -152,13 +152,25 @@ export function aplicarEstilosModal() {
       min-width: 0;
     }
 
-    .hitomi-modal-item-titulo {
+    .hitomi-input-titulo-item {
+      background: #0d1117;
+      color: #f0f6fc;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 4px 8px;
       font-size: 13px;
       font-weight: 600;
-      color: #f0f6fc;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 2px;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .hitomi-input-titulo-item:focus {
+      border-color: #58a6ff;
+      outline: none;
+      background: #161b22;
+      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
     }
 
     .hitomi-modal-item-url {
@@ -610,11 +622,13 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
                        p => {
                          const tagsSel = ESTADO.tagsSeleccionadosPorPestana.get(p.id) || [];
                          const tieneTags = tagsSel.length > 0;
+                         const tituloEditado = ESTADO.titulosEditadosPorPestana.get(p.id);
+                         const tituloMostrar = (tituloEditado !== undefined && tituloEditado !== null) ? tituloEditado : p.titulo;
                          return `
                            <div class="hitomi-modal-item ${p.yaProcesada ? 'es-forzada' : ''}">
                              <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" checked />
                              <div class="hitomi-modal-item-info">
-                               <div class="hitomi-modal-item-titulo">${escapeHtml(p.titulo)}</div>
+                               <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Haz clic para editar el nombre detectado de este archivo" placeholder="Título del archivo..." />
                                <div class="hitomi-modal-item-url">${escapeHtml(p.url)}</div>
                              </div>
                              <button class="hitomi-btn-abrir-tags ${tieneTags ? 'tiene-tags' : ''}" data-id="${p.id}" title="Seleccionar etiquetas para concatenar con ┃">
@@ -682,6 +696,15 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     if (listaItems) {
       vincularSeleccionMultipleCheckboxes(listaItems);
 
+      listaItems.addEventListener("input", ev => {
+        const inputTitulo = ev.target.closest(".hitomi-input-titulo-item");
+        if (!inputTitulo) return;
+
+        const pId = inputTitulo.getAttribute("data-id");
+        const nuevoValor = inputTitulo.value;
+        ESTADO.titulosEditadosPorPestana.set(pId, nuevoValor);
+      });
+
       // Event listener para abrir el selector de tags por cada item
       listaItems.addEventListener("click", ev => {
         const btnTags = ev.target.closest(".hitomi-btn-abrir-tags");
@@ -693,7 +716,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
 
         mostrarModalSeleccionTags(
           pId,
-          pInfo.titulo,
+          ESTADO.titulosEditadosPorPestana.get(pId) || pInfo.titulo,
           pInfo.tagsDisponibles || [],
           ESTADO.tagsSeleccionadosPorPestana.get(pId) || [],
           () => renderizarContenidoModal()
@@ -712,6 +735,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     backdrop.querySelector("#hitomi-btn-limpiar-memoria").addEventListener("click", async () => {
       limpiarMemoriaProcesadas();
       resetearEstadoBotonDescarga();
+      ESTADO.titulosEditadosPorPestana.clear();
       await publicarEstadoPestana();
       renderizarContenidoModal();
     });

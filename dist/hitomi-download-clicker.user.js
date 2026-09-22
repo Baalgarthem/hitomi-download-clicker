@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.6.0
+// @version      1.6.1
 // @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」, selección de tags personalizados ┃ + tags y opción para limpiar memoria.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -123,6 +123,7 @@
         botonPastilla: null,
         ultimoEstadoPublicado: null,
         tagsSeleccionadosPorPestana: /* @__PURE__ */ new Map(),
+        titulosEditadosPorPestana: /* @__PURE__ */ new Map(),
         ultimoNombreFinal: null
       };
     }
@@ -561,7 +562,7 @@
       console.error("Error al registrar interceptor de descargas nativas:", e);
     }
   }
-  function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null) {
+  function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null) {
     if (!boton) return false;
     let fueClickeadoConExito = false;
     try {
@@ -571,8 +572,9 @@
       const deshabilitadoPrevio = boton.disabled;
       const estiloActivo = estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
       const autor = extraerNombreAutor();
+      const tituloBase = tituloPersonalizado && typeof tituloPersonalizado === "string" && tituloPersonalizado.trim() ? tituloPersonalizado.trim() : document.title;
       const nombreFinalCompleto = obtenerNombreFinalCompleto({
-        tituloOriginal: document.title,
+        tituloOriginal: tituloBase,
         autor,
         tagsSeleccionados,
         estiloSeparador: estiloActivo
@@ -640,7 +642,7 @@
     return fueClickeadoConExito;
   }
   async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
-    const { forzar = false, tagsSeleccionados = [], estiloSeparador = null } = opciones;
+    const { forzar = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null } = opciones;
     if (ESTADO.ordenesEjecutadas.has(identificadorOrden)) {
       return "orden_repetida";
     }
@@ -659,7 +661,7 @@
     }
     try {
       ESTADO.ordenesEjecutadas.add(identificadorOrden);
-      const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados, estiloSeparador);
+      const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado);
       if (!clicConfirmado) {
         console.warn(obtenerHora(), "Clic no confirmado o bloqueado en el elemento objetivo.");
         return "error_click";
@@ -834,13 +836,25 @@
       min-width: 0;
     }
 
-    .hitomi-modal-item-titulo {
+    .hitomi-input-titulo-item {
+      background: #0d1117;
+      color: #f0f6fc;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 4px 8px;
       font-size: 13px;
       font-weight: 600;
-      color: #f0f6fc;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 2px;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .hitomi-input-titulo-item:focus {
+      border-color: #58a6ff;
+      outline: none;
+      background: #161b22;
+      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
     }
 
     .hitomi-modal-item-url {
@@ -1247,11 +1261,13 @@
         (p) => {
           const tagsSel = ESTADO.tagsSeleccionadosPorPestana.get(p.id) || [];
           const tieneTags = tagsSel.length > 0;
+          const tituloEditado = ESTADO.titulosEditadosPorPestana.get(p.id);
+          const tituloMostrar = tituloEditado !== void 0 && tituloEditado !== null ? tituloEditado : p.titulo;
           return `
                            <div class="hitomi-modal-item ${p.yaProcesada ? "es-forzada" : ""}">
                              <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" checked />
                              <div class="hitomi-modal-item-info">
-                               <div class="hitomi-modal-item-titulo">${escapeHtml(p.titulo)}</div>
+                               <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Haz clic para editar el nombre detectado de este archivo" placeholder="T\xEDtulo del archivo..." />
                                <div class="hitomi-modal-item-url">${escapeHtml(p.url)}</div>
                              </div>
                              <button class="hitomi-btn-abrir-tags ${tieneTags ? "tiene-tags" : ""}" data-id="${p.id}" title="Seleccionar etiquetas para concatenar con \u2503">
@@ -1306,6 +1322,13 @@
       const listaItems = backdrop.querySelector("#hitomi-modal-lista-items");
       if (listaItems) {
         vincularSeleccionMultipleCheckboxes(listaItems);
+        listaItems.addEventListener("input", (ev) => {
+          const inputTitulo = ev.target.closest(".hitomi-input-titulo-item");
+          if (!inputTitulo) return;
+          const pId = inputTitulo.getAttribute("data-id");
+          const nuevoValor = inputTitulo.value;
+          ESTADO.titulosEditadosPorPestana.set(pId, nuevoValor);
+        });
         listaItems.addEventListener("click", (ev) => {
           const btnTags = ev.target.closest(".hitomi-btn-abrir-tags");
           if (!btnTags) return;
@@ -1314,7 +1337,7 @@
           if (!pInfo) return;
           mostrarModalSeleccionTags(
             pId,
-            pInfo.titulo,
+            ESTADO.titulosEditadosPorPestana.get(pId) || pInfo.titulo,
             pInfo.tagsDisponibles || [],
             ESTADO.tagsSeleccionadosPorPestana.get(pId) || [],
             () => renderizarContenidoModal()
@@ -1330,6 +1353,7 @@
       backdrop.querySelector("#hitomi-btn-limpiar-memoria").addEventListener("click", async () => {
         limpiarMemoriaProcesadas();
         resetearEstadoBotonDescarga();
+        ESTADO.titulosEditadosPorPestana.clear();
         await publicarEstadoPestana();
         renderizarContenidoModal();
       });
@@ -1576,9 +1600,10 @@
       for (const idPestana of pesta\u00F1as) {
         const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(idPestana) || [];
+        const tituloPersonalizado = ESTADO.titulosEditadosPorPestana.get(idPestana) || null;
         let respuesta = null;
         if (idPestana === ID_PESTANA) {
-          respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, estiloSeparador });
+          respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado });
         } else {
           const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
           GM_deleteValue(claveRespuesta);
@@ -1587,7 +1612,8 @@
             nonce,
             forzar,
             tagsSeleccionados,
-            estiloSeparador
+            estiloSeparador,
+            tituloPersonalizado
           });
           const inicio = Date.now();
           while (Date.now() - inicio < CONFIGURACION.tiempoRespuestaPestana) {
@@ -1682,14 +1708,15 @@
               if (!cambioRemoto || !valorNuevo || typeof valorNuevo !== "object") {
                 return;
               }
-              const { pesta\u00F1aDestino, nonce, forzar, tagsSeleccionados, estiloSeparador } = valorNuevo;
+              const { pesta\u00F1aDestino, nonce, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado } = valorNuevo;
               if (pesta\u00F1aDestino !== ID_PESTANA) {
                 return;
               }
               const resultado = await ejecutarOrdenDescarga(nonce, {
                 forzar: !!forzar,
                 tagsSeleccionados: tagsSeleccionados || [],
-                estiloSeparador: estiloSeparador || GM_getValue(CLAVES.estiloSeparador, "pipe")
+                estiloSeparador: estiloSeparador || GM_getValue(CLAVES.estiloSeparador, "pipe"),
+                tituloPersonalizado: tituloPersonalizado || null
               });
               try {
                 GM_setValue(CLAVES.respuesta(nonce, ID_PESTANA), resultado);

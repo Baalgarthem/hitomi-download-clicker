@@ -117,10 +117,11 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
     for (const idPestana of pestañas) {
       const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(idPestana) || [];
+      const tituloPersonalizado = ESTADO.titulosEditadosPorPestana.get(idPestana) || null;
       let respuesta = null;
 
       if (idPestana === ID_PESTANA) {
-        respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, estiloSeparador });
+        respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado });
       } else {
         const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
         GM_deleteValue(claveRespuesta);
@@ -130,7 +131,8 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
           nonce,
           forzar,
           tagsSeleccionados,
-          estiloSeparador
+          estiloSeparador,
+          tituloPersonalizado
         });
 
         const inicio = Date.now();

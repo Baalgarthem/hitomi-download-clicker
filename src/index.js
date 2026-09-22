@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.6.0
+// @version      1.6.1
 // @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」, selección de tags personalizados ┃ + tags y opción para limpiar memoria.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -72,7 +72,7 @@ function registrarEscuchadorOrdenesIPC() {
           return;
         }
 
-        const { pestañaDestino, nonce, forzar, tagsSeleccionados, estiloSeparador } = valorNuevo;
+        const { pestañaDestino, nonce, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado } = valorNuevo;
         if (pestañaDestino !== ID_PESTANA) {
           return;
         }
@@ -80,7 +80,8 @@ function registrarEscuchadorOrdenesIPC() {
         const resultado = await ejecutarOrdenDescarga(nonce, {
           forzar: !!forzar,
           tagsSeleccionados: tagsSeleccionados || [],
-          estiloSeparador: estiloSeparador || GM_getValue(CLAVES.estiloSeparador, "pipe")
+          estiloSeparador: estiloSeparador || GM_getValue(CLAVES.estiloSeparador, "pipe"),
+          tituloPersonalizado: tituloPersonalizado || null
         });
 
         try {

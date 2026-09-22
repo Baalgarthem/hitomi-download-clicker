@@ -2,6 +2,14 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.6.1 (Edición Personalizada del Título Detectado por Ítem)
+- **Campos de Texto Editables en Modal (`src/ui/modal.js`)**:
+  - Inclusión de `input[type="text"]` por cada pestaña/cómic detectado en la lista del modal popup.
+  - Permite al usuario modificar libremente el título base detectado antes de iniciar las descargas.
+- **Propagación Local e IPC (`src/core/presence.js`, `src/core/download.js` & `src/index.js`)**:
+  - Almacenamiento dinámico en `ESTADO.titulosEditadosPorPestana`.
+  - Transmisión del título editado (`tituloPersonalizado`) a las pestañas de destino en segundo plano para estructurar el nombre final descargado.
+
 ## Versión 1.6.0 (Finalización de Mantenimiento e Integración Completa)
 - **Consolidación de Arquitectura Modular**: Finalización del ciclo de mantenimiento mayor e integración de extracción de autor `「Artista」`, selector de separador de etiquetas (`┃`, `⟨⟩`, `[]`, `()`), renombrado de extensión a `.cbz`, intercepción global de descargas nativas y optimización de rendimiento.
 - **Versión Estable Minor**: Salto de versión a `v1.6.0` con despliegue de artefactos de producción en el repositorio remoto.

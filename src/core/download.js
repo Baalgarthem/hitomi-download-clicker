@@ -117,7 +117,7 @@ export function interceptarDescargasNativas() {
   }
 }
 
-export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null) {
+export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null) {
   if (!boton) return false;
 
   let fueClickeadoConExito = false;
@@ -131,8 +131,12 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
 
     const estiloActivo = estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
     const autor = extraerNombreAutor();
+    const tituloBase = (tituloPersonalizado && typeof tituloPersonalizado === "string" && tituloPersonalizado.trim())
+      ? tituloPersonalizado.trim()
+      : document.title;
+
     const nombreFinalCompleto = obtenerNombreFinalCompleto({
-      tituloOriginal: document.title,
+      tituloOriginal: tituloBase,
       autor,
       tagsSeleccionados,
       estiloSeparador: estiloActivo
@@ -212,7 +216,7 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
 }
 
 export async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
-  const { forzar = false, tagsSeleccionados = [], estiloSeparador = null } = opciones;
+  const { forzar = false, tagsSeleccionados = [], estiloSeparador = null, tituloPersonalizado = null } = opciones;
 
   if (ESTADO.ordenesEjecutadas.has(identificadorOrden)) {
     return "orden_repetida";
@@ -238,7 +242,7 @@ export async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
   try {
     ESTADO.ordenesEjecutadas.add(identificadorOrden);
 
-    const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados, estiloSeparador);
+    const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados, estiloSeparador, tituloPersonalizado);
 
     if (!clicConfirmado) {
       console.warn(obtenerHora(), "Clic no confirmado o bloqueado en el elemento objetivo.");
