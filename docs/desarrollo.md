@@ -2,6 +2,18 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.0.0 (Rediseño Estructural de Opciones vs Acciones, Cierre Automático de Pestañas y Tooltips Informativos Completo)
+- **Cierre Automático de Pestañas Descargadas (`src/config/constants.js`, `src/ui/modal.js` & `src/core/download.js`)**:
+  - Incorporación de la casilla `🚪 Cerrar pestañas al descargar` en el panel de opciones de la interfaz.
+  - Al estar activa, cada pestaña abierta que completa el disparo de descarga ejecuta de forma segura `window.close()` tras un intervalo prudencial de 1.8 segundos, reduciendo la carga del navegador.
+- **Desacoplamiento Estructural: Panel de OPCIONES (Checkboxes) vs ACCIONES (Botones) (`src/ui/modal.js`)**:
+  - Separación visual y semántica completa de la interfaz en tres bloques claros:
+    1. **⚙️ OPCIONES DE DESCARGA**: Tarjeta dedicada a casillas de verificación (Selección máster, Formato `.cbz`, Cierre automático de pestañas y Conmutador de Modo Forzado).
+    2. **📚 CÓMICS DETECTADOS**: Cuadrícula limpia de elementos interactivos con checkboxes rosados (`#ec4899`).
+    3. **🚀 ACCIONES Y HERRAMIENTAS**: Pie de ventana con mantenimiento a la izquierda (`Escanear Pestañas`, `Limpiar Memoria`) y botones principales a la derecha (`Cancelar`, `Iniciar Descarga`).
+- **Auditoría Exhaustiva de Tooltips Informativos Hover (`src/ui/modal.js` & `src/ui/pill.js`)**:
+  - Incorporación y afinamiento del atributo `title="..."` en el 100% de los botones, etiquetas, entradas de texto, switches y casillas de verificación para ofrecer explicaciones concisas y fáciles de entender al pasar el cursor.
+
 ## Versión 1.9.2 (Checkboxes Rosados, Corrección de Selección Persistente y Agrupación Intuitiva de UX)
 - **Ajuste de Color de Checkboxes Rosados (`src/ui/modal.js`)**:
   - Cambio de `accent-color` en casillas de verificación máster, individuales e ítem `.cbz` a tono rosa brillante (`#ec4899`), aportando mayor contraste y coherencia estética con los tonos violeta y rosa de la paleta.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.9.2
+// @version      2.0.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -126,7 +126,8 @@
         autorPestana: (id) => `hitomi_autor_${id}`,
         tagsPestana: (id) => `hitomi_tags_${id}`,
         estiloSeparador: "hitomi_estilo_separador_tags",
-        usarCbz: "hitomi_usar_extension_cbz"
+        usarCbz: "hitomi_usar_extension_cbz",
+        cerrarPestana: "hitomi_cerrar_pestana_al_descargar"
       };
       ESTADO = {
         bloqueado: false,
@@ -938,6 +939,17 @@
       }
       guardarPaginaProcesada(location.href, forzar);
       marcarBotonComoProcesado(boton, forzar);
+      const cerrarPestana = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.cerrarPestana, false) : false;
+      if (cerrarPestana) {
+        setTimeout(() => {
+          try {
+            console.log(obtenerHora(), "Cerrando pesta\xF1a autom\xE1ticamente tras completar descarga...");
+            window.close();
+          } catch (e) {
+            console.warn("No se pudo cerrar la pesta\xF1a autom\xE1ticamente:", e);
+          }
+        }, 1800);
+      }
       await esperar(400);
       return "correcto";
     } catch (error) {
@@ -1655,6 +1667,7 @@
       const totalPestanas = pestanasInfo.length;
       const forzadasCount = pestanasInfo.filter((p) => p.yaProcesada).length;
       const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
+      const cerrarPestana = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.cerrarPestana, false) : false;
       if (!pestanasInicializadas) {
         pestanasInfo.forEach((p) => pestanasMarcadasSet.add(p.id));
         pestanasInicializadas = true;
@@ -1667,7 +1680,7 @@
           <h3 class="hitomi-modal-titulo">
             <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" style="width:20px;height:20px;border-radius:4px;object-fit:contain;" alt="Hitomi Logo" />
             <span>\u{1F4CB} Pesta\xF1as Detectadas (${totalPestanas})</span>
-            <span class="hitomi-modal-badge-modo ${modoForzado ? "forzado" : "normal"}" title="${modoForzado ? "Modo Forzado: Re-descarga c\xF3mics que ya han sido procesados previamente" : "Modo Normal: Omite c\xF3mics ya procesados y solo descarga c\xF3mics nuevos"}">
+            <span class="hitomi-modal-badge-modo ${modoForzado ? "forzado" : "normal"}" title="${modoForzado ? "Modo Forzado: Permite volver a descargar c\xF3mics que ya hab\xEDas procesado previamente" : "Modo Normal: Omite c\xF3mics ya procesados y solo descarga c\xF3mics nuevos"}">
               ${modoForzado ? "\u26A1 Modo Forzado" : "\u2713 Modo Normal"}
             </span>
           </h3>
@@ -1682,23 +1695,45 @@
           ${totalPestanas === 0 ? `<div class="hitomi-modal-vacio">
                    <p>No se encontraron pesta\xF1as de Hitomi ${modoForzado ? "disponibles" : "pendientes"}.</p>
                  </div>` : `
-                 <div class="hitomi-toolbar-opciones" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; padding: 8px 12px; background: #192028; border: 1px solid #2d3748; border-radius: 8px; flex-wrap: wrap; user-select: none;">
-                   <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #f0f6fc; cursor: pointer;" title="Seleccionar o deseleccionar todas las pesta\xF1as de la lista">
-                     <input type="checkbox" id="hitomi-check-master-pestanas" ${todosMarcadosInicial ? "checked" : ""} style="width: 15px; height: 15px; accent-color: #ec4899; cursor: pointer;" title="Clic para marcar o desmarcar todo" />
-                     <span id="hitomi-label-master-pestanas">${todosMarcadosInicial ? "Deseleccionar Todo" : "Seleccionar Todo"}</span>
-                   </label>
-                   
-                   <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                     <label class="hitomi-toggle-cbz" style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #c9d1d9; cursor: pointer; user-select: none; background: #252e38; padding: 4px 10px; border-radius: 6px; border: 1px solid #3b4754; font-weight: 600;" title="Al marcar esta opci\xF3n, los archivos de c\xF3mics descargados cambiar\xE1n su extensi\xF3n a .cbz.">
-                       <input type="checkbox" id="hitomi-check-usar-cbz" ${usarCbz ? "checked" : ""} style="accent-color: #ec4899; cursor: pointer; width: 14px; height: 14px;" title="Activar/desactivar guardado con extensi\xF3n .cbz" />
-                       <span>\u{1F4E6} Formato <strong>.cbz</strong></span>
-                     </label>
-                     ${!modoForzado ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Activa el Modo Forzado para permitir la re-descarga de c\xF3mics que ya han sido procesados anteriormente.">
-                              \u26A1 Modo Forzado
-                            </button>` : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Regresa al Modo Normal para omitir c\xF3mics ya descargados previamente y procesar solo nuevos.">
-                              \u2713 Modo Normal
-                            </button>`}
+                 <!-- SECCI\xD3N DE OPCIONES Y CONFIGURACI\xD3N (CHECKBOXES) -->
+                 <div class="hitomi-seccion-opciones" style="margin-bottom: 12px; padding: 10px 14px; background: #192028; border: 1px solid #2d3748; border-radius: 10px;">
+                   <div style="font-size: 11px; font-weight: 700; color: #b580b5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                     \u2699\uFE0F OPCIONES DE DESCARGA
                    </div>
+                   <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; user-select: none;">
+                     <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #f0f6fc; cursor: pointer;" title="Marcar o desmarcar todos los c\xF3mics de la lista de una sola vez">
+                         <input type="checkbox" id="hitomi-check-master-pestanas" ${todosMarcadosInicial ? "checked" : ""} style="width: 15px; height: 15px; accent-color: #ec4899; cursor: pointer;" title="Marcar o desmarcar todo" />
+                         <span id="hitomi-label-master-pestanas">${todosMarcadosInicial ? "Deseleccionar Todo" : "Seleccionar Todo"}</span>
+                       </label>
+
+                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Guardar los archivos descargados formateados con la extensi\xF3n de c\xF3mic .cbz">
+                         <input type="checkbox" id="hitomi-check-usar-cbz" ${usarCbz ? "checked" : ""} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar guardado con extensi\xF3n .cbz" />
+                         <span>\u{1F4E6} Formato <strong>.cbz</strong></span>
+                       </label>
+
+                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Cierra autom\xE1ticamente cada pesta\xF1a del navegador despu\xE9s de iniciar su descarga">
+                         <input type="checkbox" id="hitomi-check-cerrar-pestana" ${cerrarPestana ? "checked" : ""} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar cierre autom\xE1tico de pesta\xF1as descargadas" />
+                         <span>\u{1F6AA} <strong>Cerrar pesta\xF1as</strong> al descargar</span>
+                       </label>
+                     </div>
+
+                     <div>
+                       ${!modoForzado ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Permitir volver a descargar c\xF3mics que ya hab\xEDas guardado anteriormente">
+                                \u26A1 Activar Modo Forzado
+                              </button>` : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Desactivar modo forzado y descargar \xFAnicamente los c\xF3mics que est\xE9n pendientes">
+                                \u2713 Volver a Modo Normal
+                              </button>`}
+                     </div>
+                   </div>
+                 </div>
+
+                 <!-- SECCI\xD3N DE C\xD3MICS DETECTADOS -->
+                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                   <span style="font-size: 11px; font-weight: 700; color: #9ab0c7; text-transform: uppercase; letter-spacing: 0.5px;">
+                     \u{1F4DA} C\xF3mics Detectados (${totalPestanas})
+                   </span>
+                   <span style="font-size: 11px; color: #768390;" title="Mant\xE9n presionado Shift al hacer clic en las casillas para marcar/desmarcar un rango entero">\u{1F4A1} Tip: Usa <strong>Shift + Clic</strong> para rangos</span>
                  </div>
 
                  <div class="hitomi-modal-lista" id="hitomi-modal-lista-items">
@@ -1721,15 +1756,15 @@
                              <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" ${estaMarcada ? "checked" : ""} style="accent-color: #ec4899;" title="Marcar/desmarcar este c\xF3mic para la descarga" />
                              <div class="hitomi-modal-item-info">
                                <div class="hitomi-modal-inputs-row">
-                                 <input type="text" class="hitomi-input-autor-item" data-id="${p.id}" value="${escapeHtml(autorMostrar)}" title="Editar autor o grupo (se antepondr\xE1 entre corchetes \u300C...\u300D)" placeholder="Autor..." />
-                                 <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Editar el nombre de archivo con el que se guardar\xE1 este c\xF3mic" placeholder="T\xEDtulo del archivo..." />
+                                 <input type="text" class="hitomi-input-autor-item" data-id="${p.id}" value="${escapeHtml(autorMostrar)}" title="Editar autor o grupo (se antepondr\xE1 entre corchetes \u300C...\u300D al inicio)" placeholder="Autor..." />
+                                 <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Editar el nombre de archivo con el que se guardar\xE1 este c\xF3mic en tu computadora" placeholder="T\xEDtulo del archivo..." />
                                </div>
                                <div class="hitomi-modal-item-url" title="${escapeHtml(p.url)}">${escapeHtml(p.url)}</div>
                              </div>
-                             <button class="hitomi-btn-abrir-tags ${tieneTags ? "tiene-tags" : ""}" data-id="${p.id}" title="Seleccionar y ordenar etiquetas para concatenar al nombre de este archivo">
+                             <button class="hitomi-btn-abrir-tags ${tieneTags ? "tiene-tags" : ""}" data-id="${p.id}" title="Abrir el panel para elegir qu\xE9 etiquetas concatenar al nombre de este c\xF3mic">
                                \u{1F3F7}\uFE0F Tags ${tieneTags ? `(${tagsSel.length})` : ""}
                              </button>
-                             ${p.yaProcesada ? `<span class="hitomi-item-tag hitomi-tag-forzada" title="Este c\xF3mic ya fue descargado previamente">${p.esForzada ? "\u26A0\uFE0F Re-descargada" : "\u26A0\uFE0F Ya descargada"}</span>` : `<span class="hitomi-item-tag hitomi-tag-nueva" title="C\xF3mic nuevo pendiente de descarga">Nueva</span>`}
+                             ${p.yaProcesada ? `<span class="hitomi-item-tag hitomi-tag-forzada" title="Indica si este c\xF3mic es nuevo o si ya se hab\xEDa descargado antes">${p.esForzada ? "\u26A0\uFE0F Re-descargada" : "\u26A0\uFE0F Ya descargada"}</span>` : `<span class="hitomi-item-tag hitomi-tag-nueva" title="C\xF3mic nuevo pendiente de descarga">Nueva</span>`}
                            </div>
                          `;
         }
@@ -1737,21 +1772,22 @@
                  </div>`}
         </div>
 
+        <!-- PIE DE MODAL / SECCI\xD3N DE ACCIONES (BOTONES DE EJECUCI\xD3N) -->
         <div class="hitomi-modal-footer">
           <div class="hitomi-modal-acciones-secundarias">
-            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-reescanear" title="Vuelve a escanear las pesta\xF1as abiertas en el navegador y actualiza la lista de c\xF3mics.">
+            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-reescanear" title="Volver a buscar las pesta\xF1as de Hitomi abiertas en el navegador y actualizar la lista">
               \u{1F504} Escanear Pesta\xF1as
             </button>
-            <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borra el historial de c\xF3mics procesados y restablece el estado del script.">
+            <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar el registro de descargas realizadas para volver a empezar desde cero">
               \u{1F5D1}\uFE0F Limpiar Memoria
             </button>
           </div>
 
           <div class="hitomi-modal-acciones-principales">
-            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-cancelar" title="Cerrar este panel sin realizar descargas">
+            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-cancelar" title="Cerrar este panel sin realizar ninguna descarga">
               Cancelar
             </button>
-            <button class="hitomi-btn ${modoForzado ? "hitomi-btn-forzado-confirmar" : "hitomi-btn-primario"}" id="hitomi-btn-confirmar" ${marcadosInicialCount === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ""} title="${modoForzado ? "Forzar la re-descarga inmediata de los c\xF3mics seleccionados" : "Iniciar la descarga en lote de los c\xF3mics seleccionados"}">
+            <button class="hitomi-btn ${modoForzado ? "hitomi-btn-forzado-confirmar" : "hitomi-btn-primario"}" id="hitomi-btn-confirmar" ${marcadosInicialCount === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ""} title="Enviar la orden de descarga a todos los c\xF3mics marcados con la casilla rosada">
               ${modoForzado ? `\u26A1 Re-descargar Forzado (${marcadosInicialCount})` : `\u25B6 Iniciar Descarga (${marcadosInicialCount})`}
             </button>
           </div>
@@ -1763,6 +1799,14 @@
         checkCbz.addEventListener("change", () => {
           if (typeof GM_setValue !== "undefined") {
             GM_setValue(CLAVES.usarCbz, checkCbz.checked);
+          }
+        });
+      }
+      const checkCerrarPestana = backdrop.querySelector("#hitomi-check-cerrar-pestana");
+      if (checkCerrarPestana) {
+        checkCerrarPestana.addEventListener("change", () => {
+          if (typeof GM_setValue !== "undefined") {
+            GM_setValue(CLAVES.cerrarPestana, checkCerrarPestana.checked);
           }
         });
       }

@@ -464,6 +464,19 @@ export async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
     guardarPaginaProcesada(location.href, forzar);
     marcarBotonComoProcesado(boton, forzar);
 
+    // Verificar si el usuario activó la opción de cerrar pestaña automáticamente al descargar
+    const cerrarPestana = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.cerrarPestana, false) : false;
+    if (cerrarPestana) {
+      setTimeout(() => {
+        try {
+          console.log(obtenerHora(), "Cerrando pestaña automáticamente tras completar descarga...");
+          window.close();
+        } catch (e) {
+          console.warn("No se pudo cerrar la pestaña automáticamente:", e);
+        }
+      }, 1800);
+    }
+
     await esperar(400);
     return "correcto";
   } catch (error) {

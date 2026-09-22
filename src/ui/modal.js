@@ -756,6 +756,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     const totalPestanas = pestanasInfo.length;
     const forzadasCount = pestanasInfo.filter(p => p.yaProcesada).length;
     const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
+    const cerrarPestana = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.cerrarPestana, false) : false;
 
     // Inicializar la selección por defecto solo la primera vez que se abre la ventana
     if (!pestanasInicializadas) {
@@ -772,7 +773,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
           <h3 class="hitomi-modal-titulo">
             <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" style="width:20px;height:20px;border-radius:4px;object-fit:contain;" alt="Hitomi Logo" />
             <span>📋 Pestañas Detectadas (${totalPestanas})</span>
-            <span class="hitomi-modal-badge-modo ${modoForzado ? 'forzado' : 'normal'}" title="${modoForzado ? 'Modo Forzado: Re-descarga cómics que ya han sido procesados previamente' : 'Modo Normal: Omite cómics ya procesados y solo descarga cómics nuevos'}">
+            <span class="hitomi-modal-badge-modo ${modoForzado ? 'forzado' : 'normal'}" title="${modoForzado ? 'Modo Forzado: Permite volver a descargar cómics que ya habías procesado previamente' : 'Modo Normal: Omite cómics ya procesados y solo descarga cómics nuevos'}">
               ${modoForzado ? '⚡ Modo Forzado' : '✓ Modo Normal'}
             </span>
           </h3>
@@ -794,27 +795,49 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
                    <p>No se encontraron pestañas de Hitomi ${modoForzado ? 'disponibles' : 'pendientes'}.</p>
                  </div>`
               : `
-                 <div class="hitomi-toolbar-opciones" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; padding: 8px 12px; background: #192028; border: 1px solid #2d3748; border-radius: 8px; flex-wrap: wrap; user-select: none;">
-                   <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #f0f6fc; cursor: pointer;" title="Seleccionar o deseleccionar todas las pestañas de la lista">
-                     <input type="checkbox" id="hitomi-check-master-pestanas" ${todosMarcadosInicial ? 'checked' : ''} style="width: 15px; height: 15px; accent-color: #ec4899; cursor: pointer;" title="Clic para marcar o desmarcar todo" />
-                     <span id="hitomi-label-master-pestanas">${todosMarcadosInicial ? 'Deseleccionar Todo' : 'Seleccionar Todo'}</span>
-                   </label>
-                   
-                   <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                     <label class="hitomi-toggle-cbz" style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #c9d1d9; cursor: pointer; user-select: none; background: #252e38; padding: 4px 10px; border-radius: 6px; border: 1px solid #3b4754; font-weight: 600;" title="Al marcar esta opción, los archivos de cómics descargados cambiarán su extensión a .cbz.">
-                       <input type="checkbox" id="hitomi-check-usar-cbz" ${usarCbz ? 'checked' : ''} style="accent-color: #ec4899; cursor: pointer; width: 14px; height: 14px;" title="Activar/desactivar guardado con extensión .cbz" />
-                       <span>📦 Formato <strong>.cbz</strong></span>
-                     </label>
-                     ${
-                       !modoForzado
-                         ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Activa el Modo Forzado para permitir la re-descarga de cómics que ya han sido procesados anteriormente.">
-                              ⚡ Modo Forzado
-                            </button>`
-                         : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Regresa al Modo Normal para omitir cómics ya descargados previamente y procesar solo nuevos.">
-                              ✓ Modo Normal
-                            </button>`
-                     }
+                 <!-- SECCIÓN DE OPCIONES Y CONFIGURACIÓN (CHECKBOXES) -->
+                 <div class="hitomi-seccion-opciones" style="margin-bottom: 12px; padding: 10px 14px; background: #192028; border: 1px solid #2d3748; border-radius: 10px;">
+                   <div style="font-size: 11px; font-weight: 700; color: #b580b5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                     ⚙️ OPCIONES DE DESCARGA
                    </div>
+                   <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; user-select: none;">
+                     <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #f0f6fc; cursor: pointer;" title="Marcar o desmarcar todos los cómics de la lista de una sola vez">
+                         <input type="checkbox" id="hitomi-check-master-pestanas" ${todosMarcadosInicial ? 'checked' : ''} style="width: 15px; height: 15px; accent-color: #ec4899; cursor: pointer;" title="Marcar o desmarcar todo" />
+                         <span id="hitomi-label-master-pestanas">${todosMarcadosInicial ? 'Deseleccionar Todo' : 'Seleccionar Todo'}</span>
+                       </label>
+
+                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Guardar los archivos descargados formateados con la extensión de cómic .cbz">
+                         <input type="checkbox" id="hitomi-check-usar-cbz" ${usarCbz ? 'checked' : ''} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar guardado con extensión .cbz" />
+                         <span>📦 Formato <strong>.cbz</strong></span>
+                       </label>
+
+                       <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer;" title="Cierra automáticamente cada pestaña del navegador después de iniciar su descarga">
+                         <input type="checkbox" id="hitomi-check-cerrar-pestana" ${cerrarPestana ? 'checked' : ''} style="accent-color: #ec4899; cursor: pointer; width: 15px; height: 15px;" title="Activar/desactivar cierre automático de pestañas descargadas" />
+                         <span>🚪 <strong>Cerrar pestañas</strong> al descargar</span>
+                       </label>
+                     </div>
+
+                     <div>
+                       ${
+                         !modoForzado
+                           ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Permitir volver a descargar cómics que ya habías guardado anteriormente">
+                                ⚡ Activar Modo Forzado
+                              </button>`
+                           : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Desactivar modo forzado y descargar únicamente los cómics que estén pendientes">
+                                ✓ Volver a Modo Normal
+                              </button>`
+                       }
+                     </div>
+                   </div>
+                 </div>
+
+                 <!-- SECCIÓN DE CÓMICS DETECTADOS -->
+                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                   <span style="font-size: 11px; font-weight: 700; color: #9ab0c7; text-transform: uppercase; letter-spacing: 0.5px;">
+                     📚 Cómics Detectados (${totalPestanas})
+                   </span>
+                   <span style="font-size: 11px; color: #768390;" title="Mantén presionado Shift al hacer clic en las casillas para marcar/desmarcar un rango entero">💡 Tip: Usa <strong>Shift + Clic</strong> para rangos</span>
                  </div>
 
                  <div class="hitomi-modal-lista" id="hitomi-modal-lista-items">
@@ -840,17 +863,17 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
                              <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" ${estaMarcada ? 'checked' : ''} style="accent-color: #ec4899;" title="Marcar/desmarcar este cómic para la descarga" />
                              <div class="hitomi-modal-item-info">
                                <div class="hitomi-modal-inputs-row">
-                                 <input type="text" class="hitomi-input-autor-item" data-id="${p.id}" value="${escapeHtml(autorMostrar)}" title="Editar autor o grupo (se antepondrá entre corchetes 「...」)" placeholder="Autor..." />
-                                 <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Editar el nombre de archivo con el que se guardará este cómic" placeholder="Título del archivo..." />
+                                 <input type="text" class="hitomi-input-autor-item" data-id="${p.id}" value="${escapeHtml(autorMostrar)}" title="Editar autor o grupo (se antepondrá entre corchetes 「...」 al inicio)" placeholder="Autor..." />
+                                 <input type="text" class="hitomi-input-titulo-item" data-id="${p.id}" value="${escapeHtml(tituloMostrar)}" title="Editar el nombre de archivo con el que se guardará este cómic en tu computadora" placeholder="Título del archivo..." />
                                </div>
                                <div class="hitomi-modal-item-url" title="${escapeHtml(p.url)}">${escapeHtml(p.url)}</div>
                              </div>
-                             <button class="hitomi-btn-abrir-tags ${tieneTags ? 'tiene-tags' : ''}" data-id="${p.id}" title="Seleccionar y ordenar etiquetas para concatenar al nombre de este archivo">
+                             <button class="hitomi-btn-abrir-tags ${tieneTags ? 'tiene-tags' : ''}" data-id="${p.id}" title="Abrir el panel para elegir qué etiquetas concatenar al nombre de este cómic">
                                🏷️ Tags ${tieneTags ? `(${tagsSel.length})` : ''}
                              </button>
                              ${
                                p.yaProcesada
-                                 ? `<span class="hitomi-item-tag hitomi-tag-forzada" title="Este cómic ya fue descargado previamente">${p.esForzada ? '⚠️ Re-descargada' : '⚠️ Ya descargada'}</span>`
+                                 ? `<span class="hitomi-item-tag hitomi-tag-forzada" title="Indica si este cómic es nuevo o si ya se había descargado antes">${p.esForzada ? '⚠️ Re-descargada' : '⚠️ Ya descargada'}</span>`
                                  : `<span class="hitomi-item-tag hitomi-tag-nueva" title="Cómic nuevo pendiente de descarga">Nueva</span>`
                              }
                            </div>
@@ -862,21 +885,22 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
           }
         </div>
 
+        <!-- PIE DE MODAL / SECCIÓN DE ACCIONES (BOTONES DE EJECUCIÓN) -->
         <div class="hitomi-modal-footer">
           <div class="hitomi-modal-acciones-secundarias">
-            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-reescanear" title="Vuelve a escanear las pestañas abiertas en el navegador y actualiza la lista de cómics.">
+            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-reescanear" title="Volver a buscar las pestañas de Hitomi abiertas en el navegador y actualizar la lista">
               🔄 Escanear Pestañas
             </button>
-            <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borra el historial de cómics procesados y restablece el estado del script.">
+            <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar el registro de descargas realizadas para volver a empezar desde cero">
               🗑️ Limpiar Memoria
             </button>
           </div>
 
           <div class="hitomi-modal-acciones-principales">
-            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-cancelar" title="Cerrar este panel sin realizar descargas">
+            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-cancelar" title="Cerrar este panel sin realizar ninguna descarga">
               Cancelar
             </button>
-            <button class="hitomi-btn ${modoForzado ? 'hitomi-btn-forzado-confirmar' : 'hitomi-btn-primario'}" id="hitomi-btn-confirmar" ${marcadosInicialCount === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''} title="${modoForzado ? 'Forzar la re-descarga inmediata de los cómics seleccionados' : 'Iniciar la descarga en lote de los cómics seleccionados'}">
+            <button class="hitomi-btn ${modoForzado ? 'hitomi-btn-forzado-confirmar' : 'hitomi-btn-primario'}" id="hitomi-btn-confirmar" ${marcadosInicialCount === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''} title="Enviar la orden de descarga a todos los cómics marcados con la casilla rosada">
               ${modoForzado ? `⚡ Re-descargar Forzado (${marcadosInicialCount})` : `▶ Iniciar Descarga (${marcadosInicialCount})`}
             </button>
           </div>
@@ -889,6 +913,15 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
       checkCbz.addEventListener("change", () => {
         if (typeof GM_setValue !== "undefined") {
           GM_setValue(CLAVES.usarCbz, checkCbz.checked);
+        }
+      });
+    }
+
+    const checkCerrarPestana = backdrop.querySelector("#hitomi-check-cerrar-pestana");
+    if (checkCerrarPestana) {
+      checkCerrarPestana.addEventListener("change", () => {
+        if (typeof GM_setValue !== "undefined") {
+          GM_setValue(CLAVES.cerrarPestana, checkCerrarPestana.checked);
         }
       });
     }
