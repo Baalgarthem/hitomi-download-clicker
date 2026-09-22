@@ -2,6 +2,12 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.5.1 (Parche: Intercepción Global de Nombres de Descarga y document.title)
+- **Corrección de Nombre de Archivo Descargado (`src/core/download.js`)**:
+  - Inyección de `document.title = nombreFinalCompleto` al disparar el clic de descarga.
+  - Implementación del monkey-patch global `interceptarDescargasNativas()` sobre `HTMLAnchorElement.prototype.click` para forzar la inyección de `a.download = nombreFinalCompleto + extensión` en descargas dinámicas creadas por el sitio.
+  - Registro de `ESTADO.ultimoNombreFinal` para garantizar que la descarga producida respete 100% el nombre con autor `「Artista」 Nombre ┃ tags`.
+
 ## Versión 1.5.0 (Limpieza Estricta de Títulos y Selector de Estilos de Tags)
 - **Limpieza Estricta de Títulos (`src/core/tags.js`)**:
   - Eliminación automática del nombre del sitio (`| Hitomi.la`, `- Hitomi.la`, `┃ Hitomi.la`).

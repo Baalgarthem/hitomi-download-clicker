@@ -84,5 +84,6 @@ export const ESTADO = {
   ordenesEjecutadas: new Set(),
   botonPastilla: null,
   ultimoEstadoPublicado: null,
-  tagsSeleccionadosPorPestana: new Map()
+  tagsSeleccionadosPorPestana: new Map(),
+  ultimoNombreFinal: null
 };

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.5.0
+// @version      1.5.1
 // @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」, selección de tags personalizados ┃ + tags y opción para limpiar memoria.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -39,7 +39,7 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
 import { ID_PESTANA, CLAVES } from './config/constants.js';
 import { esPaginaHitomi, obtenerHora } from './utils/dom.js';
 import { publicarEstadoPestana, eliminarPresenciaPestana, limpiarRegistrosPestanasAntiguas } from './core/presence.js';
-import { ejecutarOrdenDescarga } from './core/download.js';
+import { ejecutarOrdenDescarga, interceptarDescargasNativas } from './core/download.js';
 import { aplicarEstilosModal } from './ui/modal.js';
 import { aplicarEstilosPastilla, montarPastilla } from './ui/pill.js';
 
@@ -101,13 +101,14 @@ function iniciarScript() {
   aplicarEstilosPastilla();
   aplicarEstilosModal();
 
+  interceptarDescargasNativas();
   limpiarRegistrosPestanasAntiguas();
   montarPastilla();
   publicarEstadoPestana();
   registrarObservadorDOM();
   registrarEscuchadorOrdenesIPC();
 
-  console.info(obtenerHora(), "Hitomi Clicker iniciado con soporte para Tags ┃ + tags", {
+  console.info(obtenerHora(), "Hitomi Clicker iniciado con soporte para Tags ┃ + tags y descarga nativa de autor", {
     pestaña: ID_PESTANA,
     pagina: location.href
   });

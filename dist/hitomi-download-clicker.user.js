@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.5.0
+// @version      1.5.1
 // @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」, selección de tags personalizados ┃ + tags y opción para limpiar memoria.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -121,7 +121,8 @@
         ordenesEjecutadas: /* @__PURE__ */ new Set(),
         botonPastilla: null,
         ultimoEstadoPublicado: null,
-        tagsSeleccionadosPorPestana: /* @__PURE__ */ new Map()
+        tagsSeleccionadosPorPestana: /* @__PURE__ */ new Map(),
+        ultimoNombreFinal: null
       };
     }
   });
@@ -507,10 +508,37 @@
     }
     return null;
   }
+  function interceptarDescargasNativas() {
+    if (interceptorRegistrado || typeof HTMLAnchorElement === "undefined") return;
+    interceptorRegistrado = true;
+    try {
+      const originalClick = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function(...args) {
+        try {
+          const nombreCustom = ESTADO.ultimoNombreFinal;
+          if (nombreCustom) {
+            const downloadAttr = this.getAttribute("download") || this.download || "";
+            const hrefAttr = this.getAttribute("href") || this.href || "";
+            const matchExt = (downloadAttr || hrefAttr).match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
+            const extension = matchExt ? `.${matchExt[1]}` : "";
+            const nombreConExt = `${nombreCustom}${extension}`;
+            this.setAttribute("download", nombreConExt);
+            this.download = nombreConExt;
+          }
+        } catch (err) {
+          console.error("Error en interceptor de descargas nativas:", err);
+        }
+        return originalClick.apply(this, args);
+      };
+    } catch (e) {
+      console.error("Error al registrar interceptor de descargas nativas:", e);
+    }
+  }
   function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null) {
     if (!boton) return false;
     let fueClickeadoConExito = false;
     try {
+      interceptarDescargasNativas();
       const teniaProcesado = boton.getAttribute("data-hitomi-procesado");
       const estiloPointerPrevio = boton.style.pointerEvents;
       const deshabilitadoPrevio = boton.disabled;
@@ -523,14 +551,23 @@
         estiloSeparador: estiloActivo
       });
       if (nombreFinalCompleto) {
+        ESTADO.ultimoNombreFinal = nombreFinalCompleto;
+        try {
+          document.title = nombreFinalCompleto;
+        } catch {
+        }
         boton.setAttribute("data-hitomi-nombre-final", nombreFinalCompleto);
         if (tagsSeleccionados.length > 0) {
           boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsSeleccionados, estiloActivo));
         }
         boton.setAttribute("title", nombreFinalCompleto);
-        if (boton.hasAttribute("download") || boton.tagName.toLowerCase() === "a") {
-          boton.setAttribute("download", nombreFinalCompleto);
-        }
+        boton.setAttribute("download", nombreFinalCompleto);
+        if ("download" in boton) boton.download = nombreFinalCompleto;
+        const enlacesHijos = boton.querySelectorAll("a");
+        enlacesHijos.forEach((a) => {
+          a.setAttribute("download", nombreFinalCompleto);
+          a.download = nombreFinalCompleto;
+        });
       }
       ESTADO.permitirClicForzado = true;
       boton.removeAttribute("data-hitomi-procesado");
@@ -612,6 +649,7 @@
       return "error";
     }
   }
+  var interceptorRegistrado;
   var init_download = __esm({
     "src/core/download.js"() {
       init_constants();
@@ -620,6 +658,7 @@
       init_badge();
       init_author();
       init_tags();
+      interceptorRegistrado = false;
     }
   });
 
@@ -1666,12 +1705,13 @@
         if (!esPaginaHitomi()) return;
         aplicarEstilosPastilla();
         aplicarEstilosModal();
+        interceptarDescargasNativas();
         limpiarRegistrosPestanasAntiguas();
         montarPastilla();
         publicarEstadoPestana();
         registrarObservadorDOM();
         registrarEscuchadorOrdenesIPC();
-        console.info(obtenerHora(), "Hitomi Clicker iniciado con soporte para Tags \u2503 + tags", {
+        console.info(obtenerHora(), "Hitomi Clicker iniciado con soporte para Tags \u2503 + tags y descarga nativa de autor", {
           pesta\u00F1a: ID_PESTANA,
           pagina: location.href
         });

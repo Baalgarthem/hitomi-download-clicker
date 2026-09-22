@@ -71,12 +71,51 @@ export async function buscarBotonDescarga(opciones = {}) {
   return null;
 }
 
+let interceptorRegistrado = false;
+
+/**
+ * Intercepta de forma global los clics en elementos <a> creados dinámicamente o presentes en el DOM,
+ * garantizando que el nombre final del archivo (con formato 「Autor」 Nombre ┃ tags) sea inyectado
+ * como el atributo 'download' nativo del navegador antes de disparar la descarga.
+ */
+export function interceptarDescargasNativas() {
+  if (interceptorRegistrado || typeof HTMLAnchorElement === "undefined") return;
+  interceptorRegistrado = true;
+
+  try {
+    const originalClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function (...args) {
+      try {
+        const nombreCustom = ESTADO.ultimoNombreFinal;
+        if (nombreCustom) {
+          const downloadAttr = this.getAttribute("download") || this.download || "";
+          const hrefAttr = this.getAttribute("href") || this.href || "";
+
+          const matchExt = (downloadAttr || hrefAttr).match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
+          const extension = matchExt ? `.${matchExt[1]}` : "";
+
+          const nombreConExt = `${nombreCustom}${extension}`;
+          this.setAttribute("download", nombreConExt);
+          this.download = nombreConExt;
+        }
+      } catch (err) {
+        console.error("Error en interceptor de descargas nativas:", err);
+      }
+      return originalClick.apply(this, args);
+    };
+  } catch (e) {
+    console.error("Error al registrar interceptor de descargas nativas:", e);
+  }
+}
+
 export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = [], estiloSeparador = null) {
   if (!boton) return false;
 
   let fueClickeadoConExito = false;
 
   try {
+    interceptarDescargasNativas();
+
     const teniaProcesado = boton.getAttribute("data-hitomi-procesado");
     const estiloPointerPrevio = boton.style.pointerEvents;
     const deshabilitadoPrevio = boton.disabled;
@@ -91,14 +130,24 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
     });
 
     if (nombreFinalCompleto) {
+      ESTADO.ultimoNombreFinal = nombreFinalCompleto;
+      try {
+        document.title = nombreFinalCompleto;
+      } catch { }
+
       boton.setAttribute("data-hitomi-nombre-final", nombreFinalCompleto);
       if (tagsSeleccionados.length > 0) {
         boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsSeleccionados, estiloActivo));
       }
       boton.setAttribute("title", nombreFinalCompleto);
-      if (boton.hasAttribute("download") || boton.tagName.toLowerCase() === "a") {
-        boton.setAttribute("download", nombreFinalCompleto);
-      }
+      boton.setAttribute("download", nombreFinalCompleto);
+      if ("download" in boton) boton.download = nombreFinalCompleto;
+
+      const enlacesHijos = boton.querySelectorAll("a");
+      enlacesHijos.forEach(a => {
+        a.setAttribute("download", nombreFinalCompleto);
+        a.download = nombreFinalCompleto;
+      });
     }
 
     ESTADO.permitirClicForzado = true;
