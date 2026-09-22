@@ -2,6 +2,15 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.7.2 (Fallback a Grupo Publicador y Documentación Pedagógica)
+- **Fallback Automático a Nombre del Grupo (`src/core/author.js` & `src/config/constants.js`)**:
+  - Incorporación de `selectoresGrupo` para inspeccionar la fila `<td id="groups">` y listas de círculos publicadores (`/group/`).
+  - Implementación de `extraerNombreGrupo()` y `obtenerAutorOEstadoInicial()`: si el autor es `N/A` o no existe, utiliza automáticamente el nombre del grupo publicador (ej. `kemusi no bansan kai` -> `「Kemusi No Bansan Kai」`).
+  - Si tanto el autor como el grupo son `N/A`, se asigna por defecto `「Unknown」` (pudiendo ser editado manualmente en la interfaz).
+- **Documentación Completa y Pedagógica (`README.md` & `package.json`)**:
+  - Creación del archivo `README.md` con explicación didáctica, paso a paso, fórmula visual en LaTeX y guía de instalación.
+  - Actualización de descripciones del script en los metadatos.
+
 ## Versión 1.7.1 (Auditoría de Sintaxis y Cierre de Mantenimiento)
 - **Verificación Rigurosa de Código y Sintaxis**:
   - Auditoría exhaustiva de apertura y cierre de corchetes, comillas, paréntesis y terminadores de instrucción (puntos y comas).

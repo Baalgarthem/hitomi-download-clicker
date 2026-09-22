@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.7.1
-// @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」, selección de tags personalizados ┃ + tags y opción para limpiar memoria.
+// @version      1.7.2
+// @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
 // @downloadURL  https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/dist/hitomi-download-clicker.user.js
@@ -79,6 +79,16 @@
           ".gallery-info td a[href*='/artist/']",
           "#artist-list a",
           ".artist-list a"
+        ],
+        selectoresGrupo: [
+          "#groups ul.comma-list li a",
+          "#groups a",
+          "#groups li",
+          "#groups",
+          "td#groups a[href*='/group/']",
+          ".gallery-info td#groups a",
+          "#group-list a",
+          ".group-list a"
         ],
         selectoresTags: [
           "#tags ul.tags li a",
@@ -379,6 +389,51 @@
     }
     return "";
   }
+  function extraerNombreGrupo() {
+    try {
+      for (const selector of CONFIGURACION.selectoresGrupo) {
+        const elementos = document.querySelectorAll(selector);
+        if (elementos && elementos.length > 0) {
+          const nombres = [];
+          elementos.forEach((el) => {
+            const texto = (el.textContent || "").trim();
+            if (texto && !nombres.includes(texto)) {
+              nombres.push(texto);
+            }
+          });
+          if (nombres.length > 0) {
+            return nombres.join(", ");
+          }
+        }
+      }
+      const celdas = document.querySelectorAll("td, th, .gallery-info tr");
+      for (let i = 0; i < celdas.length; i++) {
+        const contenido = (celdas[i].textContent || "").toLowerCase();
+        if (contenido.includes("group") || contenido.includes("grupo")) {
+          const enlace = celdas[i].parentElement ? celdas[i].parentElement.querySelector("a") : null;
+          if (enlace && enlace.textContent.trim()) {
+            return enlace.textContent.trim();
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error al extraer nombre del grupo:", e);
+    }
+    return "";
+  }
+  function obtenerAutorOEstadoInicial() {
+    const autor = extraerNombreAutor();
+    const esAutorInvalido = !autor || /^n\/?a$/i.test(autor.trim()) || /^none$/i.test(autor.trim()) || /^unknown$/i.test(autor.trim());
+    if (!esAutorInvalido) {
+      return autor;
+    }
+    const grupo = extraerNombreGrupo();
+    const esGrupoInvalido = !grupo || /^n\/?a$/i.test(grupo.trim()) || /^none$/i.test(grupo.trim()) || /^unknown$/i.test(grupo.trim());
+    if (!esGrupoInvalido) {
+      return grupo;
+    }
+    return "N/A";
+  }
   function formatearNombreAutor(autor) {
     let autorLimpio = (autor || "").trim();
     autorLimpio = autorLimpio.replace(/^「\s*/, "").replace(/\s*」$/, "").trim();
@@ -463,7 +518,7 @@
       tagsSeleccionados = [],
       estiloSeparador = null
     } = opciones;
-    const autorTarget = autor !== null && autor !== void 0 && String(autor).trim() !== "" ? String(autor).trim() : extraerNombreAutor();
+    const autorTarget = autor !== null && autor !== void 0 && String(autor).trim() !== "" ? String(autor).trim() : obtenerAutorOEstadoInicial();
     const autorFormateado = formatearNombreAutor(autorTarget);
     const tituloLimpio = limpiarTituloBase(tituloOriginal, autorTarget);
     const seccionTags = formatearCadenaTags(tagsSeleccionados, estiloSeparador);
@@ -572,7 +627,7 @@
       const estiloPointerPrevio = boton.style.pointerEvents;
       const deshabilitadoPrevio = boton.disabled;
       const estiloActivo = estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
-      const autorTarget = autorPersonalizado && typeof autorPersonalizado === "string" && autorPersonalizado.trim() ? autorPersonalizado.trim() : extraerNombreAutor();
+      const autorTarget = autorPersonalizado && typeof autorPersonalizado === "string" && autorPersonalizado.trim() ? autorPersonalizado.trim() : obtenerAutorOEstadoInicial();
       const tituloBase = tituloPersonalizado && typeof tituloPersonalizado === "string" && tituloPersonalizado.trim() ? tituloPersonalizado.trim() : document.title;
       const nombreFinalCompleto = obtenerNombreFinalCompleto({
         tituloOriginal: tituloBase,
@@ -1570,7 +1625,7 @@
       }
       const tieneBoton = boton && elementoVisible(boton) ? 1 : 0;
       if (ESTADO.ultimoEstadoPublicado !== tieneBoton) {
-        const autorDetectado = extraerNombreAutor();
+        const autorDetectado = obtenerAutorOEstadoInicial();
         const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
         const tagsDisponibles = extraerTagsPagina();
         GM_setValue(CLAVES.presencia(ID_PESTANA), tieneBoton);

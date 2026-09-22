@@ -25,6 +25,16 @@ export const CONFIGURACION = {
     "#artist-list a",
     ".artist-list a"
   ],
+  selectoresGrupo: [
+    "#groups ul.comma-list li a",
+    "#groups a",
+    "#groups li",
+    "#groups",
+    "td#groups a[href*='/group/']",
+    ".gallery-info td#groups a",
+    "#group-list a",
+    ".group-list a"
+  ],
   selectoresTags: [
     "#tags ul.tags li a",
     "#tags li a",

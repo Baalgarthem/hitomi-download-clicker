@@ -6,7 +6,7 @@ import { CONFIGURACION, ESTADO, CLAVES } from '../config/constants.js';
 import { elementoVisible, esperar, obtenerHora } from '../utils/dom.js';
 import { obtenerEstadoPaginaProcesada, guardarPaginaProcesada } from './memory.js';
 import { vincularEventosBotonDescarga, marcarBotonComoProcesado } from '../ui/badge.js';
-import { extraerNombreAutor } from './author.js';
+import { extraerNombreAutor, obtenerAutorOEstadoInicial } from './author.js';
 import { obtenerNombreFinalCompleto, formatearCadenaTags } from './tags.js';
 
 export function obtenerElementoBotonDescarga() {
@@ -132,7 +132,7 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
     const estiloActivo = estiloSeparador || (typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe");
     const autorTarget = (autorPersonalizado && typeof autorPersonalizado === "string" && autorPersonalizado.trim())
       ? autorPersonalizado.trim()
-      : extraerNombreAutor();
+      : obtenerAutorOEstadoInicial();
     const tituloBase = (tituloPersonalizado && typeof tituloPersonalizado === "string" && tituloPersonalizado.trim())
       ? tituloPersonalizado.trim()
       : document.title;

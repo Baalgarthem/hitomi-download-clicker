@@ -8,7 +8,7 @@ import { obtenerMemoriaPaginasProcesadas, obtenerEstadoPaginaProcesada, guardarP
 import { buscarBotonDescarga, ejecutarOrdenDescarga } from './download.js';
 import { marcarBotonComoProcesado } from '../ui/badge.js';
 import { mostrarEstado } from '../ui/pill.js';
-import { extraerNombreAutor } from './author.js';
+import { extraerNombreAutor, obtenerAutorOEstadoInicial } from './author.js';
 import { extraerTagsPagina, limpiarTituloBase } from './tags.js';
 
 let publicandoEstado = false;
@@ -29,7 +29,7 @@ export async function publicarEstadoPestana() {
     const tieneBoton = (boton && elementoVisible(boton)) ? 1 : 0;
 
     if (ESTADO.ultimoEstadoPublicado !== tieneBoton) {
-      const autorDetectado = extraerNombreAutor();
+      const autorDetectado = obtenerAutorOEstadoInicial();
       const tituloLimpio = limpiarTituloBase(document.title || location.href, autorDetectado);
       const tagsDisponibles = extraerTagsPagina();
 

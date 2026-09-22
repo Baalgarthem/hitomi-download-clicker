@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────
 
 import { CONFIGURACION, ESTILOS_SEPARADOR, CLAVES } from '../config/constants.js';
-import { extraerNombreAutor, formatearNombreAutor } from './author.js';
+import { extraerNombreAutor, formatearNombreAutor, obtenerAutorOEstadoInicial } from './author.js';
 
 /**
  * Limpia el texto de un tag removiendo símbolos de género (♀, ♂) y prefijos de categoría.
@@ -138,10 +138,10 @@ export function obtenerNombreFinalCompleto(opciones = {}) {
     estiloSeparador = null
   } = opciones;
 
-  // Elemento 1 (Prefijo): Autor formateado (ej. 「Nodo」 o 「Unknown」 si es N/A)
+  // Elemento 1 (Prefijo): Autor o Grupo formateado (ej. 「Nodo」, 「Kemusi」 o 「Unknown」 si es N/A)
   const autorTarget = (autor !== null && autor !== undefined && String(autor).trim() !== "")
     ? String(autor).trim()
-    : extraerNombreAutor();
+    : obtenerAutorOEstadoInicial();
   const autorFormateado = formatearNombreAutor(autorTarget);
 
   // Elemento 2 (Cuerpo Principal): Título base completamente limpio
