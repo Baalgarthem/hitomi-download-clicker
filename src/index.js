@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.3.2
-// @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」 y opción para limpiar memoria.
+// @version      1.4.0
+// @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」, selección de tags personalizados ┃ + tags y opción para limpiar memoria.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
 // @downloadURL  https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/hitomi-download-clicker.user.js
@@ -30,12 +30,13 @@ Este script automatiza una tarea repetitiva dentro de Hitomi.la:
 1. Detecta todas las pestañas abiertas pertenecientes al dominio Hitomi.
 2. Comprueba si cada página contiene el botón real de descarga.
 3. Extrae el autor/artista de la página y lo formatea entre comillas japonesas 「xxxx」.
-4. Muestra un popup/modal de confirmación con las pestañas detectadas y selección múltiple por rango.
-5. Almacena memoria estructurada de URLs descargadas y re-descargadas.
-6. Permite re-escanear pestañas, activar descarga forzada o limpiar la memoria.
+4. Permite al usuario elegir qué etiquetas concatenar al nombre del archivo con el formato ┃ + tags.
+5. Muestra un popup/modal de confirmación con las pestañas detectadas, selección múltiple por rango y selector de tags.
+6. Almacena memoria estructurada de URLs descargadas y re-descargadas.
+7. Permite re-escanear pestañas, activar descarga forzada o limpiar la memoria.
 */
 
-import { ID_PESTANA, CLAVES, ESTADO } from './config/constants.js';
+import { ID_PESTANA, CLAVES } from './config/constants.js';
 import { esPaginaHitomi, obtenerHora } from './utils/dom.js';
 import { publicarEstadoPestana, eliminarPresenciaPestana, limpiarRegistrosPestanasAntiguas } from './core/presence.js';
 import { ejecutarOrdenDescarga } from './core/download.js';
@@ -71,12 +72,15 @@ function registrarEscuchadorOrdenesIPC() {
           return;
         }
 
-        const { pestañaDestino, nonce, forzar } = valorNuevo;
+        const { pestañaDestino, nonce, forzar, tagsSeleccionados } = valorNuevo;
         if (pestañaDestino !== ID_PESTANA) {
           return;
         }
 
-        const resultado = await ejecutarOrdenDescarga(nonce, { forzar: !!forzar });
+        const resultado = await ejecutarOrdenDescarga(nonce, {
+          forzar: !!forzar,
+          tagsSeleccionados: tagsSeleccionados || []
+        });
 
         try {
           GM_setValue(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
@@ -102,7 +106,7 @@ function iniciarScript() {
   registrarObservadorDOM();
   registrarEscuchadorOrdenesIPC();
 
-  console.info(obtenerHora(), "Hitomi Clicker modular iniciado", {
+  console.info(obtenerHora(), "Hitomi Clicker iniciado con soporte para Tags ┃ + tags", {
     pestaña: ID_PESTANA,
     pagina: location.href
   });

@@ -25,6 +25,14 @@ export const CONFIGURACION = {
     "#artist-list a",
     ".artist-list a"
   ],
+  selectoresTags: [
+    "#tags ul.tags li a",
+    "#tags li a",
+    "#tags a",
+    ".tags li a",
+    ".tags a",
+    "a[href*='/tag/']"
+  ],
   intervaloBusquedaBoton: 150,
   intentosBusquedaBoton: 40,
   tiempoEntreOrdenes: 120,
@@ -58,7 +66,8 @@ export const CLAVES = {
   respuesta: (nonce, id) => `hitomi_respuesta_${nonce}_${id}`,
   memoriaPaginas: "hitomi_paginas_procesadas",
   urlPestana: id => `hitomi_url_${id}`,
-  tituloPestana: id => `hitomi_titulo_${id}`
+  tituloPestana: id => `hitomi_titulo_${id}`,
+  tagsPestana: id => `hitomi_tags_${id}`
 };
 
 export const ESTADO = {
@@ -66,5 +75,6 @@ export const ESTADO = {
   permitirClicForzado: false,
   ordenesEjecutadas: new Set(),
   botonPastilla: null,
-  ultimoEstadoPublicado: null
+  ultimoEstadoPublicado: null,
+  tagsSeleccionadosPorPestana: new Map()
 };

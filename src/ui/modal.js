@@ -1,8 +1,8 @@
 // ─────────────────────────────────────────────
-// Interfaz Visual: Modal de Confirmación y Selección
+// Interfaz Visual: Modal de Confirmación y Selección de Tags
 // ─────────────────────────────────────────────
 
-import { CONFIGURACION } from '../config/constants.js';
+import { CONFIGURACION, ESTADO } from '../config/constants.js';
 import { obtenerInformacionPestanas, publicarEstadoPestana, recorrerPestanasDescarga } from '../core/presence.js';
 import { limpiarMemoriaProcesadas } from '../core/memory.js';
 import { resetearEstadoBotonDescarga } from './badge.js';
@@ -30,7 +30,7 @@ function crearInterfaz() {
 
 export function aplicarEstilosModal() {
   GM_addStyle(`
-    .hitomi-modal-backdrop {
+    .hitomi-modal-backdrop, .hitomi-tag-modal-backdrop {
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.7);
@@ -48,7 +48,7 @@ export function aplicarEstilosModal() {
       to { opacity: 1; }
     }
 
-    .hitomi-modal-contenedor {
+    .hitomi-modal-contenedor, .hitomi-tag-modal-contenedor {
       background: #0d1117;
       color: #c9d1d9;
       border: 1px solid #30363d;
@@ -208,6 +208,68 @@ export function aplicarEstilosModal() {
       border: 1px solid rgba(245, 158, 11, 0.3);
     }
 
+    /* Estilos del Selector de Tags */
+    .hitomi-btn-abrir-tags {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #21262d;
+      color: #58a6ff;
+      border: 1px solid #30363d;
+      cursor: pointer;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .hitomi-btn-abrir-tags:hover {
+      background: #30363d;
+      border-color: #58a6ff;
+    }
+
+    .hitomi-btn-abrir-tags.tiene-tags {
+      background: rgba(88, 166, 255, 0.15);
+      color: #79c0ff;
+      border-color: rgba(88, 166, 255, 0.4);
+    }
+
+    .hitomi-grid-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 0;
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+
+    .hitomi-pill-tag {
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #21262d;
+      color: #8b949e;
+      border: 1px solid #30363d;
+      cursor: pointer;
+      user-select: none;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+
+    .hitomi-pill-tag:hover {
+      border-color: #58a6ff;
+      color: #c9d1d9;
+    }
+
+    .hitomi-pill-tag.activa {
+      background: #1f6feb;
+      color: #ffffff;
+      border-color: #58a6ff;
+      font-weight: 600;
+      box-shadow: 0 0 8px rgba(31, 111, 235, 0.4);
+    }
+
     .hitomi-modal-vacio {
       text-align: center;
       padding: 30px 16px;
@@ -334,6 +396,120 @@ export function vincularSeleccionMultipleCheckboxes(listaContenedor) {
   });
 }
 
+/**
+ * Muestra el sub-modal de selección personalizada de tags para un comic específico.
+ */
+export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponibles = [], callbackGuardar) {
+  const interfaz = crearInterfaz();
+  const backdropTag = document.createElement("div");
+  backdropTag.className = "hitomi-tag-modal-backdrop";
+
+  const tagsSeleccionadosSet = new Set(ESTADO.tagsSeleccionadosPorPestana.get(pestanaId) || []);
+
+  function escapeHtml(texto) {
+    return (texto || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  backdropTag.innerHTML = `
+    <div class="hitomi-tag-modal-contenedor">
+      <div class="hitomi-modal-header">
+        <h3 class="hitomi-modal-titulo">
+          <span>🏷️ Seleccionar Tags para: ${escapeHtml(tituloPestana)}</span>
+        </h3>
+        <button class="hitomi-modal-cerrar" id="hitomi-tag-btn-cerrar">✕</button>
+      </div>
+
+      <div class="hitomi-modal-body">
+        <p class="hitomi-modal-instruccion">
+          Selecciona las etiquetas que deseas añadir al nombre del archivo concatenadas como <strong>┃ tag1 tag2</strong>:
+        </p>
+
+        ${
+          tagsDisponibles.length === 0
+            ? `<div class="hitomi-modal-vacio"><p>No se encontraron etiquetas en esta página.</p></div>`
+            : `<div class="hitomi-grid-tags" id="hitomi-contenedor-pills">
+                ${tagsDisponibles
+                  .map(t => {
+                    const tagClean = typeof t === "object" ? t.clean : t;
+                    const estaActivo = tagsSeleccionadosSet.has(tagClean);
+                    return `<div class="hitomi-pill-tag ${estaActivo ? 'activa' : ''}" data-tag="${escapeHtml(tagClean)}">${escapeHtml(tagClean)}</div>`;
+                  })
+                  .join('')}
+               </div>`
+        }
+      </div>
+
+      <div class="hitomi-modal-footer">
+        <div class="hitomi-modal-acciones-secundarias">
+          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-tag-btn-todos">Seleccionar Todos</button>
+          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-tag-btn-ninguno">Limpiar Selección</button>
+        </div>
+        <div class="hitomi-modal-acciones-principales">
+          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-tag-btn-cancelar">Cancelar</button>
+          <button class="hitomi-btn hitomi-btn-primario" id="hitomi-tag-btn-guardar">Guardar Tags</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  interfaz.appendChild(backdropTag);
+
+  const contenedorPills = backdropTag.querySelector("#hitomi-contenedor-pills");
+  if (contenedorPills) {
+    contenedorPills.addEventListener("click", ev => {
+      const pill = ev.target.closest(".hitomi-pill-tag");
+      if (!pill) return;
+
+      const tagNombre = pill.getAttribute("data-tag");
+      if (tagsSeleccionadosSet.has(tagNombre)) {
+        tagsSeleccionadosSet.delete(tagNombre);
+        pill.classList.remove("activa");
+      } else {
+        tagsSeleccionadosSet.add(tagNombre);
+        pill.classList.add("activa");
+      }
+    });
+  }
+
+  const btnTodos = backdropTag.querySelector("#hitomi-tag-btn-todos");
+  if (btnTodos && contenedorPills) {
+    btnTodos.addEventListener("click", () => {
+      contenedorPills.querySelectorAll(".hitomi-pill-tag").forEach(pill => {
+        const tagNombre = pill.getAttribute("data-tag");
+        tagsSeleccionadosSet.add(tagNombre);
+        pill.classList.add("activa");
+      });
+    });
+  }
+
+  const btnNinguno = backdropTag.querySelector("#hitomi-tag-btn-ninguno");
+  if (btnNinguno && contenedorPills) {
+    btnNinguno.addEventListener("click", () => {
+      tagsSeleccionadosSet.clear();
+      contenedorPills.querySelectorAll(".hitomi-pill-tag").forEach(pill => {
+        pill.classList.remove("activa");
+      });
+    });
+  }
+
+  const cerrar = () => backdropTag.remove();
+
+  backdropTag.querySelector("#hitomi-tag-btn-cerrar").addEventListener("click", cerrar);
+  backdropTag.querySelector("#hitomi-tag-btn-cancelar").addEventListener("click", cerrar);
+
+  backdropTag.querySelector("#hitomi-tag-btn-guardar").addEventListener("click", () => {
+    const listaFinal = Array.from(tagsSeleccionadosSet);
+    ESTADO.tagsSeleccionadosPorPestana.set(pestanaId, listaFinal);
+    cerrar();
+    if (typeof callbackGuardar === "function") callbackGuardar(listaFinal);
+  });
+}
+
 export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
   let modoForzado = modoForzadoInicial;
   const interfaz = crearInterfaz();
@@ -375,8 +551,8 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
           <p class="hitomi-modal-instruccion">
             ${
               modoForzado
-                ? `Se re-ejecutarán descargas. Las marcadas como <strong>[⚠️ Re-descargada]</strong> o <strong>[⚠️ Ya descargada]</strong> volverán a ser clickeadas (${forzadasCount} en total).<br><small style="color:#8b949e">Usa <strong>Shift + Clic</strong> para seleccionar un rango de casillas.</small>`
-                : 'Selecciona las pestañas a las que deseas enviar la orden de descarga:<br><small style="color:#8b949e">Usa <strong>Shift + Clic</strong> para seleccionar un rango de casillas.</small>'
+                ? `Se re-ejecutarán descargas. Las marcadas como <strong>[⚠️ Re-descargada]</strong> o <strong>[⚠️ Ya descargada]</strong> volverán a ser clickeadas (${forzadasCount} en total).<br><small style="color:#8b949e">Usa <strong>Shift + Clic</strong> para seleccionar rangos o la casilla <strong>🏷️ Tags</strong> para personalizar etiquetas.</small>`
+                : 'Selecciona las pestañas a las que deseas enviar la orden de descarga:<br><small style="color:#8b949e">Usa <strong>Shift + Clic</strong> para seleccionar rangos o la casilla <strong>🏷️ Tags</strong> para personalizar etiquetas.</small>'
             }
           </p>
 
@@ -388,20 +564,27 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
               : `<div class="hitomi-modal-lista" id="hitomi-modal-lista-items">
                    ${pestanasInfo
                      .map(
-                       p => `
-                     <div class="hitomi-modal-item ${p.yaProcesada ? 'es-forzada' : ''}">
-                       <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" checked />
-                       <div class="hitomi-modal-item-info">
-                         <div class="hitomi-modal-item-titulo">${escapeHtml(p.titulo)}</div>
-                         <div class="hitomi-modal-item-url">${escapeHtml(p.url)}</div>
-                       </div>
-                       ${
-                         p.yaProcesada
-                           ? `<span class="hitomi-item-tag hitomi-tag-forzada">${p.esForzada ? '⚠️ Re-descargada (Forzada)' : '⚠️ Ya descargada (Forzada)'}</span>`
-                           : `<span class="hitomi-item-tag hitomi-tag-nueva">Nueva</span>`
+                       p => {
+                         const tagsSel = ESTADO.tagsSeleccionadosPorPestana.get(p.id) || [];
+                         const tieneTags = tagsSel.length > 0;
+                         return `
+                           <div class="hitomi-modal-item ${p.yaProcesada ? 'es-forzada' : ''}">
+                             <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" checked />
+                             <div class="hitomi-modal-item-info">
+                               <div class="hitomi-modal-item-titulo">${escapeHtml(p.titulo)}</div>
+                               <div class="hitomi-modal-item-url">${escapeHtml(p.url)}</div>
+                             </div>
+                             <button class="hitomi-btn-abrir-tags ${tieneTags ? 'tiene-tags' : ''}" data-id="${p.id}" title="Seleccionar etiquetas para concatenar con ┃">
+                               🏷️ Tags ${tieneTags ? `(${tagsSel.length})` : ''}
+                             </button>
+                             ${
+                               p.yaProcesada
+                                 ? `<span class="hitomi-item-tag hitomi-tag-forzada">${p.esForzada ? '⚠️ Re-descargada (Forzada)' : '⚠️ Ya descargada (Forzada)'}</span>`
+                                 : `<span class="hitomi-item-tag hitomi-tag-nueva">Nueva</span>`
+                             }
+                           </div>
+                         `;
                        }
-                     </div>
-                   `
                      )
                      .join('')}
                  </div>`
@@ -442,6 +625,24 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     const listaItems = backdrop.querySelector("#hitomi-modal-lista-items");
     if (listaItems) {
       vincularSeleccionMultipleCheckboxes(listaItems);
+
+      // Event listener para abrir el selector de tags por cada item
+      listaItems.addEventListener("click", ev => {
+        const btnTags = ev.target.closest(".hitomi-btn-abrir-tags");
+        if (!btnTags) return;
+
+        const pId = btnTags.getAttribute("data-id");
+        const pInfo = pestanasInfo.find(item => item.id === pId);
+        if (!pInfo) return;
+
+        mostrarModalSeleccionTags(
+          pId,
+          pInfo.titulo,
+          pInfo.tagsDisponibles || [],
+          ESTADO.tagsSeleccionadosPorPestana.get(pId) || [],
+          () => renderizarContenidoModal()
+        );
+      });
     }
 
     backdrop.querySelector("#hitomi-btn-cerrar-modal").addEventListener("click", cerrarModal);

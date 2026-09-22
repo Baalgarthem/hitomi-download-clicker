@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.3.2
-// @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」 y opción para limpiar memoria.
+// @version      1.4.0
+// @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」, selección de tags personalizados ┃ + tags y opción para limpiar memoria.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
 // @downloadURL  https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/hitomi-download-clicker.user.js
@@ -80,6 +80,14 @@
           "#artist-list a",
           ".artist-list a"
         ],
+        selectoresTags: [
+          "#tags ul.tags li a",
+          "#tags li a",
+          "#tags a",
+          ".tags li a",
+          ".tags a",
+          "a[href*='/tag/']"
+        ],
         intervaloBusquedaBoton: 150,
         intentosBusquedaBoton: 40,
         tiempoEntreOrdenes: 120,
@@ -97,14 +105,16 @@
         respuesta: (nonce, id) => `hitomi_respuesta_${nonce}_${id}`,
         memoriaPaginas: "hitomi_paginas_procesadas",
         urlPestana: (id) => `hitomi_url_${id}`,
-        tituloPestana: (id) => `hitomi_titulo_${id}`
+        tituloPestana: (id) => `hitomi_titulo_${id}`,
+        tagsPestana: (id) => `hitomi_tags_${id}`
       };
       ESTADO = {
         bloqueado: false,
         permitirClicForzado: false,
         ordenesEjecutadas: /* @__PURE__ */ new Set(),
         botonPastilla: null,
-        ultimoEstadoPublicado: null
+        ultimoEstadoPublicado: null,
+        tagsSeleccionadosPorPestana: /* @__PURE__ */ new Map()
       };
     }
   });
@@ -354,6 +364,68 @@
   });
 
 /* ════════════════════════════════════════════════════════════ */
+/*                  MÓDULO: src/core/tags.js                  */
+/* ════════════════════════════════════════════════════════════ */
+  function limpiarNombreTag(rawTag = "") {
+    if (!rawTag || typeof rawTag !== "string") return "";
+    let tag = rawTag.trim();
+    tag = tag.replace(/[♀♂]/g, "").trim();
+    tag = tag.replace(/^(?:female|male|group|parody|character|language):/i, "").trim();
+    return tag.replace(/\s+/g, " ");
+  }
+  function extraerTagsPagina() {
+    const listaTags = [];
+    const procesadosSet = /* @__PURE__ */ new Set();
+    try {
+      for (const selector of CONFIGURACION.selectoresTags) {
+        const elementos = document.querySelectorAll(selector);
+        if (elementos && elementos.length > 0) {
+          elementos.forEach((el) => {
+            const textoRaw = (el.textContent || "").trim();
+            const textoClean = limpiarNombreTag(textoRaw);
+            if (textoClean && !procesadosSet.has(textoClean)) {
+              procesadosSet.add(textoClean);
+              listaTags.push({
+                raw: textoRaw,
+                clean: textoClean
+              });
+            }
+          });
+          if (listaTags.length > 0) break;
+        }
+      }
+    } catch (e) {
+      console.error("Error al extraer tags de la p\xE1gina:", e);
+    }
+    return listaTags;
+  }
+  function formatearCadenaTags(tagsSeleccionados = []) {
+    if (!Array.isArray(tagsSeleccionados) || tagsSeleccionados.length === 0) {
+      return "";
+    }
+    const tagsValidos = tagsSeleccionados.map((t) => typeof t === "string" ? limpiarNombreTag(t) : "").filter(Boolean);
+    if (tagsValidos.length === 0) return "";
+    return ` \u2503 ${tagsValidos.join(" ")}`;
+  }
+  function obtenerNombreFinalCompleto(opciones = {}) {
+    const { tituloOriginal = "", autorFormateado = "", tagsSeleccionados = [] } = opciones;
+    let resultado = (tituloOriginal || document.title || "").trim();
+    if (autorFormateado && !resultado.includes(autorFormateado)) {
+      resultado = `${autorFormateado} ${resultado}`.trim();
+    }
+    const seccionTags = formatearCadenaTags(tagsSeleccionados);
+    if (seccionTags && !resultado.includes("\u2503")) {
+      resultado = `${resultado}${seccionTags}`;
+    }
+    return resultado;
+  }
+  var init_tags = __esm({
+    "src/core/tags.js"() {
+      init_constants();
+    }
+  });
+
+/* ════════════════════════════════════════════════════════════ */
 /*                MÓDULO: src/core/download.js                */
 /* ════════════════════════════════════════════════════════════ */
   function obtenerElementoBotonDescarga() {
@@ -403,7 +475,7 @@
     }
     return null;
   }
-  function confirmarYEjecutarClic(boton, esForzado = false) {
+  function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = []) {
     if (!boton) return false;
     let fueClickeadoConExito = false;
     try {
@@ -412,11 +484,19 @@
       const deshabilitadoPrevio = boton.disabled;
       const autor = extraerNombreAutor();
       const autorFormateado = formatearNombreAutor(autor);
-      if (autorFormateado) {
-        boton.setAttribute("data-hitomi-autor", autorFormateado);
-        const titlePrevio = boton.getAttribute("title") || "";
-        if (!titlePrevio.includes(autorFormateado)) {
-          boton.setAttribute("title", `${titlePrevio} ${autorFormateado}`.trim());
+      const nombreFinalCompleto = obtenerNombreFinalCompleto({
+        tituloOriginal: document.title,
+        autorFormateado,
+        tagsSeleccionados
+      });
+      if (nombreFinalCompleto) {
+        boton.setAttribute("data-hitomi-nombre-final", nombreFinalCompleto);
+        if (tagsSeleccionados.length > 0) {
+          boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsSeleccionados));
+        }
+        boton.setAttribute("title", nombreFinalCompleto);
+        if (boton.hasAttribute("download") || boton.tagName.toLowerCase() === "a") {
+          boton.setAttribute("download", nombreFinalCompleto);
         }
       }
       ESTADO.permitirClicForzado = true;
@@ -465,7 +545,7 @@
     return fueClickeadoConExito;
   }
   async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
-    const { forzar = false } = opciones;
+    const { forzar = false, tagsSeleccionados = [] } = opciones;
     if (ESTADO.ordenesEjecutadas.has(identificadorOrden)) {
       return "orden_repetida";
     }
@@ -484,7 +564,7 @@
     }
     try {
       ESTADO.ordenesEjecutadas.add(identificadorOrden);
-      const clicConfirmado = confirmarYEjecutarClic(boton, forzar);
+      const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados);
       if (!clicConfirmado) {
         console.warn(obtenerHora(), "Clic no confirmado o bloqueado en el elemento objetivo.");
         return "error_click";
@@ -506,6 +586,7 @@
       init_memory();
       init_badge();
       init_author();
+      init_tags();
     }
   });
 
@@ -530,7 +611,7 @@
   }
   function aplicarEstilosModal() {
     GM_addStyle(`
-    .hitomi-modal-backdrop {
+    .hitomi-modal-backdrop, .hitomi-tag-modal-backdrop {
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.7);
@@ -548,7 +629,7 @@
       to { opacity: 1; }
     }
 
-    .hitomi-modal-contenedor {
+    .hitomi-modal-contenedor, .hitomi-tag-modal-contenedor {
       background: #0d1117;
       color: #c9d1d9;
       border: 1px solid #30363d;
@@ -708,6 +789,68 @@
       border: 1px solid rgba(245, 158, 11, 0.3);
     }
 
+    /* Estilos del Selector de Tags */
+    .hitomi-btn-abrir-tags {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #21262d;
+      color: #58a6ff;
+      border: 1px solid #30363d;
+      cursor: pointer;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .hitomi-btn-abrir-tags:hover {
+      background: #30363d;
+      border-color: #58a6ff;
+    }
+
+    .hitomi-btn-abrir-tags.tiene-tags {
+      background: rgba(88, 166, 255, 0.15);
+      color: #79c0ff;
+      border-color: rgba(88, 166, 255, 0.4);
+    }
+
+    .hitomi-grid-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 0;
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+
+    .hitomi-pill-tag {
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #21262d;
+      color: #8b949e;
+      border: 1px solid #30363d;
+      cursor: pointer;
+      user-select: none;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+
+    .hitomi-pill-tag:hover {
+      border-color: #58a6ff;
+      color: #c9d1d9;
+    }
+
+    .hitomi-pill-tag.activa {
+      background: #1f6feb;
+      color: #ffffff;
+      border-color: #58a6ff;
+      font-weight: 600;
+      box-shadow: 0 0 8px rgba(31, 111, 235, 0.4);
+    }
+
     .hitomi-modal-vacio {
       text-align: center;
       padding: 30px 16px;
@@ -826,6 +969,94 @@
       ultimoCheckClickeado = checkbox;
     });
   }
+  function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponibles = [], callbackGuardar) {
+    const interfaz = crearInterfaz();
+    const backdropTag = document.createElement("div");
+    backdropTag.className = "hitomi-tag-modal-backdrop";
+    const tagsSeleccionadosSet = new Set(ESTADO.tagsSeleccionadosPorPestana.get(pestanaId) || []);
+    function escapeHtml(texto) {
+      return (texto || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+    backdropTag.innerHTML = `
+    <div class="hitomi-tag-modal-contenedor">
+      <div class="hitomi-modal-header">
+        <h3 class="hitomi-modal-titulo">
+          <span>\u{1F3F7}\uFE0F Seleccionar Tags para: ${escapeHtml(tituloPestana)}</span>
+        </h3>
+        <button class="hitomi-modal-cerrar" id="hitomi-tag-btn-cerrar">\u2715</button>
+      </div>
+
+      <div class="hitomi-modal-body">
+        <p class="hitomi-modal-instruccion">
+          Selecciona las etiquetas que deseas a\xF1adir al nombre del archivo concatenadas como <strong>\u2503 tag1 tag2</strong>:
+        </p>
+
+        ${tagsDisponibles.length === 0 ? `<div class="hitomi-modal-vacio"><p>No se encontraron etiquetas en esta p\xE1gina.</p></div>` : `<div class="hitomi-grid-tags" id="hitomi-contenedor-pills">
+                ${tagsDisponibles.map((t) => {
+      const tagClean = typeof t === "object" ? t.clean : t;
+      const estaActivo = tagsSeleccionadosSet.has(tagClean);
+      return `<div class="hitomi-pill-tag ${estaActivo ? "activa" : ""}" data-tag="${escapeHtml(tagClean)}">${escapeHtml(tagClean)}</div>`;
+    }).join("")}
+               </div>`}
+      </div>
+
+      <div class="hitomi-modal-footer">
+        <div class="hitomi-modal-acciones-secundarias">
+          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-tag-btn-todos">Seleccionar Todos</button>
+          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-tag-btn-ninguno">Limpiar Selecci\xF3n</button>
+        </div>
+        <div class="hitomi-modal-acciones-principales">
+          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-tag-btn-cancelar">Cancelar</button>
+          <button class="hitomi-btn hitomi-btn-primario" id="hitomi-tag-btn-guardar">Guardar Tags</button>
+        </div>
+      </div>
+    </div>
+  `;
+    interfaz.appendChild(backdropTag);
+    const contenedorPills = backdropTag.querySelector("#hitomi-contenedor-pills");
+    if (contenedorPills) {
+      contenedorPills.addEventListener("click", (ev) => {
+        const pill = ev.target.closest(".hitomi-pill-tag");
+        if (!pill) return;
+        const tagNombre = pill.getAttribute("data-tag");
+        if (tagsSeleccionadosSet.has(tagNombre)) {
+          tagsSeleccionadosSet.delete(tagNombre);
+          pill.classList.remove("activa");
+        } else {
+          tagsSeleccionadosSet.add(tagNombre);
+          pill.classList.add("activa");
+        }
+      });
+    }
+    const btnTodos = backdropTag.querySelector("#hitomi-tag-btn-todos");
+    if (btnTodos && contenedorPills) {
+      btnTodos.addEventListener("click", () => {
+        contenedorPills.querySelectorAll(".hitomi-pill-tag").forEach((pill) => {
+          const tagNombre = pill.getAttribute("data-tag");
+          tagsSeleccionadosSet.add(tagNombre);
+          pill.classList.add("activa");
+        });
+      });
+    }
+    const btnNinguno = backdropTag.querySelector("#hitomi-tag-btn-ninguno");
+    if (btnNinguno && contenedorPills) {
+      btnNinguno.addEventListener("click", () => {
+        tagsSeleccionadosSet.clear();
+        contenedorPills.querySelectorAll(".hitomi-pill-tag").forEach((pill) => {
+          pill.classList.remove("activa");
+        });
+      });
+    }
+    const cerrar = () => backdropTag.remove();
+    backdropTag.querySelector("#hitomi-tag-btn-cerrar").addEventListener("click", cerrar);
+    backdropTag.querySelector("#hitomi-tag-btn-cancelar").addEventListener("click", cerrar);
+    backdropTag.querySelector("#hitomi-tag-btn-guardar").addEventListener("click", () => {
+      const listaFinal = Array.from(tagsSeleccionadosSet);
+      ESTADO.tagsSeleccionadosPorPestana.set(pestanaId, listaFinal);
+      cerrar();
+      if (typeof callbackGuardar === "function") callbackGuardar(listaFinal);
+    });
+  }
   function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     let modoForzado = modoForzadoInicial;
     const interfaz = crearInterfaz();
@@ -855,23 +1086,30 @@
 
         <div class="hitomi-modal-body">
           <p class="hitomi-modal-instruccion">
-            ${modoForzado ? `Se re-ejecutar\xE1n descargas. Las marcadas como <strong>[\u26A0\uFE0F Re-descargada]</strong> o <strong>[\u26A0\uFE0F Ya descargada]</strong> volver\xE1n a ser clickeadas (${forzadasCount} en total).<br><small style="color:#8b949e">Usa <strong>Shift + Clic</strong> para seleccionar un rango de casillas.</small>` : 'Selecciona las pesta\xF1as a las que deseas enviar la orden de descarga:<br><small style="color:#8b949e">Usa <strong>Shift + Clic</strong> para seleccionar un rango de casillas.</small>'}
+            ${modoForzado ? `Se re-ejecutar\xE1n descargas. Las marcadas como <strong>[\u26A0\uFE0F Re-descargada]</strong> o <strong>[\u26A0\uFE0F Ya descargada]</strong> volver\xE1n a ser clickeadas (${forzadasCount} en total).<br><small style="color:#8b949e">Usa <strong>Shift + Clic</strong> para seleccionar rangos o la casilla <strong>\u{1F3F7}\uFE0F Tags</strong> para personalizar etiquetas.</small>` : 'Selecciona las pesta\xF1as a las que deseas enviar la orden de descarga:<br><small style="color:#8b949e">Usa <strong>Shift + Clic</strong> para seleccionar rangos o la casilla <strong>\u{1F3F7}\uFE0F Tags</strong> para personalizar etiquetas.</small>'}
           </p>
 
           ${totalPestanas === 0 ? `<div class="hitomi-modal-vacio">
                    <p>No se encontraron pesta\xF1as ${modoForzado ? "disponibles" : "pendientes"}.</p>
                  </div>` : `<div class="hitomi-modal-lista" id="hitomi-modal-lista-items">
                    ${pestanasInfo.map(
-        (p) => `
-                     <div class="hitomi-modal-item ${p.yaProcesada ? "es-forzada" : ""}">
-                       <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" checked />
-                       <div class="hitomi-modal-item-info">
-                         <div class="hitomi-modal-item-titulo">${escapeHtml(p.titulo)}</div>
-                         <div class="hitomi-modal-item-url">${escapeHtml(p.url)}</div>
-                       </div>
-                       ${p.yaProcesada ? `<span class="hitomi-item-tag hitomi-tag-forzada">${p.esForzada ? "\u26A0\uFE0F Re-descargada (Forzada)" : "\u26A0\uFE0F Ya descargada (Forzada)"}</span>` : `<span class="hitomi-item-tag hitomi-tag-nueva">Nueva</span>`}
-                     </div>
-                   `
+        (p) => {
+          const tagsSel = ESTADO.tagsSeleccionadosPorPestana.get(p.id) || [];
+          const tieneTags = tagsSel.length > 0;
+          return `
+                           <div class="hitomi-modal-item ${p.yaProcesada ? "es-forzada" : ""}">
+                             <input type="checkbox" class="hitomi-check-pestana" data-id="${p.id}" checked />
+                             <div class="hitomi-modal-item-info">
+                               <div class="hitomi-modal-item-titulo">${escapeHtml(p.titulo)}</div>
+                               <div class="hitomi-modal-item-url">${escapeHtml(p.url)}</div>
+                             </div>
+                             <button class="hitomi-btn-abrir-tags ${tieneTags ? "tiene-tags" : ""}" data-id="${p.id}" title="Seleccionar etiquetas para concatenar con \u2503">
+                               \u{1F3F7}\uFE0F Tags ${tieneTags ? `(${tagsSel.length})` : ""}
+                             </button>
+                             ${p.yaProcesada ? `<span class="hitomi-item-tag hitomi-tag-forzada">${p.esForzada ? "\u26A0\uFE0F Re-descargada (Forzada)" : "\u26A0\uFE0F Ya descargada (Forzada)"}</span>` : `<span class="hitomi-item-tag hitomi-tag-nueva">Nueva</span>`}
+                           </div>
+                         `;
+        }
       ).join("")}
                  </div>`}
         </div>
@@ -905,6 +1143,20 @@
       const listaItems = backdrop.querySelector("#hitomi-modal-lista-items");
       if (listaItems) {
         vincularSeleccionMultipleCheckboxes(listaItems);
+        listaItems.addEventListener("click", (ev) => {
+          const btnTags = ev.target.closest(".hitomi-btn-abrir-tags");
+          if (!btnTags) return;
+          const pId = btnTags.getAttribute("data-id");
+          const pInfo = pestanasInfo.find((item) => item.id === pId);
+          if (!pInfo) return;
+          mostrarModalSeleccionTags(
+            pId,
+            pInfo.titulo,
+            pInfo.tagsDisponibles || [],
+            ESTADO.tagsSeleccionadosPorPestana.get(pId) || [],
+            () => renderizarContenidoModal()
+          );
+        });
       }
       backdrop.querySelector("#hitomi-btn-cerrar-modal").addEventListener("click", cerrarModal);
       backdrop.querySelector("#hitomi-btn-cancelar").addEventListener("click", cerrarModal);
@@ -1103,9 +1355,11 @@
       const tieneBoton = boton && elementoVisible(boton) ? 1 : 0;
       if (ESTADO.ultimoEstadoPublicado !== tieneBoton) {
         const tituloConAutor = obtenerTituloConAutor(document.title || location.href);
+        const tagsDisponibles = extraerTagsPagina();
         GM_setValue(CLAVES.presencia(ID_PESTANA), tieneBoton);
         GM_setValue(CLAVES.urlPestana(ID_PESTANA), location.href);
         GM_setValue(CLAVES.tituloPestana(ID_PESTANA), tituloConAutor);
+        GM_setValue(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
         ESTADO.ultimoEstadoPublicado = tieneBoton;
       }
     } catch (e) {
@@ -1119,6 +1373,7 @@
       GM_deleteValue(CLAVES.presencia(ID_PESTANA));
       GM_deleteValue(CLAVES.urlPestana(ID_PESTANA));
       GM_deleteValue(CLAVES.tituloPestana(ID_PESTANA));
+      GM_deleteValue(CLAVES.tagsPestana(ID_PESTANA));
     } catch {
     }
   }
@@ -1138,11 +1393,13 @@
         if (!url) continue;
         const estado = obtenerEstadoPaginaProcesada(url, memoria);
         const titulo = GM_getValue(CLAVES.tituloPestana(id), url);
+        const tagsDisponibles = GM_getValue(CLAVES.tagsPestana(id), []);
         if (!estado.procesada || incluirProcesadas) {
           resultado.push({
             id,
             url,
             titulo,
+            tagsDisponibles,
             yaProcesada: estado.procesada,
             esForzada: estado.esForzada
           });
@@ -1169,16 +1426,18 @@
       let procesadas = 0;
       for (const idPestana of pesta\u00F1as) {
         const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(idPestana) || [];
         let respuesta = null;
         if (idPestana === ID_PESTANA) {
-          respuesta = await ejecutarOrdenDescarga(nonce, { forzar });
+          respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados });
         } else {
           const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
           GM_deleteValue(claveRespuesta);
           GM_setValue(CLAVES.orden, {
             pesta\u00F1aDestino: idPestana,
             nonce,
-            forzar
+            forzar,
+            tagsSeleccionados
           });
           const inicio = Date.now();
           while (Date.now() - inicio < CONFIGURACION.tiempoRespuestaPestana) {
@@ -1218,6 +1477,7 @@
         if (presencia === null) {
           GM_deleteValue(clave);
           GM_deleteValue(CLAVES.tituloPestana(id));
+          GM_deleteValue(CLAVES.tagsPestana(id));
         }
       }
     } catch {
@@ -1233,6 +1493,7 @@
       init_badge();
       init_pill();
       init_author();
+      init_tags();
       publicandoEstado = false;
     }
   });
@@ -1272,11 +1533,14 @@
               if (!cambioRemoto || !valorNuevo || typeof valorNuevo !== "object") {
                 return;
               }
-              const { pesta\u00F1aDestino, nonce, forzar } = valorNuevo;
+              const { pesta\u00F1aDestino, nonce, forzar, tagsSeleccionados } = valorNuevo;
               if (pesta\u00F1aDestino !== ID_PESTANA) {
                 return;
               }
-              const resultado = await ejecutarOrdenDescarga(nonce, { forzar: !!forzar });
+              const resultado = await ejecutarOrdenDescarga(nonce, {
+                forzar: !!forzar,
+                tagsSeleccionados: tagsSeleccionados || []
+              });
               try {
                 GM_setValue(CLAVES.respuesta(nonce, ID_PESTANA), resultado);
               } catch (e) {
@@ -1297,7 +1561,7 @@
         publicarEstadoPestana();
         registrarObservadorDOM();
         registrarEscuchadorOrdenesIPC();
-        console.info(obtenerHora(), "Hitomi Clicker modular iniciado", {
+        console.info(obtenerHora(), "Hitomi Clicker iniciado con soporte para Tags \u2503 + tags", {
           pesta\u00F1a: ID_PESTANA,
           pagina: location.href
         });

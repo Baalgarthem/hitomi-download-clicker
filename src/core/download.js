@@ -7,6 +7,7 @@ import { elementoVisible, esperar, obtenerHora } from '../utils/dom.js';
 import { obtenerEstadoPaginaProcesada, guardarPaginaProcesada } from './memory.js';
 import { vincularEventosBotonDescarga, marcarBotonComoProcesado } from '../ui/badge.js';
 import { extraerNombreAutor, formatearNombreAutor } from './author.js';
+import { obtenerNombreFinalCompleto, formatearCadenaTags } from './tags.js';
 
 export function obtenerElementoBotonDescarga() {
   try {
@@ -70,7 +71,7 @@ export async function buscarBotonDescarga(opciones = {}) {
   return null;
 }
 
-export function confirmarYEjecutarClic(boton, esForzado = false) {
+export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionados = []) {
   if (!boton) return false;
 
   let fueClickeadoConExito = false;
@@ -80,14 +81,23 @@ export function confirmarYEjecutarClic(boton, esForzado = false) {
     const estiloPointerPrevio = boton.style.pointerEvents;
     const deshabilitadoPrevio = boton.disabled;
 
-    // Inyectar atributo de autor formateado con comillas japonesas si está disponible
+    // Extraer autor y formatear el nombre final completo: 「Artista」 Nombre ┃ tags
     const autor = extraerNombreAutor();
     const autorFormateado = formatearNombreAutor(autor);
-    if (autorFormateado) {
-      boton.setAttribute("data-hitomi-autor", autorFormateado);
-      const titlePrevio = boton.getAttribute("title") || "";
-      if (!titlePrevio.includes(autorFormateado)) {
-        boton.setAttribute("title", `${titlePrevio} ${autorFormateado}`.trim());
+    const nombreFinalCompleto = obtenerNombreFinalCompleto({
+      tituloOriginal: document.title,
+      autorFormateado,
+      tagsSeleccionados
+    });
+
+    if (nombreFinalCompleto) {
+      boton.setAttribute("data-hitomi-nombre-final", nombreFinalCompleto);
+      if (tagsSeleccionados.length > 0) {
+        boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsSeleccionados));
+      }
+      boton.setAttribute("title", nombreFinalCompleto);
+      if (boton.hasAttribute("download") || boton.tagName.toLowerCase() === "a") {
+        boton.setAttribute("download", nombreFinalCompleto);
       }
     }
 
@@ -143,7 +153,7 @@ export function confirmarYEjecutarClic(boton, esForzado = false) {
 }
 
 export async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
-  const { forzar = false } = opciones;
+  const { forzar = false, tagsSeleccionados = [] } = opciones;
 
   if (ESTADO.ordenesEjecutadas.has(identificadorOrden)) {
     return "orden_repetida";
@@ -169,7 +179,7 @@ export async function ejecutarOrdenDescarga(identificadorOrden, opciones = {}) {
   try {
     ESTADO.ordenesEjecutadas.add(identificadorOrden);
 
-    const clicConfirmado = confirmarYEjecutarClic(boton, forzar);
+    const clicConfirmado = confirmarYEjecutarClic(boton, forzar, tagsSeleccionados);
 
     if (!clicConfirmado) {
       console.warn(obtenerHora(), "Clic no confirmado o bloqueado en el elemento objetivo.");

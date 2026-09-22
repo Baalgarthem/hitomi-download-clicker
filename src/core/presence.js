@@ -9,6 +9,7 @@ import { buscarBotonDescarga, ejecutarOrdenDescarga } from './download.js';
 import { marcarBotonComoProcesado } from '../ui/badge.js';
 import { mostrarEstado } from '../ui/pill.js';
 import { obtenerTituloConAutor } from './author.js';
+import { extraerTagsPagina } from './tags.js';
 
 let publicandoEstado = false;
 
@@ -29,10 +30,12 @@ export async function publicarEstadoPestana() {
 
     if (ESTADO.ultimoEstadoPublicado !== tieneBoton) {
       const tituloConAutor = obtenerTituloConAutor(document.title || location.href);
+      const tagsDisponibles = extraerTagsPagina();
 
       GM_setValue(CLAVES.presencia(ID_PESTANA), tieneBoton);
       GM_setValue(CLAVES.urlPestana(ID_PESTANA), location.href);
       GM_setValue(CLAVES.tituloPestana(ID_PESTANA), tituloConAutor);
+      GM_setValue(CLAVES.tagsPestana(ID_PESTANA), tagsDisponibles);
       ESTADO.ultimoEstadoPublicado = tieneBoton;
     }
   } catch (e) {
@@ -47,6 +50,7 @@ export function eliminarPresenciaPestana() {
     GM_deleteValue(CLAVES.presencia(ID_PESTANA));
     GM_deleteValue(CLAVES.urlPestana(ID_PESTANA));
     GM_deleteValue(CLAVES.tituloPestana(ID_PESTANA));
+    GM_deleteValue(CLAVES.tagsPestana(ID_PESTANA));
   } catch { }
 }
 
@@ -70,12 +74,14 @@ export function obtenerInformacionPestanas(incluirProcesadas = false) {
 
       const estado = obtenerEstadoPaginaProcesada(url, memoria);
       const titulo = GM_getValue(CLAVES.tituloPestana(id), url);
+      const tagsDisponibles = GM_getValue(CLAVES.tagsPestana(id), []);
 
       if (!estado.procesada || incluirProcesadas) {
         resultado.push({
           id,
           url,
           titulo,
+          tagsDisponibles,
           yaProcesada: estado.procesada,
           esForzada: estado.esForzada
         });
@@ -110,10 +116,11 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
 
     for (const idPestana of pestañas) {
       const nonce = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const tagsSeleccionados = ESTADO.tagsSeleccionadosPorPestana.get(idPestana) || [];
       let respuesta = null;
 
       if (idPestana === ID_PESTANA) {
-        respuesta = await ejecutarOrdenDescarga(nonce, { forzar });
+        respuesta = await ejecutarOrdenDescarga(nonce, { forzar, tagsSeleccionados });
       } else {
         const claveRespuesta = CLAVES.respuesta(nonce, idPestana);
         GM_deleteValue(claveRespuesta);
@@ -121,7 +128,8 @@ export async function recorrerPestanasDescarga(pastilla, listaIds = null, opcion
         GM_setValue(CLAVES.orden, {
           pestañaDestino: idPestana,
           nonce,
-          forzar
+          forzar,
+          tagsSeleccionados
         });
 
         const inicio = Date.now();
@@ -169,6 +177,7 @@ export function limpiarRegistrosPestanasAntiguas() {
       if (presencia === null) {
         GM_deleteValue(clave);
         GM_deleteValue(CLAVES.tituloPestana(id));
+        GM_deleteValue(CLAVES.tagsPestana(id));
       }
     }
   } catch { }

@@ -12,16 +12,17 @@ hitomi-download-clicker/
 │   │   └── constants.js       # Configuración global, claves GM y constantes
 │   ├── core/                  # 🧠 El cerebro y la lógica principal
 │   │   ├── author.js          # Extracción de autor y formateo 「xxxx」
-│   │   ├── download.js        # Detección multinivel de botón y ejecutor de clics
+│   │   ├── download.js        # Detección multinivel de botón, inyección de título final y ejecutor
 │   │   ├── memory.js          # Almacenamiento persistente en GM_storage
-│   │   └── presence.js        # Presencia IPC e intercomunicación entre pestañas
+│   │   ├── presence.js        # Presencia IPC e intercomunicación entre pestañas (URL, títulos, tags)
+│   │   └── tags.js            # 🏷️ Extracción y formateador de Tags con delimitador ┃ + tags
 │   ├── ui/                    # 🎨 Interfaz gráfica de usuario
 │   │   ├── badge.js           # Insignias visuales de estado (Descargado / Re-descargado)
-│   │   ├── modal.js           # Diálogo popup interactivo con selección múltiple (Shift/Ctrl)
+│   │   ├── modal.js           # Diálogo popup principal y sub-modal selector de tags
 │   │   └── pill.js            # Pastilla flotante de control principal
 │   ├── utils/                 # 🛠️ Funciones auxiliares y manipulación DOM
 │   │   └── dom.js             # Normalización de URLs, visibilidad y retardos
-│   └── index.js               # 🚀 Punto de Entrada: orquesta los módulos
+│   └── index.js               # 🚀 Punto de Entrada: orquesta los módulos e inicializa escuchadores
 ├── docs/                      # 📚 Documentación técnica y registros (Ignorado en Git)
 ├── dist/                      # 📦 Código construido listo para usarse (Ignorado en Git)
 ├── build.js                   # 🚀 Deployment Manager (Build, Publish y Auto-Push)
@@ -32,10 +33,6 @@ hitomi-download-clicker/
 
 ## Propósito Conceptual de los Módulos
 
-- `build.js`: Deployment Manager automatizado que gestiona compilaciones con esbuild, bump de versiones en publicados y sincronización automática mediante `git push`.
-- `src/config/constants.js`: Almacena selectores, identificadores y claves compartidas.
-- `src/core/author.js`: Detecta `<h2 id="artists">` y formateadores de autores envolviéndolos entre comillas japonesas `「xxxx」`.
-- `src/core/download.js`: Ejecuta la detección en cascada y confirma la emisión real del clic.
-- `src/core/memory.js`: Mantiene el mapa persistente de páginas descargadas y re-descargadas.
-- `src/core/presence.js`: Publica estados y procesa órdenes IPC entre pestañas abiertas.
-- `src/ui/`: Módulos visuales independientes para badges, diálogos modales y la pastilla flotante.
+- `src/core/tags.js`: Escanea el contenedor `<ul id="tags" class="tags">`, limpia símbolos de género (`♀`, `♂`) y concatena etiquetas seleccionadas con el símbolo ` ┃ + tags`.
+- `src/ui/modal.js`: Renderiza la lista de pestañas detectadas y despliega el menú emergente selector de tags dinámico por cada comic.
+- `src/core/download.js`: Inyecta el nombre formateado `「Artista」 Nombre del Comic ┃ tag1 tag2` en el atributo de descarga del botón `#dl-button`.
