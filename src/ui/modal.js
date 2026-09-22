@@ -561,11 +561,14 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
 
         <div class="hitomi-custom-tags-contenedor">
           <div style="font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 6px;">
-            ✍️ Ingresar Tags Personalizados Manualmente:
+            ✍️ Ingresar Tags Personalizados Manualmente (separados por ESPACIOS):
           </div>
           <div style="display: flex; gap: 8px;">
-            <input type="text" id="hitomi-input-custom-tag" placeholder="Escribe un tag (o varios separados por comas) y presiona Enter..." class="hitomi-input-custom-tag-field" title="Escribe etiquetas adicionales separadas por comas (ej. schoolgirl, color) y presiona Enter o el botón Añadir" />
-            <button type="button" id="hitomi-btn-add-custom-tag" class="hitomi-btn hitomi-btn-secundario" style="white-space: nowrap;" title="Añadir la etiqueta escrita a la lista de selección">➕ Añadir Tag</button>
+            <input type="text" id="hitomi-input-custom-tag" placeholder="Escribe tags separados por ESPACIOS (ej. schoolgirl blonde)..." class="hitomi-input-custom-tag-field" title="⚠️ Importante: Separa cada etiqueta ÚNICAMENTE con ESPACIOS (ej. schoolgirl blonde female). No se permiten comas ni caracteres especiales." />
+            <button type="button" id="hitomi-btn-add-custom-tag" class="hitomi-btn hitomi-btn-secundario" style="white-space: nowrap;" title="Añadir la etiqueta o etiquetas ingresadas a la lista de selección">➕ Añadir Tag</button>
+          </div>
+          <div id="hitomi-custom-tag-warning" style="display: none; font-size: 11px; color: #f87171; margin-top: 6px; font-weight: 600; align-items: center; gap: 4px;">
+            ⚠️ Carácter no permitido bloqueado. Usa únicamente ESPACIOS para separar etiquetas (ej. schoolgirl blonde).
           </div>
         </div>
 
@@ -595,7 +598,38 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
 
   const inputCustom = backdropTag.querySelector("#hitomi-input-custom-tag");
   const btnAddCustom = backdropTag.querySelector("#hitomi-btn-add-custom-tag");
+  const warningCustom = backdropTag.querySelector("#hitomi-custom-tag-warning");
   const contenedorPills = backdropTag.querySelector("#hitomi-contenedor-pills");
+
+  let timerWarningTag = null;
+
+  function validarYLimpiarEntradaCustomTag() {
+    if (!inputCustom) return;
+    const valOriginal = inputCustom.value;
+    // Permite letras (incluyendo acentuadas), números, guiones, guiones bajos y espacios
+    const valLimpio = valOriginal.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_\-\s]/g, "");
+
+    if (valOriginal !== valLimpio) {
+      inputCustom.value = valLimpio;
+
+      if (warningCustom) {
+        warningCustom.style.display = "flex";
+        if (timerWarningTag) clearTimeout(timerWarningTag);
+        timerWarningTag = setTimeout(() => {
+          warningCustom.style.display = "none";
+        }, 3500);
+      }
+
+      inputCustom.style.borderColor = "#f87171";
+      inputCustom.style.boxShadow = "0 0 0 2px rgba(248, 113, 113, 0.3)";
+      setTimeout(() => {
+        if (inputCustom) {
+          inputCustom.style.borderColor = "";
+          inputCustom.style.boxShadow = "";
+        }
+      }, 1500);
+    }
+  }
 
   function actualizarGridPills() {
     if (contenedorPills) {
@@ -605,10 +639,13 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
 
   function agregarTagPersonalizado() {
     if (!inputCustom) return;
+    validarYLimpiarEntradaCustomTag();
+
     const valorBruto = inputCustom.value || "";
     if (!valorBruto.trim()) return;
 
-    const tagsNuevos = valorBruto.split(",").map(t => limpiarNombreTag(t)).filter(Boolean);
+    // Separar por espacios en blanco (\s+) en lugar de comas
+    const tagsNuevos = valorBruto.split(/\s+/).map(t => limpiarNombreTag(t)).filter(Boolean);
     if (tagsNuevos.length === 0) return;
 
     tagsNuevos.forEach(tagClean => {
@@ -617,6 +654,7 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
     });
 
     inputCustom.value = "";
+    if (warningCustom) warningCustom.style.display = "none";
     actualizarGridPills();
   }
 
@@ -625,6 +663,8 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
   }
 
   if (inputCustom) {
+    inputCustom.addEventListener("input", validarYLimpiarEntradaCustomTag);
+    inputCustom.addEventListener("paste", () => setTimeout(validarYLimpiarEntradaCustomTag, 10));
     inputCustom.addEventListener("keydown", ev => {
       if (ev.key === "Enter") {
         ev.preventDefault();

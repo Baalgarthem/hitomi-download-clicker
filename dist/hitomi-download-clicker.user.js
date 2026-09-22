@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.9.0
+// @version      1.9.1
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -1492,11 +1492,14 @@
 
         <div class="hitomi-custom-tags-contenedor">
           <div style="font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 6px;">
-            \u270D\uFE0F Ingresar Tags Personalizados Manualmente:
+            \u270D\uFE0F Ingresar Tags Personalizados Manualmente (separados por ESPACIOS):
           </div>
           <div style="display: flex; gap: 8px;">
-            <input type="text" id="hitomi-input-custom-tag" placeholder="Escribe un tag (o varios separados por comas) y presiona Enter..." class="hitomi-input-custom-tag-field" title="Escribe etiquetas adicionales separadas por comas (ej. schoolgirl, color) y presiona Enter o el bot\xF3n A\xF1adir" />
-            <button type="button" id="hitomi-btn-add-custom-tag" class="hitomi-btn hitomi-btn-secundario" style="white-space: nowrap;" title="A\xF1adir la etiqueta escrita a la lista de selecci\xF3n">\u2795 A\xF1adir Tag</button>
+            <input type="text" id="hitomi-input-custom-tag" placeholder="Escribe tags separados por ESPACIOS (ej. schoolgirl blonde)..." class="hitomi-input-custom-tag-field" title="\u26A0\uFE0F Importante: Separa cada etiqueta \xDANICAMENTE con ESPACIOS (ej. schoolgirl blonde female). No se permiten comas ni caracteres especiales." />
+            <button type="button" id="hitomi-btn-add-custom-tag" class="hitomi-btn hitomi-btn-secundario" style="white-space: nowrap;" title="A\xF1adir la etiqueta o etiquetas ingresadas a la lista de selecci\xF3n">\u2795 A\xF1adir Tag</button>
+          </div>
+          <div id="hitomi-custom-tag-warning" style="display: none; font-size: 11px; color: #f87171; margin-top: 6px; font-weight: 600; align-items: center; gap: 4px;">
+            \u26A0\uFE0F Car\xE1cter no permitido bloqueado. Usa \xFAnicamente ESPACIOS para separar etiquetas (ej. schoolgirl blonde).
           </div>
         </div>
 
@@ -1524,7 +1527,32 @@
     interfaz.appendChild(backdropTag);
     const inputCustom = backdropTag.querySelector("#hitomi-input-custom-tag");
     const btnAddCustom = backdropTag.querySelector("#hitomi-btn-add-custom-tag");
+    const warningCustom = backdropTag.querySelector("#hitomi-custom-tag-warning");
     const contenedorPills = backdropTag.querySelector("#hitomi-contenedor-pills");
+    let timerWarningTag = null;
+    function validarYLimpiarEntradaCustomTag() {
+      if (!inputCustom) return;
+      const valOriginal = inputCustom.value;
+      const valLimpio = valOriginal.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_\-\s]/g, "");
+      if (valOriginal !== valLimpio) {
+        inputCustom.value = valLimpio;
+        if (warningCustom) {
+          warningCustom.style.display = "flex";
+          if (timerWarningTag) clearTimeout(timerWarningTag);
+          timerWarningTag = setTimeout(() => {
+            warningCustom.style.display = "none";
+          }, 3500);
+        }
+        inputCustom.style.borderColor = "#f87171";
+        inputCustom.style.boxShadow = "0 0 0 2px rgba(248, 113, 113, 0.3)";
+        setTimeout(() => {
+          if (inputCustom) {
+            inputCustom.style.borderColor = "";
+            inputCustom.style.boxShadow = "";
+          }
+        }, 1500);
+      }
+    }
     function actualizarGridPills() {
       if (contenedorPills) {
         contenedorPills.innerHTML = generarHtmlPills();
@@ -1532,21 +1560,25 @@
     }
     function agregarTagPersonalizado() {
       if (!inputCustom) return;
+      validarYLimpiarEntradaCustomTag();
       const valorBruto = inputCustom.value || "";
       if (!valorBruto.trim()) return;
-      const tagsNuevos = valorBruto.split(",").map((t) => limpiarNombreTag(t)).filter(Boolean);
+      const tagsNuevos = valorBruto.split(/\s+/).map((t) => limpiarNombreTag(t)).filter(Boolean);
       if (tagsNuevos.length === 0) return;
       tagsNuevos.forEach((tagClean) => {
         tagsSeleccionadosSet.add(tagClean);
         todosLosTagsDisponibles.add(tagClean);
       });
       inputCustom.value = "";
+      if (warningCustom) warningCustom.style.display = "none";
       actualizarGridPills();
     }
     if (btnAddCustom) {
       btnAddCustom.addEventListener("click", agregarTagPersonalizado);
     }
     if (inputCustom) {
+      inputCustom.addEventListener("input", validarYLimpiarEntradaCustomTag);
+      inputCustom.addEventListener("paste", () => setTimeout(validarYLimpiarEntradaCustomTag, 10));
       inputCustom.addEventListener("keydown", (ev) => {
         if (ev.key === "Enter") {
           ev.preventDefault();

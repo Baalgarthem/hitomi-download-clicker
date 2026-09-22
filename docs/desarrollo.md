@@ -2,6 +2,14 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.9.1 (Validación Estricta de Tags Personalizados por Espacios y Bloqueador de Caracteres)
+- **Separación Obligatoria por Espacios (`src/ui/modal.js`)**:
+  - Actualización del parsing de tags manuales para separar los términos utilizando espacios (`\s+`) en lugar de comas.
+  - Corrección de la indicación en la interfaz y el texto de ayuda hover (`title="⚠️ Importante: Separa cada etiqueta ÚNICAMENTE con ESPACIOS..."`).
+- **Bloqueo de Caracteres No Permitidos y Aviso Visual (`src/ui/modal.js`)**:
+  - Implementación de `validarYLimpiarEntradaCustomTag()` para filtrar en tiempo real cualquier carácter fuera de `[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_\-\s]`.
+  - Muestra interactiva del aviso `#hitomi-custom-tag-warning` y parpadeo de borde en rojo (`#f87171`) ante cualquier intento de ingresar comas, barras o caracteres especiales no permitidos.
+
 ## Versión 1.9.0 (Rediseño Estético Paleta Hitomi, Icono Oficial, Botones Compactos y Tooltips Informativos)
 - **Rediseño Visual con Paleta Oficial de Hitomi (`src/ui/pill.js` & `src/ui/modal.js`)**:
   - Aplicación del esquema de colores oficial de Hitomi (`#3d4e5e` / `#2d3b47` en degradados de cabecera, acento púrpura suave `#b580b5` en bordes inferiores de títulos, contenedores en gris oscuro slate `#11151c` y tarjetas `#192028`).
