@@ -75,10 +75,10 @@ export async function buscarBotonDescarga(opciones = {}) {
 
 /**
  * Genera y resuelve el nombre de archivo final completo con su extensión (.cbz o la original del enlace).
- * Retorna siempre un nombre limpio sin barras de subcarpeta, apto para inyectar en atributos HTML (a.download, title).
- * La composición de ruta personalizada para GM_download se realiza directamente en confirmarYEjecutarClic.
- * @param {string} referenciaUrl - Atributo href, download o URL de referencia para inferir la extensión del archivo.
- * @returns {string} Nombre completo formateado listo para inyectar en el navegador.
+ * Retorna SIEMPRE un nombre de archivo limpio sin barras de ruta ni prefijos de subcarpeta.
+ * Garantía de seguridad: el resultado pasa por un guard final que elimina cualquier separador de ruta.
+ * @param {string} referenciaUrl - URL de referencia para inferir la extensión del archivo.
+ * @returns {string} Nombre de archivo seguro, listo para inyectar en a.download o title.
  */
 export function generarNombreFinalConExtension(referenciaUrl = "") {
   let nombreBase = ESTADO.ultimoNombreFinal;
@@ -101,20 +101,27 @@ export function generarNombreFinalConExtension(referenciaUrl = "") {
   if (!nombreBase) return "";
 
   const usarCbz = leerValorGM(CLAVES.usarCbz, false);
-  const baseLimpia = nombreBase.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
+  // Strip de extensiones previas para evitar doble .cbz.cbz o .zip.cbz
+  const baseLimpia = nombreBase.replace(/\.(zip|cbz)$/i, "");
 
+  let resultado;
   if (usarCbz) {
-    return `${baseLimpia}.cbz`;
+    resultado = `${baseLimpia}.cbz`;
+  } else {
+    // Inferir extensión desde la URL de referencia; si no aplica, usar .zip por defecto
+    const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
+    let extension = matchExt ? `.${matchExt[1]}` : ".zip";
+    // Si la URL referencia un .cbz pero el usuario no activó la opción, usar .zip
+    if (extension.toLowerCase() === ".cbz" && !usarCbz) {
+      extension = ".zip";
+    }
+    resultado = `${baseLimpia}${extension}`;
   }
 
-  const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
-  let extension = matchExt ? `.${matchExt[1]}` : ".zip";
-  // Si la referencia apunta a un .cbz pero el usuario no activó la opción, usar .zip
-  if (extension.toLowerCase() === ".cbz" && !usarCbz) {
-    extension = ".zip";
-  }
-
-  return `${baseLimpia}${extension}`;
+  // ─── GUARDIA DE SEGURIDAD FINAL ───────────────────────────────────────────
+  // El nombre de archivo retornado JAMÁS debe contener separadores de ruta.
+  // Esta línea es el último eslabón de defensa contra filtraciones de rutas.
+  return resultado.replace(/[/\\]/g, "-");
 }
 
 
@@ -318,32 +325,10 @@ export function interceptarDescargasNativas() {
         };
       } catch { }
 
-      // 5. Property descriptor setter override for .href
-      try {
-        const descriptorHref = Object.getOwnPropertyDescriptor(HTMLAnchorElement.prototype, "href");
-        if (descriptorHref && descriptorHref.set) {
-          const originalSetHref = descriptorHref.set;
-          Object.defineProperty(HTMLAnchorElement.prototype, "href", {
-            set: function (valor) {
-              const res = originalSetHref.call(this, valor);
-              try {
-                if (esElementoBotonDescarga(this)) {
-                  const ref = valor || this.getAttribute("download") || this.download || "";
-                  const nombreConExt = generarNombreFinalConExtension(ref);
-                  if (nombreConExt) {
-                    this.setAttribute("download", nombreConExt);
-                    this.download = nombreConExt;
-                  }
-                }
-              } catch { }
-              return res;
-            },
-            get: descriptorHref.get,
-            configurable: true,
-            enumerable: true
-          });
-        }
-      } catch { }
+      // 5. Interceptor .href: eliminado intencionalmente.
+      // El setter de .href era demasiado agresivo: disparaba en cualquier asignación href
+      // (incluyendo navegación normal) e intentaba calcular filenames antes de que
+      // ESTADO.ultimoNombreFinal estuviera disponible, causando efectos secundarios imprevisibles.
     }
 
     // 6. Intercepción de URL.createObjectURL
@@ -376,33 +361,21 @@ export function interceptarDescargasNativas() {
     }
 
 
-    // 7. Intercepción de Fetch API
+    // 7. Intercepción de Fetch API — solo observación, sin modificar el flujo
     if (typeof window !== "undefined" && typeof window.fetch === "function") {
       try {
         const originalFetch = window.fetch;
         window.fetch = async function (input, init) {
-          try {
-            const urlStr = typeof input === "string" ? input : (input && input.url ? input.url : "");
-            if (urlStr && (urlStr.endsWith(".zip") || urlStr.endsWith(".cbz") || urlStr.includes("/download/"))) {
-              generarNombreFinalConExtension(urlStr);
-            }
-          } catch { }
           return originalFetch.apply(this, arguments);
         };
       } catch { }
     }
 
-    // 8. Intercepción de XMLHttpRequest (XHR)
+    // 8. Intercepción de XMLHttpRequest — solo observación, sin modificar el flujo
     if (typeof XMLHttpRequest !== "undefined" && XMLHttpRequest.prototype && typeof XMLHttpRequest.prototype.open === "function") {
       try {
         const originalXhrOpen = XMLHttpRequest.prototype.open;
         XMLHttpRequest.prototype.open = function (method, url, ...resto) {
-          try {
-            const urlStr = typeof url === "string" ? url : (url ? url.toString() : "");
-            if (urlStr && (urlStr.endsWith(".zip") || urlStr.endsWith(".cbz") || urlStr.includes("/download/"))) {
-              generarNombreFinalConExtension(urlStr);
-            }
-          } catch { }
           return originalXhrOpen.call(this, method, url, ...resto);
         };
       } catch { }
@@ -488,18 +461,23 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
         if ("download" in el) el.download = nombreLimpioConExt;
       });
 
-      // Verificar si hay ruta de subcarpeta personalizada configurada
+      // ═══════════════════════════════════════════════════════════════════════
+      // RUTA PERSONALIZADA (GM_download) — DESHABILITADO TEMPORALMENTE
+      // La funcionalidad de ruta personalizada vía GM_download está en revisión.
+      // Se encontraron incompatibilidades con el flujo de descarga nativo que causaban:
+      //   - La ruta siendo usada como prefijo en el nombre del archivo
+      //   - Doble compresión en archivos .cbz (zip dentro de zip)
+      //   - Interferencia entre GM_download y el clic nativo simultáneo
+      // Se habilitará únicamente cuando el usuario lo confirme expresamente.
+      // Para re-habilitar: cambiar la constante a !!rutaLimpia y descomentar el bloque.
+      // ═══════════════════════════════════════════════════════════════════════
       const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
       const rutaLimpia = sanearRutaSubcarpeta(rutaCustom);
-      const tieneRutaPersonalizada = !!rutaLimpia;
+      const tieneRutaPersonalizada = false; // DESHABILITADO — ver comentario de arriba
 
-      // Solo usar GM_download cuando hay ruta personalizada configurada.
-      // Sin ruta personalizada, el clic nativo es suficiente y más confiable.
+      /* BLOQUE GM_DOWNLOAD — DESHABILITADO (descomentar solo cuando se re-habilite la funcionalidad):
       if (tieneRutaPersonalizada && typeof GM_download === "function") {
-        // Construir nombre con subcarpeta únicamente para GM_download
         const nombreConRuta = `${rutaLimpia}/${nombreLimpioConExt}`;
-
-        // Extraer URL absoluta del enlace de descarga
         let hrefRaw = (
           boton.getAttribute("href") ||
           boton.href ||
@@ -508,27 +486,18 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
         ).trim();
         let downloadUrl = "";
         if (hrefRaw) {
-          try {
-            downloadUrl = new URL(hrefRaw, location.href).href;
-          } catch {
-            downloadUrl = hrefRaw;
-          }
+          try { downloadUrl = new URL(hrefRaw, location.href).href; } catch { downloadUrl = hrefRaw; }
         }
-
         if (downloadUrl && (downloadUrl.startsWith("http") || downloadUrl.startsWith("blob"))) {
           let ejecucionExitosaGM = false;
           try {
-            console.log(obtenerHora(), "Iniciando GM_download hacia subcarpeta:", nombreConRuta);
             GM_download({
               url: downloadUrl,
               name: nombreConRuta,
               saveAs: false,
-              onload: () => {
-                console.log(obtenerHora(), "Descarga guardada en subcarpeta:", nombreConRuta);
-              },
+              onload: () => console.log(obtenerHora(), "GM_download OK:", nombreConRuta),
               onerror: (error) => {
-                console.warn(obtenerHora(), "GM_download falló, recurriendo a clic nativo:", error);
-                // Fallback: clic nativo con nombre limpio ya inyectado en a.download
+                console.warn(obtenerHora(), "GM_download falló, clic nativo:", error);
                 ESTADO.permitirClicForzado = true;
                 if (typeof boton.click === "function") boton.click();
                 ESTADO.permitirClicForzado = false;
@@ -537,23 +506,21 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
             ejecucionExitosaGM = true;
             fueClickeadoConExito = true;
           } catch (errGM) {
-            console.warn("Excepción al invocar GM_download:", errGM);
-            ejecucionExitosaGM = false;
+            console.warn("Excepción GM_download:", errGM);
           }
-
           if (ejecucionExitosaGM) {
+            ESTADO.permitirClicForzado = false;
             if (esForzado) {
-              ESTADO.permitirClicForzado = false;
               if (teniaProcesado) boton.setAttribute("data-hitomi-procesado", teniaProcesado);
               boton.style.pointerEvents = estiloPointerPrevio;
               if ("disabled" in boton) boton.disabled = deshabilitadoPrevio;
-            } else {
-              ESTADO.permitirClicForzado = false;
             }
             return true;
           }
         }
       }
+      */
+      void rutaLimpia; // Silenciar warning de variable no usada mientras está deshabilitado
     }
 
     ESTADO.permitirClicForzado = true;

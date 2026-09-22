@@ -1045,9 +1045,16 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                      </div>
 
                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                       <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-abrir-ruta" title="Configurar o cambiar la subcarpeta personalizada donde se guardarán tus descargas (ej. Hitomi/Comics)">
-                         📂 Ruta: <strong>${rutaFormateada}</strong>
-                       </button>
+                        <button
+                          class="hitomi-btn hitomi-btn-secundario"
+                          id="hitomi-btn-abrir-ruta"
+                          title="⚙️ Pendiente de implementar — La ruta personalizada estará disponible en una próxima versión cuando esté completamente verificada"
+                          style="opacity: 0.45; cursor: not-allowed; pointer-events: auto; position: relative;"
+                          tabindex="-1"
+                        >
+                          📂 Ruta: <strong>Por defecto</strong>
+                          <span style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); border-radius: 4px; padding: 1px 5px; margin-left: 5px; font-weight: 700; letter-spacing: 0.3px; vertical-align: middle;">WIP</span>
+                        </button>
 
                        ${
                          !modoForzado
@@ -1292,11 +1299,12 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
 
     const btnAbrirRuta = backdrop.querySelector("#hitomi-btn-abrir-ruta");
     if (btnAbrirRuta) {
-      btnAbrirRuta.addEventListener("click", () => {
-        sincronizarEstadoCheckboxes();
-        mostrarModalRutaDescarga(() => {
-          renderizarContenidoModal();
-        });
+      // FUNCIONALIDAD PENDIENTE DE IMPLEMENTAR — el botón está deshabilitado visualmente.
+      // El listener bloquea cualquier interacción mientras la ruta personalizada está en revisión.
+      btnAbrirRuta.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // No abrir el modal de ruta — funcionalidad WIP
       });
     }
 

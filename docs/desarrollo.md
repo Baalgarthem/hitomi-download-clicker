@@ -2,6 +2,26 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.9.3 (Hardening: Ruta Personalizada Deshabilitada + Candados de Seguridad)
+- **Ruta Personalizada Deshabilitada en UI (`src/ui/modal.js`)**:
+  - El botón de ruta personalizada ahora muestra "📂 Ruta: **Por defecto** `WIP`" con `opacity: 0.45` y `cursor: not-allowed`.
+  - Tooltip al pasar el cursor: "⚙️ Pendiente de implementar — La ruta personalizada estará disponible en una próxima versión cuando esté completamente verificada".
+  - El listener de clic bloquea explícitamente la interacción con `preventDefault()` + `stopPropagation()`.
+  - La funcionalidad permanece en el código (comentada) lista para re-habilitarse cuando se confirme.
+- **GM_download Deshabilitado Permanentemente por Ahora (`src/core/download.js`)**:
+  - `tieneRutaPersonalizada = false` de forma constante; el bloque GM_download completo fue movido a un comentario `/* ... */` preservado para futura re-habilitación.
+  - Solo se activa el flujo de clic nativo. Esto elimina por completo las interferencias que causaban la ruta como prefijo del nombre y la doble compresión.
+  - La variable `rutaLimpia` se lee pero no se usa (silenciado con `void rutaLimpia`).
+- **Guardia de Seguridad en `generarNombreFinalConExtension` (`src/core/download.js`)**:
+  - Añadida una línea defensiva final: `return resultado.replace(/[/\\]/g, "-")` que convierte cualquier separador de ruta en guión antes de retornar el nombre.
+  - Esto garantiza que aunque algún estado interno contenga barras de ruta, el nombre inyectado en `a.download` o `title` NUNCA tendrá prefijo de carpeta.
+  - El strip de extensiones previas se mejoró a `/\.(zip|cbz)$/i` (un solo replace en lugar de dos encadenados).
+- **Interceptor `.href` Eliminado (`src/core/download.js`)**:
+  - El interceptor del setter de `HTMLAnchorElement.prototype.href` fue eliminado. Era el interceptor más agresivo: disparaba en cualquier asignación de `href`, incluyendo navegación normal, y calculaba filenames cuando `ESTADO.ultimoNombreFinal` aún no estaba disponible.
+- **Interceptores Fetch y XHR Limpiados (`src/core/download.js`)**:
+  - Los interceptores #7 (Fetch) y #8 (XHR) tenían código muerto que llamaba a `generarNombreFinalConExtension` y descartaba el resultado. Ese código fue eliminado; los interceptores ahora son transparentes (solo pasan la llamada al original).
+- **Verificación**: `GM_download` no aparece en el bundle (`dist/`) excepto en el encabezado `@grant`.
+
 ## Versión 2.9.2 (Soporte Completo de Unicode en Rutas y Preview en Tiempo Real)
 - **Soporte Completo de Rutas con Caracteres Unicode (`src/utils/dom.js`)**:
   - Mejorada `sanearRutaSubcarpeta()` para aceptar rutas absolutas de Windows con caracteres Unicode completos (ej. `E:\Vault\Dōjin\「Updates」` → `Vault/Dōjin/「Updates」`).

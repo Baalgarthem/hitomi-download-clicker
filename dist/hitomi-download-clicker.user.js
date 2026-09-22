@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.9.2
+// @version      2.9.3
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz, sufijo de serie 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -857,16 +857,19 @@
     }
     if (!nombreBase) return "";
     const usarCbz = leerValorGM(CLAVES.usarCbz, false);
-    const baseLimpia = nombreBase.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
+    const baseLimpia = nombreBase.replace(/\.(zip|cbz)$/i, "");
+    let resultado;
     if (usarCbz) {
-      return `${baseLimpia}.cbz`;
+      resultado = `${baseLimpia}.cbz`;
+    } else {
+      const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
+      let extension = matchExt ? `.${matchExt[1]}` : ".zip";
+      if (extension.toLowerCase() === ".cbz" && !usarCbz) {
+        extension = ".zip";
+      }
+      resultado = `${baseLimpia}${extension}`;
     }
-    const matchExt = (referenciaUrl || "").match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
-    let extension = matchExt ? `.${matchExt[1]}` : ".zip";
-    if (extension.toLowerCase() === ".cbz" && !usarCbz) {
-      extension = ".zip";
-    }
-    return `${baseLimpia}${extension}`;
+    return resultado.replace(/[/\\]/g, "-");
   }
   function esElementoBotonDescarga(elemento) {
     if (!elemento || typeof elemento !== "object") return false;
@@ -1006,33 +1009,6 @@
           };
         } catch {
         }
-        try {
-          const descriptorHref = Object.getOwnPropertyDescriptor(HTMLAnchorElement.prototype, "href");
-          if (descriptorHref && descriptorHref.set) {
-            const originalSetHref = descriptorHref.set;
-            Object.defineProperty(HTMLAnchorElement.prototype, "href", {
-              set: function(valor) {
-                const res = originalSetHref.call(this, valor);
-                try {
-                  if (esElementoBotonDescarga(this)) {
-                    const ref = valor || this.getAttribute("download") || this.download || "";
-                    const nombreConExt = generarNombreFinalConExtension(ref);
-                    if (nombreConExt) {
-                      this.setAttribute("download", nombreConExt);
-                      this.download = nombreConExt;
-                    }
-                  }
-                } catch {
-                }
-                return res;
-              },
-              get: descriptorHref.get,
-              configurable: true,
-              enumerable: true
-            });
-          }
-        } catch {
-        }
       }
       if (typeof window !== "undefined" && window.URL && typeof window.URL.createObjectURL === "function") {
         try {
@@ -1068,13 +1044,6 @@
         try {
           const originalFetch = window.fetch;
           window.fetch = async function(input, init) {
-            try {
-              const urlStr = typeof input === "string" ? input : input && input.url ? input.url : "";
-              if (urlStr && (urlStr.endsWith(".zip") || urlStr.endsWith(".cbz") || urlStr.includes("/download/"))) {
-                generarNombreFinalConExtension(urlStr);
-              }
-            } catch {
-            }
             return originalFetch.apply(this, arguments);
           };
         } catch {
@@ -1084,13 +1053,6 @@
         try {
           const originalXhrOpen = XMLHttpRequest.prototype.open;
           XMLHttpRequest.prototype.open = function(method, url, ...resto) {
-            try {
-              const urlStr = typeof url === "string" ? url : url ? url.toString() : "";
-              if (urlStr && (urlStr.endsWith(".zip") || urlStr.endsWith(".cbz") || urlStr.includes("/download/"))) {
-                generarNombreFinalConExtension(urlStr);
-              }
-            } catch {
-            }
             return originalXhrOpen.call(this, method, url, ...resto);
           };
         } catch {
@@ -1157,55 +1119,8 @@
         });
         const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
         const rutaLimpia = sanearRutaSubcarpeta(rutaCustom);
-        const tieneRutaPersonalizada = !!rutaLimpia;
-        if (tieneRutaPersonalizada && typeof GM_download === "function") {
-          const nombreConRuta = `${rutaLimpia}/${nombreLimpioConExt}`;
-          let hrefRaw = (boton.getAttribute("href") || boton.href || (boton.closest && boton.closest("a") ? boton.closest("a").getAttribute("href") || boton.closest("a").href : "") || "").trim();
-          let downloadUrl = "";
-          if (hrefRaw) {
-            try {
-              downloadUrl = new URL(hrefRaw, location.href).href;
-            } catch {
-              downloadUrl = hrefRaw;
-            }
-          }
-          if (downloadUrl && (downloadUrl.startsWith("http") || downloadUrl.startsWith("blob"))) {
-            let ejecucionExitosaGM = false;
-            try {
-              console.log(obtenerHora(), "Iniciando GM_download hacia subcarpeta:", nombreConRuta);
-              GM_download({
-                url: downloadUrl,
-                name: nombreConRuta,
-                saveAs: false,
-                onload: () => {
-                  console.log(obtenerHora(), "Descarga guardada en subcarpeta:", nombreConRuta);
-                },
-                onerror: (error) => {
-                  console.warn(obtenerHora(), "GM_download fall\xF3, recurriendo a clic nativo:", error);
-                  ESTADO.permitirClicForzado = true;
-                  if (typeof boton.click === "function") boton.click();
-                  ESTADO.permitirClicForzado = false;
-                }
-              });
-              ejecucionExitosaGM = true;
-              fueClickeadoConExito = true;
-            } catch (errGM) {
-              console.warn("Excepci\xF3n al invocar GM_download:", errGM);
-              ejecucionExitosaGM = false;
-            }
-            if (ejecucionExitosaGM) {
-              if (esForzado) {
-                ESTADO.permitirClicForzado = false;
-                if (teniaProcesado) boton.setAttribute("data-hitomi-procesado", teniaProcesado);
-                boton.style.pointerEvents = estiloPointerPrevio;
-                if ("disabled" in boton) boton.disabled = deshabilitadoPrevio;
-              } else {
-                ESTADO.permitirClicForzado = false;
-              }
-              return true;
-            }
-          }
-        }
+        const tieneRutaPersonalizada = false;
+        void rutaLimpia;
       }
       ESTADO.permitirClicForzado = true;
       boton.removeAttribute("data-hitomi-procesado");
@@ -2067,114 +1982,6 @@
       if (typeof callbackGuardar === "function") callbackGuardar(listaFinalTags, listaFinalPersonajes);
     });
   }
-  function mostrarModalRutaDescarga(callbackGuardar) {
-    const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
-    const backdropRuta = document.createElement("div");
-    backdropRuta.className = "hitomi-tag-modal-backdrop";
-    const rutaActualBruta = leerValorGM(CLAVES.rutaDescarga, "");
-    const rutaActualSaneada = sanearRutaSubcarpeta(rutaActualBruta);
-    backdropRuta.innerHTML = `
-    <div class="hitomi-tag-modal-contenedor" style="max-width: 520px;">
-      <div class="hitomi-modal-header">
-        <h3 class="hitomi-modal-titulo">
-          <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" style="width:20px;height:20px;border-radius:4px;object-fit:contain;" alt="Hitomi Logo" />
-          <span>\u{1F4C2} Ruta Personalizada de Descargas</span>
-        </h3>
-        <button class="hitomi-modal-cerrar" id="hitomi-ruta-btn-cerrar" title="Cerrar esta ventana">\u2715</button>
-      </div>
-
-      <div class="hitomi-modal-body">
-        <div style="margin-bottom: 14px; padding: 10px 12px; background: #192028; border: 1px solid #2d3748; border-radius: 8px;">
-          <div style="font-size: 11px; font-weight: 700; color: #b580b5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
-            \u{1F4CD} Estado de la Ruta Actual:
-          </div>
-          <div id="hitomi-ruta-estado-label" style="font-size: 13px; font-weight: 600; color: ${rutaActualSaneada ? "#3fb950" : "#9ab0c7"}; display: flex; align-items: center; gap: 6px;">
-            ${rutaActualSaneada ? `<span>\u{1F4C1} Subcarpeta: <strong>${escapeHtml(rutaActualSaneada)}/</strong></span>` : `<span>\u{1F4E5} Predeterminada (Carpeta Descargas de tu navegador)</span>`}
-          </div>
-        </div>
-
-        <div class="hitomi-custom-tags-contenedor" style="margin-bottom: 12px;">
-          <label for="hitomi-input-ruta-custom" style="display: block; font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 6px;">
-            \u270D\uFE0F Subcarpeta de Descargas (relativa a la carpeta Descargas):
-          </label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" id="hitomi-input-ruta-custom" value="${escapeHtml(rutaActualSaneada)}" placeholder="Ej. Hitomi/Comics o E:\\Vault\\D\u014Djin\\\u300CUpdates\u300D..." class="hitomi-input-custom-tag-field" title="Ingresa la subcarpeta de destino. Puedes escribir rutas absolutas de Windows (ej. E:\\Vault\\D\u014Djin) \u2014 la letra de unidad se ignorar\xE1 autom\xE1ticamente. Se aceptan caracteres Unicode como \u014D, \u300C, \u3011, \xF1." />
-          </div>
-          <div id="hitomi-ruta-preview-box" style="margin-top: 8px; display: ${rutaActualSaneada ? "block" : "none"};">
-            <div style="font-size: 11px; color: #768390; margin-bottom: 3px; font-weight: 600;">\u{1F4CB} Vista previa de la ruta efectiva:</div>
-            <code id="hitomi-ruta-preview-text" style="font-size: 12px; color: #3fb950; background: #0f141a; padding: 4px 8px; border-radius: 4px; border: 1px solid #2d3748; display: block; word-break: break-all;">${escapeHtml(rutaActualSaneada) || "\u2014"}</code>
-          </div>
-        </div>
-
-        <p class="hitomi-modal-instruccion" style="margin-bottom: 0;">
-          \u{1F4A1} <strong>Notas:</strong><br>
-          \u2022 Los archivos se guardan <em>dentro</em> de tu carpeta de Descargas del navegador (limitaci\xF3n de seguridad de Chromium/Firefox).<br>
-          \u2022 Especificar <code>Hitomi/Comics</code> guarda en <code>Descargas/Hitomi/Comics/</code>.<br>
-          \u2022 Las rutas absolutas de Windows (<code>E:\\Vault\\D\u014Djin\\\u300CUpdates\u300D</code>) se aceptan: la letra de unidad (<code>E:</code>) se elimina autom\xE1ticamente.<br>
-          \u2022 Se admiten caracteres Unicode: <code>\u014D</code>, <code>\u300C\u300D</code>, <code>\u3010\u3011</code>, <code>\xF1</code>, etc.<br>
-          \u2022 Deja el campo en blanco o presiona "Resetear" para usar la carpeta por defecto.
-        </p>
-      </div>
-
-      <div class="hitomi-modal-footer">
-        <div class="hitomi-modal-acciones-secundarias">
-          <button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-ruta-btn-reset" title="Restaurar la ruta al estado por defecto (carpeta Descargas predeterminada)">
-            \u{1F504} Resetear a Predeterminado
-          </button>
-        </div>
-        <div class="hitomi-modal-acciones-principales">
-          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-ruta-btn-cancelar" title="Cancelar sin guardar cambios">Cancelar</button>
-          <button class="hitomi-btn hitomi-btn-primario" id="hitomi-ruta-btn-guardar" title="Guardar esta ruta de descarga">Guardar Ruta</button>
-        </div>
-      </div>
-    </div>
-  `;
-    interfaz.appendChild(backdropRuta);
-    const inputRuta = backdropRuta.querySelector("#hitomi-input-ruta-custom");
-    const previewBox = backdropRuta.querySelector("#hitomi-ruta-preview-box");
-    const previewText = backdropRuta.querySelector("#hitomi-ruta-preview-text");
-    const cerrar = () => backdropRuta.remove();
-    function actualizarPreview() {
-      if (!inputRuta || !previewBox || !previewText) return;
-      const saneada = sanearRutaSubcarpeta(inputRuta.value);
-      if (saneada) {
-        previewText.textContent = saneada + "/";
-        previewBox.style.display = "block";
-      } else {
-        previewText.textContent = "\u2014";
-        previewBox.style.display = inputRuta.value.trim() ? "block" : "none";
-      }
-    }
-    if (inputRuta) {
-      inputRuta.addEventListener("input", actualizarPreview);
-      inputRuta.addEventListener("paste", () => setTimeout(actualizarPreview, 10));
-      inputRuta.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter") {
-          ev.preventDefault();
-          backdropRuta.querySelector("#hitomi-ruta-btn-guardar").click();
-        }
-      });
-    }
-    backdropRuta.querySelector("#hitomi-ruta-btn-cerrar").addEventListener("click", cerrar);
-    backdropRuta.querySelector("#hitomi-ruta-btn-cancelar").addEventListener("click", cerrar);
-    backdropRuta.querySelector("#hitomi-ruta-btn-reset").addEventListener("click", () => {
-      eliminarValorGM(CLAVES.rutaDescarga);
-      if (inputRuta) inputRuta.value = "";
-      cerrar();
-      if (typeof callbackGuardar === "function") callbackGuardar("");
-    });
-    backdropRuta.querySelector("#hitomi-ruta-btn-guardar").addEventListener("click", () => {
-      const valorIngresado = inputRuta ? inputRuta.value : "";
-      const rutaFinal = sanearRutaSubcarpeta(valorIngresado);
-      if (rutaFinal) {
-        guardarValorGM(CLAVES.rutaDescarga, rutaFinal);
-      } else {
-        eliminarValorGM(CLAVES.rutaDescarga);
-      }
-      cerrar();
-      if (typeof callbackGuardar === "function") callbackGuardar(rutaFinal);
-    });
-  }
   function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
     let modoForzado = modoForzadoInicial !== null ? modoForzadoInicial : leerValorGM(CLAVES.modoForzado, false);
     const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
@@ -2251,9 +2058,16 @@
                      </div>
 
                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                       <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-abrir-ruta" title="Configurar o cambiar la subcarpeta personalizada donde se guardar\xE1n tus descargas (ej. Hitomi/Comics)">
-                         \u{1F4C2} Ruta: <strong>${rutaFormateada}</strong>
-                       </button>
+                        <button
+                          class="hitomi-btn hitomi-btn-secundario"
+                          id="hitomi-btn-abrir-ruta"
+                          title="\u2699\uFE0F Pendiente de implementar \u2014 La ruta personalizada estar\xE1 disponible en una pr\xF3xima versi\xF3n cuando est\xE9 completamente verificada"
+                          style="opacity: 0.45; cursor: not-allowed; pointer-events: auto; position: relative;"
+                          tabindex="-1"
+                        >
+                          \u{1F4C2} Ruta: <strong>Por defecto</strong>
+                          <span style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); border-radius: 4px; padding: 1px 5px; margin-left: 5px; font-weight: 700; letter-spacing: 0.3px; vertical-align: middle;">WIP</span>
+                        </button>
 
                        ${!modoForzado ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Permitir volver a descargar c\xF3mics que ya hab\xEDas guardado anteriormente">
                                 \u26A1 Activar Modo Forzado
@@ -2458,11 +2272,9 @@
       });
       const btnAbrirRuta = backdrop.querySelector("#hitomi-btn-abrir-ruta");
       if (btnAbrirRuta) {
-        btnAbrirRuta.addEventListener("click", () => {
-          sincronizarEstadoCheckboxes();
-          mostrarModalRutaDescarga(() => {
-            renderizarContenidoModal();
-          });
+        btnAbrirRuta.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
         });
       }
       const btnForzado = backdrop.querySelector("#hitomi-btn-modo-forzado");
