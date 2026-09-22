@@ -68,5 +68,14 @@ No necesitas ir pestaña por pestaña. Desde cualquier pestaña abierta puedes p
 
 ---
 
+## 📚 Documentación Técnica y Pedagógica
+
+Para desarrolladores, programadores novatos o interesados en la arquitectura del proyecto:
+- 🍩 **[Guía Pedagógica: Intercepción y Renombrado de Descargas](docs/guia-intercepcion-descargas.md)**: Explicación didáctica con analogías simples sobre la intercepción en 8 capas, resolución del error de extensión `.cbz`/`.zip` y el flujo estandarizado en 4 pasos.
+- 🛠️ **[Documentación de Funciones](docs/funciones.md)**: Desglose por módulos de todas las funciones de `download.js`, `tags.js`, `author.js`, `dom.js` y `presence.js`.
+- 🏗️ **[Diario de Desarrollo y Changelog](docs/desarrollo.md)**: Historial completo de versiones y decisiones de diseño.
+
+---
+
 ## 📜 Licencia
 Este proyecto está bajo la Licencia **MIT**. Creado por **Baalgarthem**.

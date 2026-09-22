@@ -2,6 +2,13 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.8.1 (Documentación Pedagógica de Interceptación y Diagrama de Flujo)
+- **Guía Pedagógica Completa (`docs/guia-intercepcion-descargas.md`)**:
+  - Incorporación del documento explicativo con analogías didácticas ("La Fábrica de Donas") para explicar la separación entre `document.title` (identidad interna) y `a.download` (etiqueta de archivo en disco).
+  - Explicación paso a paso de por qué ocurría el fallo de compresión anidada en archivos `.cbz` y cómo la arquitectura en 8 capas de intercepción resuelve el problema en Firefox y Chromium.
+- **Actualización de Documentación de Módulos (`docs/funciones.md` & `README.md`)**:
+  - Actualización exhaustiva de la especificación de funciones por cada módulo en la carpeta `docs/`.
+
 ## Versión 1.8.0 (Entrada Manual de Tags Personalizados por Cómic)
 - **Ingreso Manual de Etiquetas (`src/ui/modal.js`)**:
   - Incorporación de la caja de texto interactiva `✍️ Ingresar Tags Personalizados Manualmente` y botón `➕ Añadir Tag` dentro del sub-modal de selección de tags.
