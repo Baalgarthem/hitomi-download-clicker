@@ -2,6 +2,10 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.6.0 (Finalización de Mantenimiento e Integración Completa)
+- **Consolidación de Arquitectura Modular**: Finalización del ciclo de mantenimiento mayor e integración de extracción de autor `「Artista」`, selector de separador de etiquetas (`┃`, `⟨⟩`, `[]`, `()`), renombrado de extensión a `.cbz`, intercepción global de descargas nativas y optimización de rendimiento.
+- **Versión Estable Minor**: Salto de versión a `v1.6.0` con despliegue de artefactos de producción en el repositorio remoto.
+
 ## Versión 1.5.3 (Refactorización de Calidad y Deuda Técnica)
 - **Centralización de Utilidades DOM (`src/utils/dom.js`)**:
   - Unificación de la creación de contenedores UI con `obtenerOCrearAnfitrionUI()`, eliminando código duplicado en `pill.js` y `modal.js`.
