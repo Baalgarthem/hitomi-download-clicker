@@ -88,13 +88,22 @@ export function interceptarDescargasNativas() {
       try {
         const nombreCustom = ESTADO.ultimoNombreFinal;
         if (nombreCustom) {
-          const downloadAttr = this.getAttribute("download") || this.download || "";
-          const hrefAttr = this.getAttribute("href") || this.href || "";
+          const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
+          let nombreConExt = "";
 
-          const matchExt = (downloadAttr || hrefAttr).match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
-          const extension = matchExt ? `.${matchExt[1]}` : "";
+          if (usarCbz) {
+            const baseLimpia = nombreCustom.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
+            nombreConExt = `${baseLimpia}.cbz`;
+          } else {
+            const downloadAttr = this.getAttribute("download") || this.download || "";
+            const hrefAttr = this.getAttribute("href") || this.href || "";
 
-          const nombreConExt = `${nombreCustom}${extension}`;
+            const matchExt = (downloadAttr || hrefAttr).match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
+            const extension = matchExt ? `.${matchExt[1]}` : "";
+
+            nombreConExt = `${nombreCustom}${extension}`;
+          }
+
           this.setAttribute("download", nombreConExt);
           this.download = nombreConExt;
         }
@@ -130,23 +139,28 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
     });
 
     if (nombreFinalCompleto) {
+      const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
+      const nombreFinalConExt = usarCbz
+        ? (nombreFinalCompleto.endsWith(".cbz") ? nombreFinalCompleto : `${nombreFinalCompleto}.cbz`)
+        : nombreFinalCompleto;
+
       ESTADO.ultimoNombreFinal = nombreFinalCompleto;
       try {
         document.title = nombreFinalCompleto;
       } catch { }
 
-      boton.setAttribute("data-hitomi-nombre-final", nombreFinalCompleto);
+      boton.setAttribute("data-hitomi-nombre-final", nombreFinalConExt);
       if (tagsSeleccionados.length > 0) {
         boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsSeleccionados, estiloActivo));
       }
-      boton.setAttribute("title", nombreFinalCompleto);
-      boton.setAttribute("download", nombreFinalCompleto);
-      if ("download" in boton) boton.download = nombreFinalCompleto;
+      boton.setAttribute("title", nombreFinalConExt);
+      boton.setAttribute("download", nombreFinalConExt);
+      if ("download" in boton) boton.download = nombreFinalConExt;
 
       const enlacesHijos = boton.querySelectorAll("a");
       enlacesHijos.forEach(a => {
-        a.setAttribute("download", nombreFinalCompleto);
-        a.download = nombreFinalCompleto;
+        a.setAttribute("download", nombreFinalConExt);
+        a.download = nombreFinalConExt;
       });
     }
 

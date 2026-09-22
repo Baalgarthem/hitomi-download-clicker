@@ -614,6 +614,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     const pestanasInfo = obtenerInformacionPestanas(modoForzado);
     const totalPestanas = pestanasInfo.length;
     const forzadasCount = pestanasInfo.filter(p => p.yaProcesada).length;
+    const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
 
     backdrop.innerHTML = `
       <div class="hitomi-modal-contenedor">
@@ -679,6 +680,10 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
             <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar historial y olvidar todas las páginas procesadas">
               🗑️ Limpiar Memoria
             </button>
+            <label class="hitomi-toggle-cbz" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer; user-select: none; background: #21262d; padding: 6px 12px; border-radius: 6px; border: 1px solid #30363d; font-weight: 600;" title="Renombrar la extensión de todos los archivos descargados a .cbz (archivado de cómics)">
+              <input type="checkbox" id="hitomi-check-usar-cbz" ${usarCbz ? 'checked' : ''} style="accent-color: #238636; cursor: pointer; width: 14px; height: 14px;" />
+              <span>📦 Renombrar a <strong>.cbz</strong></span>
+            </label>
             ${
               !modoForzado
                 ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Forzar descarga en todas las pestañas">
@@ -701,6 +706,15 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
         </div>
       </div>
     `;
+
+    const checkCbz = backdrop.querySelector("#hitomi-check-usar-cbz");
+    if (checkCbz) {
+      checkCbz.addEventListener("change", () => {
+        if (typeof GM_setValue !== "undefined") {
+          GM_setValue(CLAVES.usarCbz, checkCbz.checked);
+        }
+      });
+    }
 
     const listaItems = backdrop.querySelector("#hitomi-modal-lista-items");
     if (listaItems) {

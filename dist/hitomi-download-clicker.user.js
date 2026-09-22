@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.5.1
+// @version      1.5.2
 // @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」, selección de tags personalizados ┃ + tags y opción para limpiar memoria.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -113,7 +113,8 @@
         urlPestana: (id) => `hitomi_url_${id}`,
         tituloPestana: (id) => `hitomi_titulo_${id}`,
         tagsPestana: (id) => `hitomi_tags_${id}`,
-        estiloSeparador: "hitomi_estilo_separador_tags"
+        estiloSeparador: "hitomi_estilo_separador_tags",
+        usarCbz: "hitomi_usar_extension_cbz"
       };
       ESTADO = {
         bloqueado: false,
@@ -517,11 +518,18 @@
         try {
           const nombreCustom = ESTADO.ultimoNombreFinal;
           if (nombreCustom) {
-            const downloadAttr = this.getAttribute("download") || this.download || "";
-            const hrefAttr = this.getAttribute("href") || this.href || "";
-            const matchExt = (downloadAttr || hrefAttr).match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
-            const extension = matchExt ? `.${matchExt[1]}` : "";
-            const nombreConExt = `${nombreCustom}${extension}`;
+            const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
+            let nombreConExt = "";
+            if (usarCbz) {
+              const baseLimpia = nombreCustom.replace(/\.zip$/i, "").replace(/\.cbz$/i, "");
+              nombreConExt = `${baseLimpia}.cbz`;
+            } else {
+              const downloadAttr = this.getAttribute("download") || this.download || "";
+              const hrefAttr = this.getAttribute("href") || this.href || "";
+              const matchExt = (downloadAttr || hrefAttr).match(/\.([a-z0-9]{2,4})(?:[\?#]|$)/i);
+              const extension = matchExt ? `.${matchExt[1]}` : "";
+              nombreConExt = `${nombreCustom}${extension}`;
+            }
             this.setAttribute("download", nombreConExt);
             this.download = nombreConExt;
           }
@@ -551,22 +559,24 @@
         estiloSeparador: estiloActivo
       });
       if (nombreFinalCompleto) {
+        const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
+        const nombreFinalConExt = usarCbz ? nombreFinalCompleto.endsWith(".cbz") ? nombreFinalCompleto : `${nombreFinalCompleto}.cbz` : nombreFinalCompleto;
         ESTADO.ultimoNombreFinal = nombreFinalCompleto;
         try {
           document.title = nombreFinalCompleto;
         } catch {
         }
-        boton.setAttribute("data-hitomi-nombre-final", nombreFinalCompleto);
+        boton.setAttribute("data-hitomi-nombre-final", nombreFinalConExt);
         if (tagsSeleccionados.length > 0) {
           boton.setAttribute("data-hitomi-tags", formatearCadenaTags(tagsSeleccionados, estiloActivo));
         }
-        boton.setAttribute("title", nombreFinalCompleto);
-        boton.setAttribute("download", nombreFinalCompleto);
-        if ("download" in boton) boton.download = nombreFinalCompleto;
+        boton.setAttribute("title", nombreFinalConExt);
+        boton.setAttribute("download", nombreFinalConExt);
+        if ("download" in boton) boton.download = nombreFinalConExt;
         const enlacesHijos = boton.querySelectorAll("a");
         enlacesHijos.forEach((a) => {
-          a.setAttribute("download", nombreFinalCompleto);
-          a.download = nombreFinalCompleto;
+          a.setAttribute("download", nombreFinalConExt);
+          a.download = nombreFinalConExt;
         });
       }
       ESTADO.permitirClicForzado = true;
@@ -1219,6 +1229,7 @@
       const pestanasInfo = obtenerInformacionPestanas(modoForzado);
       const totalPestanas = pestanasInfo.length;
       const forzadasCount = pestanasInfo.filter((p) => p.yaProcesada).length;
+      const usarCbz = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.usarCbz, false) : false;
       backdrop.innerHTML = `
       <div class="hitomi-modal-contenedor">
         <div class="hitomi-modal-header">
@@ -1269,6 +1280,10 @@
             <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar historial y olvidar todas las p\xE1ginas procesadas">
               \u{1F5D1}\uFE0F Limpiar Memoria
             </button>
+            <label class="hitomi-toggle-cbz" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #c9d1d9; cursor: pointer; user-select: none; background: #21262d; padding: 6px 12px; border-radius: 6px; border: 1px solid #30363d; font-weight: 600;" title="Renombrar la extensi\xF3n de todos los archivos descargados a .cbz (archivado de c\xF3mics)">
+              <input type="checkbox" id="hitomi-check-usar-cbz" ${usarCbz ? "checked" : ""} style="accent-color: #238636; cursor: pointer; width: 14px; height: 14px;" />
+              <span>\u{1F4E6} Renombrar a <strong>.cbz</strong></span>
+            </label>
             ${!modoForzado ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Forzar descarga en todas las pesta\xF1as">
                      \u26A1 Clic Forzado
                    </button>` : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Volver al modo normal">
@@ -1287,6 +1302,14 @@
         </div>
       </div>
     `;
+      const checkCbz = backdrop.querySelector("#hitomi-check-usar-cbz");
+      if (checkCbz) {
+        checkCbz.addEventListener("change", () => {
+          if (typeof GM_setValue !== "undefined") {
+            GM_setValue(CLAVES.usarCbz, checkCbz.checked);
+          }
+        });
+      }
       const listaItems = backdrop.querySelector("#hitomi-modal-lista-items");
       if (listaItems) {
         vincularSeleccionMultipleCheckboxes(listaItems);

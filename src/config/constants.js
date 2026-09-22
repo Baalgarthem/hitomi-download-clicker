@@ -75,7 +75,8 @@ export const CLAVES = {
   urlPestana: id => `hitomi_url_${id}`,
   tituloPestana: id => `hitomi_titulo_${id}`,
   tagsPestana: id => `hitomi_tags_${id}`,
-  estiloSeparador: "hitomi_estilo_separador_tags"
+  estiloSeparador: "hitomi_estilo_separador_tags",
+  usarCbz: "hitomi_usar_extension_cbz"
 };
 
 export const ESTADO = {
