@@ -3,32 +3,11 @@
 // ─────────────────────────────────────────────
 
 import { CONFIGURACION, ESTADO } from '../config/constants.js';
-import { esPaginaHitomi } from '../utils/dom.js';
+import { esPaginaHitomi, obtenerOCrearAnfitrionUI } from '../utils/dom.js';
 import { limpiarMemoriaProcesadas } from '../core/memory.js';
 import { resetearEstadoBotonDescarga } from './badge.js';
 import { publicarEstadoPestana } from '../core/presence.js';
 import { mostrarPopupConfirmacion } from './modal.js';
-
-function crearInterfaz() {
-  let anfitrion = document.getElementById(CONFIGURACION.ids.anfitrion);
-
-  if (!anfitrion) {
-    anfitrion = document.createElement("div");
-    anfitrion.id = CONFIGURACION.ids.anfitrion;
-
-    Object.assign(anfitrion.style, {
-      all: "initial",
-      position: "fixed",
-      inset: "0",
-      zIndex: "2147483647",
-      pointerEvents: "none"
-    });
-
-    document.documentElement.appendChild(anfitrion);
-  }
-
-  return anfitrion;
-}
 
 export function aplicarEstilosPastilla() {
   GM_addStyle(`
@@ -115,7 +94,7 @@ export function mostrarEstado(elemento, mensaje, tipo) {
 export function montarPastilla() {
   if (ESTADO.botonPastilla || !esPaginaHitomi()) return;
 
-  const interfaz = crearInterfaz();
+  const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
   const pastilla = document.createElement("div");
 
   pastilla.id = CONFIGURACION.ids.pastilla;

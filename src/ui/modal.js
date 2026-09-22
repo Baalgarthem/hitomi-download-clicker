@@ -6,27 +6,7 @@ import { CONFIGURACION, ESTADO, CLAVES } from '../config/constants.js';
 import { obtenerInformacionPestanas, publicarEstadoPestana, recorrerPestanasDescarga } from '../core/presence.js';
 import { limpiarMemoriaProcesadas } from '../core/memory.js';
 import { resetearEstadoBotonDescarga } from './badge.js';
-
-function crearInterfaz() {
-  let anfitrion = document.getElementById(CONFIGURACION.ids.anfitrion);
-
-  if (!anfitrion) {
-    anfitrion = document.createElement("div");
-    anfitrion.id = CONFIGURACION.ids.anfitrion;
-
-    Object.assign(anfitrion.style, {
-      all: "initial",
-      position: "fixed",
-      inset: "0",
-      zIndex: "2147483647",
-      pointerEvents: "none"
-    });
-
-    document.documentElement.appendChild(anfitrion);
-  }
-
-  return anfitrion;
-}
+import { obtenerOCrearAnfitrionUI, escapeHtml } from '../utils/dom.js';
 
 export function aplicarEstilosModal() {
   GM_addStyle(`
@@ -439,7 +419,7 @@ export function vincularSeleccionMultipleCheckboxes(listaContenedor) {
  * Muestra el sub-modal de selección personalizada de tags para un comic específico.
  */
 export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponibles = [], tagsPreseleccionados = [], callbackGuardar) {
-  const interfaz = crearInterfaz();
+  const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
   const backdropTag = document.createElement("div");
   backdropTag.className = "hitomi-tag-modal-backdrop";
 
@@ -450,15 +430,6 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
   );
 
   let estiloActual = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe";
-
-  function escapeHtml(texto) {
-    return (texto || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
 
   backdropTag.innerHTML = `
     <div class="hitomi-tag-modal-contenedor">
@@ -592,7 +563,7 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
 
 export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
   let modoForzado = modoForzadoInicial;
-  const interfaz = crearInterfaz();
+  const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
 
   const modalExistente = document.getElementById(CONFIGURACION.ids.modalBackdrop);
   if (modalExistente) modalExistente.remove();
@@ -600,15 +571,6 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
   const backdrop = document.createElement("div");
   backdrop.id = CONFIGURACION.ids.modalBackdrop;
   backdrop.className = "hitomi-modal-backdrop";
-
-  function escapeHtml(texto) {
-    return (texto || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
 
   function renderizarContenidoModal() {
     const pestanasInfo = obtenerInformacionPestanas(modoForzado);

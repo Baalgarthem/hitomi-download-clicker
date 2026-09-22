@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      1.5.2
+// @version      1.5.3
 // @description  Recorre pestañas abiertas de Hitomi y pulsa automáticamente el botón de descarga evitando repetir páginas ya procesadas, con modal de confirmación, modo forzado, selección múltiple (Shift/Ctrl), extracción de autor 「xxxx」, selección de tags personalizados ┃ + tags y opción para limpiar memoria.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -149,6 +149,25 @@
     } catch {
       return false;
     }
+  }
+  function escapeHtml(texto = "") {
+    return (texto || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
+  function obtenerOCrearAnfitrionUI(idAnfitrion) {
+    let anfitrion = document.getElementById(idAnfitrion);
+    if (!anfitrion) {
+      anfitrion = document.createElement("div");
+      anfitrion.id = idAnfitrion;
+      Object.assign(anfitrion.style, {
+        all: "initial",
+        position: "fixed",
+        inset: "0",
+        zIndex: "2147483647",
+        pointerEvents: "none"
+      });
+      (document.body || document.documentElement).appendChild(anfitrion);
+    }
+    return anfitrion;
   }
   var esperar, obtenerHora, esPaginaHitomi;
   var init_dom = __esm({
@@ -604,11 +623,7 @@
         });
         boton.dispatchEvent(mouseEvent);
       }
-      if (eventoCapturado) {
-        fueClickeadoConExito = true;
-      } else {
-        fueClickeadoConExito = true;
-      }
+      fueClickeadoConExito = true;
       if (esForzado) {
         ESTADO.permitirClicForzado = false;
         if (teniaProcesado) boton.setAttribute("data-hitomi-procesado", teniaProcesado);
@@ -675,22 +690,6 @@
 /* ════════════════════════════════════════════════════════════ */
 /*                  MÓDULO: src/ui/modal.js                   */
 /* ════════════════════════════════════════════════════════════ */
-  function crearInterfaz() {
-    let anfitrion = document.getElementById(CONFIGURACION.ids.anfitrion);
-    if (!anfitrion) {
-      anfitrion = document.createElement("div");
-      anfitrion.id = CONFIGURACION.ids.anfitrion;
-      Object.assign(anfitrion.style, {
-        all: "initial",
-        position: "fixed",
-        inset: "0",
-        zIndex: "2147483647",
-        pointerEvents: "none"
-      });
-      document.documentElement.appendChild(anfitrion);
-    }
-    return anfitrion;
-  }
   function aplicarEstilosModal() {
     GM_addStyle(`
     .hitomi-modal-backdrop, .hitomi-tag-modal-backdrop {
@@ -1091,16 +1090,13 @@
     });
   }
   function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponibles = [], tagsPreseleccionados = [], callbackGuardar) {
-    const interfaz = crearInterfaz();
+    const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
     const backdropTag = document.createElement("div");
     backdropTag.className = "hitomi-tag-modal-backdrop";
     const tagsSeleccionadosSet = new Set(
       Array.isArray(tagsPreseleccionados) && tagsPreseleccionados.length > 0 ? tagsPreseleccionados : ESTADO.tagsSeleccionadosPorPestana.get(pestanaId) || []
     );
     let estiloActual = typeof GM_getValue !== "undefined" ? GM_getValue(CLAVES.estiloSeparador, "pipe") : "pipe";
-    function escapeHtml(texto) {
-      return (texto || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-    }
     backdropTag.innerHTML = `
     <div class="hitomi-tag-modal-contenedor">
       <div class="hitomi-modal-header">
@@ -1216,15 +1212,12 @@
   }
   function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = false) {
     let modoForzado = modoForzadoInicial;
-    const interfaz = crearInterfaz();
+    const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
     const modalExistente = document.getElementById(CONFIGURACION.ids.modalBackdrop);
     if (modalExistente) modalExistente.remove();
     const backdrop = document.createElement("div");
     backdrop.id = CONFIGURACION.ids.modalBackdrop;
     backdrop.className = "hitomi-modal-backdrop";
-    function escapeHtml(texto) {
-      return (texto || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-    }
     function renderizarContenidoModal() {
       const pestanasInfo = obtenerInformacionPestanas(modoForzado);
       const totalPestanas = pestanasInfo.length;
@@ -1378,28 +1371,13 @@
       init_presence();
       init_memory();
       init_badge();
+      init_dom();
     }
   });
 
 /* ════════════════════════════════════════════════════════════ */
 /*                   MÓDULO: src/ui/pill.js                   */
 /* ════════════════════════════════════════════════════════════ */
-  function crearInterfaz2() {
-    let anfitrion = document.getElementById(CONFIGURACION.ids.anfitrion);
-    if (!anfitrion) {
-      anfitrion = document.createElement("div");
-      anfitrion.id = CONFIGURACION.ids.anfitrion;
-      Object.assign(anfitrion.style, {
-        all: "initial",
-        position: "fixed",
-        inset: "0",
-        zIndex: "2147483647",
-        pointerEvents: "none"
-      });
-      document.documentElement.appendChild(anfitrion);
-    }
-    return anfitrion;
-  }
   function aplicarEstilosPastilla() {
     GM_addStyle(`
     #${CONFIGURACION.ids.pastilla} {
@@ -1475,7 +1453,7 @@
   }
   function montarPastilla() {
     if (ESTADO.botonPastilla || !esPaginaHitomi()) return;
-    const interfaz = crearInterfaz2();
+    const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
     const pastilla = document.createElement("div");
     pastilla.id = CONFIGURACION.ids.pastilla;
     pastilla.innerHTML = `

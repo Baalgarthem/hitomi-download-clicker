@@ -2,6 +2,14 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.5.3 (Refactorización de Calidad y Deuda Técnica)
+- **Centralización de Utilidades DOM (`src/utils/dom.js`)**:
+  - Unificación de la creación de contenedores UI con `obtenerOCrearAnfitrionUI()`, eliminando código duplicado en `pill.js` y `modal.js`.
+  - Exportación global de `escapeHtml()` para sanear entradas HTML en componentes de la interfaz.
+- **Simplificación de Control de Flujo (`src/core/download.js`)**:
+  - Remoción de ramas de control de flujo redundantes en la confirmación de clics.
+  - Documentación JSDoc mejorada en las funciones de intercepción de descargas.
+
 ## Versión 1.5.2 (Opción Persistente de Extensión `.cbz`)
 - **Opción de Renombrado a `.cbz` (`src/ui/modal.js` & `src/core/download.js`)**:
   - Incorporación de la casilla interactiva `📦 Renombrar a .cbz` en el menú modal de confirmación.

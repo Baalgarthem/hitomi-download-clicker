@@ -192,11 +192,7 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
       boton.dispatchEvent(mouseEvent);
     }
 
-    if (eventoCapturado) {
-      fueClickeadoConExito = true;
-    } else {
-      fueClickeadoConExito = true;
-    }
+    fueClickeadoConExito = true;
 
     if (esForzado) {
       ESTADO.permitirClicForzado = false;

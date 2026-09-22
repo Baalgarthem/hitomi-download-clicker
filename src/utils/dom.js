@@ -34,3 +34,43 @@ export function elementoVisible(elemento) {
     return false;
   }
 }
+
+/**
+ * Escapa caracteres HTML especiales para prevenir vulnerabilidades XSS en plantillas de la UI.
+ * @param {string} texto - Texto a escapar.
+ * @returns {string} Texto seguro con entidades HTML escapadas.
+ */
+export function escapeHtml(texto = "") {
+  return (texto || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/**
+ * Obtiene el contenedor principal o lo crea aislándolo en la raíz del DOM.
+ * @param {string} idAnfitrion - Identificador DOM del contenedor.
+ * @returns {HTMLElement} Elemento anfitrión listo.
+ */
+export function obtenerOCrearAnfitrionUI(idAnfitrion) {
+  let anfitrion = document.getElementById(idAnfitrion);
+
+  if (!anfitrion) {
+    anfitrion = document.createElement("div");
+    anfitrion.id = idAnfitrion;
+
+    Object.assign(anfitrion.style, {
+      all: "initial",
+      position: "fixed",
+      inset: "0",
+      zIndex: "2147483647",
+      pointerEvents: "none"
+    });
+
+    (document.body || document.documentElement).appendChild(anfitrion);
+  }
+
+  return anfitrion;
+}
