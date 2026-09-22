@@ -206,8 +206,10 @@ export function eliminarValorGM(clave) {
 /**
  * Sanea y valida una subcarpeta de descarga personalizada para garantizar que sea una ruta relativa limpia
  * compatible con las políticas de descarga del navegador (Chromium/Firefox) y libre de path traversal.
- * @param {string} ruta - Ruta ingresada por el usuario (ej. "Comics\Hitomi").
- * @returns {string} Subcarpeta limpia relativa a Descargas (ej. "Comics/Hitomi") o vacía "".
+ * Soporta rutas absolutas de Windows (ej. "E:\Vault\Dōjin\「Updates」") convirtiéndolas en
+ * rutas relativas (ej. "Vault/Dōjin/「Updates」"). Los caracteres Unicode como ō, 「, 】 están permitidos.
+ * @param {string} ruta - Ruta ingresada por el usuario (ej. "Comics\Hitomi" o "E:\Vault\Dōjin\「Updates」").
+ * @returns {string} Subcarpeta relativa limpia (ej. "Vault/Dōjin/「Updates」") o vacía "".
  */
 export function sanearRutaSubcarpeta(ruta = "") {
   if (!ruta || typeof ruta !== "string") return "";
@@ -215,11 +217,17 @@ export function sanearRutaSubcarpeta(ruta = "") {
   let saneada = ruta.trim();
   // 1. Reemplazar barras invertidas \ por /
   saneada = saneada.replace(/\\/g, "/");
-  // 2. Eliminar letras de unidad (ej. C:)
-  saneada = saneada.replace(/^[a-zA-Z]:/g, "");
-  // 3. Eliminar caracteres ilícitos (\x00-\x1F, *, ?, ", <, >, |)
-  saneada = saneada.replace(/[\x00-\x1F\*\?"<>\|:]/g, "");
-  // 4. Dividir por / y filtrar partes vacías o navegaciones relativas
+  // 2. Eliminar prefijo de ruta larga de Windows (\\?\ o \\.\)
+  saneada = saneada.replace(/^\/\/[?.]\//, "");
+  // 3. Eliminar rutas UNC completas (//servidor/recurso/... → se elimina //servidor/recurso/ dejando solo la ruta de carpeta)
+  saneada = saneada.replace(/^\/\/[^/]+\/[^/]*\/?/, "");
+  // 4. Eliminar letra de unidad Windows al inicio (ej. C:/, E:, C:\)
+  saneada = saneada.replace(/^[a-zA-Z]:/, "");
+  // 5. Eliminar caracteres ilegales en nombres de carpeta de Windows/Linux/macOS.
+  //    Se conservan deliberadamente caracteres Unicode (ō, 「, 】, ñ, etc.) ya que
+  //    NTFS, ext4 y los gestores de descarga de Chromium/Firefox los soportan.
+  saneada = saneada.replace(/[\x00-\x1F\*\?"<>|:]/g, "");
+  // 6. Dividir por / y filtrar partes vacías o navegaciones relativas (., ..)
   const partes = saneada
     .split("/")
     .map(p => p.trim())

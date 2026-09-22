@@ -2,6 +2,20 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.9.2 (Soporte Completo de Unicode en Rutas y Preview en Tiempo Real)
+- **Soporte Completo de Rutas con Caracteres Unicode (`src/utils/dom.js`)**:
+  - Mejorada `sanearRutaSubcarpeta()` para aceptar rutas absolutas de Windows con caracteres Unicode completos (ej. `E:\Vault\Dōjin\「Updates」` → `Vault/Dōjin/「Updates」`).
+  - Añadido strip de prefijos de ruta larga de Windows (`\\?\`, `\\.\`) en el paso 2.
+  - Corregido strip de rutas UNC (`\\servidor\recurso\carpeta`) eliminando correctamente tanto el nombre del servidor como el nombre del recurso compartido (dos segmentos), dejando solo la subcarpeta real.
+  - Corregido el flag `/g` incorrecto en el strip de letra de unidad (el patrón es `^`-anclado, no necesita `g`).
+  - Los caracteres Unicode (`ō`, `「」`, `【】`, `ñ`, `テスト`, etc.) se preservan explícitamente: el filtro de caracteres ilegales solo elimina caracteres ASCII de control y metacaracteres de sistemas de archivos.
+- **Vista Previa en Tiempo Real de Ruta (`src/ui/modal.js`)**:
+  - Añadido cuadro de preview `📋 Vista previa de la ruta efectiva:` en el modal de ruta personalizada (`mostrarModalRutaDescarga`).
+  - Se actualiza dinámicamente en tiempo real al escribir o pegar en el campo de entrada, mostrando exactamente cómo quedará la ruta tras el saneamiento.
+  - Muy útil cuando el usuario ingresa rutas absolutas de Windows: puede ver en el acto que `E:\Vault\Dōjin` se convierte en `Vault/Dōjin/`.
+- **Nota Informativa Actualizada (`src/ui/modal.js`)**:
+  - El texto de ayuda del modal de ruta se amplió para documentar: soporte de caracteres Unicode, eliminación automática de letras de unidad, limitación de subcarpeta relativa impuesta por el navegador.
+
 ## Versión 2.9.1 (Corrección de Doble Descarga y Condicionalidad de GM_download)
 - **Corrección Crítica: GM_download solo activo con ruta personalizada (`src/core/download.js`)**:
   - En v2.9.0, `GM_download` se invocaba **siempre** que la API estaba disponible, incluso cuando no había ruta personalizada configurada. Esto causaba que el clic nativo **también** se ejecutara (doble descarga), y en algunos casos generaba archivos rotos o doble compresión cuando los dos flujos interferían simultáneamente.

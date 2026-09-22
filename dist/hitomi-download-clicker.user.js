@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.9.1
+// @version      2.9.2
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz, sufijo de serie 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -294,8 +294,10 @@
     if (!ruta || typeof ruta !== "string") return "";
     let saneada = ruta.trim();
     saneada = saneada.replace(/\\/g, "/");
-    saneada = saneada.replace(/^[a-zA-Z]:/g, "");
-    saneada = saneada.replace(/[\x00-\x1F\*\?"<>\|:]/g, "");
+    saneada = saneada.replace(/^\/\/[?.]\//, "");
+    saneada = saneada.replace(/^\/\/[^/]+\/[^/]*\/?/, "");
+    saneada = saneada.replace(/^[a-zA-Z]:/, "");
+    saneada = saneada.replace(/[\x00-\x1F\*\?"<>|:]/g, "");
     const partes = saneada.split("/").map((p) => p.trim()).filter((p) => p && p !== "." && p !== "..");
     return partes.join("/");
   }
@@ -2096,12 +2098,21 @@
             \u270D\uFE0F Subcarpeta de Descargas (relativa a la carpeta Descargas):
           </label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" id="hitomi-input-ruta-custom" value="${escapeHtml(rutaActualSaneada)}" placeholder="Ej. Hitomi/Comics..." class="hitomi-input-custom-tag-field" title="Ingresa el nombre de la subcarpeta (ej. Comics o Hitomi/Doujins). Dejar en blanco para usar la carpeta por defecto." />
+            <input type="text" id="hitomi-input-ruta-custom" value="${escapeHtml(rutaActualSaneada)}" placeholder="Ej. Hitomi/Comics o E:\\Vault\\D\u014Djin\\\u300CUpdates\u300D..." class="hitomi-input-custom-tag-field" title="Ingresa la subcarpeta de destino. Puedes escribir rutas absolutas de Windows (ej. E:\\Vault\\D\u014Djin) \u2014 la letra de unidad se ignorar\xE1 autom\xE1ticamente. Se aceptan caracteres Unicode como \u014D, \u300C, \u3011, \xF1." />
+          </div>
+          <div id="hitomi-ruta-preview-box" style="margin-top: 8px; display: ${rutaActualSaneada ? "block" : "none"};">
+            <div style="font-size: 11px; color: #768390; margin-bottom: 3px; font-weight: 600;">\u{1F4CB} Vista previa de la ruta efectiva:</div>
+            <code id="hitomi-ruta-preview-text" style="font-size: 12px; color: #3fb950; background: #0f141a; padding: 4px 8px; border-radius: 4px; border: 1px solid #2d3748; display: block; word-break: break-all;">${escapeHtml(rutaActualSaneada) || "\u2014"}</code>
           </div>
         </div>
 
         <p class="hitomi-modal-instruccion" style="margin-bottom: 0;">
-          \u{1F4A1} <strong>Nota del Navegador:</strong> Por razones de seguridad de Chromium y Firefox, los archivos se guardan dentro de tu carpeta principal de Descargas. Especificar <code>Hitomi/Comics</code> guardar\xE1 los archivos en <code>Descargas/Hitomi/Comics/</code>. Si no especificas nada o la reseteas, se guardar\xE1 en tu carpeta por defecto.
+          \u{1F4A1} <strong>Notas:</strong><br>
+          \u2022 Los archivos se guardan <em>dentro</em> de tu carpeta de Descargas del navegador (limitaci\xF3n de seguridad de Chromium/Firefox).<br>
+          \u2022 Especificar <code>Hitomi/Comics</code> guarda en <code>Descargas/Hitomi/Comics/</code>.<br>
+          \u2022 Las rutas absolutas de Windows (<code>E:\\Vault\\D\u014Djin\\\u300CUpdates\u300D</code>) se aceptan: la letra de unidad (<code>E:</code>) se elimina autom\xE1ticamente.<br>
+          \u2022 Se admiten caracteres Unicode: <code>\u014D</code>, <code>\u300C\u300D</code>, <code>\u3010\u3011</code>, <code>\xF1</code>, etc.<br>
+          \u2022 Deja el campo en blanco o presiona "Resetear" para usar la carpeta por defecto.
         </p>
       </div>
 
@@ -2120,7 +2131,30 @@
   `;
     interfaz.appendChild(backdropRuta);
     const inputRuta = backdropRuta.querySelector("#hitomi-input-ruta-custom");
+    const previewBox = backdropRuta.querySelector("#hitomi-ruta-preview-box");
+    const previewText = backdropRuta.querySelector("#hitomi-ruta-preview-text");
     const cerrar = () => backdropRuta.remove();
+    function actualizarPreview() {
+      if (!inputRuta || !previewBox || !previewText) return;
+      const saneada = sanearRutaSubcarpeta(inputRuta.value);
+      if (saneada) {
+        previewText.textContent = saneada + "/";
+        previewBox.style.display = "block";
+      } else {
+        previewText.textContent = "\u2014";
+        previewBox.style.display = inputRuta.value.trim() ? "block" : "none";
+      }
+    }
+    if (inputRuta) {
+      inputRuta.addEventListener("input", actualizarPreview);
+      inputRuta.addEventListener("paste", () => setTimeout(actualizarPreview, 10));
+      inputRuta.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          backdropRuta.querySelector("#hitomi-ruta-btn-guardar").click();
+        }
+      });
+    }
     backdropRuta.querySelector("#hitomi-ruta-btn-cerrar").addEventListener("click", cerrar);
     backdropRuta.querySelector("#hitomi-ruta-btn-cancelar").addEventListener("click", cerrar);
     backdropRuta.querySelector("#hitomi-ruta-btn-reset").addEventListener("click", () => {
@@ -2129,14 +2163,6 @@
       cerrar();
       if (typeof callbackGuardar === "function") callbackGuardar("");
     });
-    if (inputRuta) {
-      inputRuta.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter") {
-          ev.preventDefault();
-          backdropRuta.querySelector("#hitomi-ruta-btn-guardar").click();
-        }
-      });
-    }
     backdropRuta.querySelector("#hitomi-ruta-btn-guardar").addEventListener("click", () => {
       const valorIngresado = inputRuta ? inputRuta.value : "";
       const rutaFinal = sanearRutaSubcarpeta(valorIngresado);

@@ -863,12 +863,21 @@ export function mostrarModalRutaDescarga(callbackGuardar) {
             ✍️ Subcarpeta de Descargas (relativa a la carpeta Descargas):
           </label>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" id="hitomi-input-ruta-custom" value="${escapeHtml(rutaActualSaneada)}" placeholder="Ej. Hitomi/Comics..." class="hitomi-input-custom-tag-field" title="Ingresa el nombre de la subcarpeta (ej. Comics o Hitomi/Doujins). Dejar en blanco para usar la carpeta por defecto." />
+            <input type="text" id="hitomi-input-ruta-custom" value="${escapeHtml(rutaActualSaneada)}" placeholder="Ej. Hitomi/Comics o E:\\Vault\\Dōjin\\「Updates」..." class="hitomi-input-custom-tag-field" title="Ingresa la subcarpeta de destino. Puedes escribir rutas absolutas de Windows (ej. E:\\Vault\\Dōjin) — la letra de unidad se ignorará automáticamente. Se aceptan caracteres Unicode como ō, 「, 】, ñ." />
+          </div>
+          <div id="hitomi-ruta-preview-box" style="margin-top: 8px; display: ${rutaActualSaneada ? 'block' : 'none'};">
+            <div style="font-size: 11px; color: #768390; margin-bottom: 3px; font-weight: 600;">📋 Vista previa de la ruta efectiva:</div>
+            <code id="hitomi-ruta-preview-text" style="font-size: 12px; color: #3fb950; background: #0f141a; padding: 4px 8px; border-radius: 4px; border: 1px solid #2d3748; display: block; word-break: break-all;">${escapeHtml(rutaActualSaneada) || "—"}</code>
           </div>
         </div>
 
         <p class="hitomi-modal-instruccion" style="margin-bottom: 0;">
-          💡 <strong>Nota del Navegador:</strong> Por razones de seguridad de Chromium y Firefox, los archivos se guardan dentro de tu carpeta principal de Descargas. Especificar <code>Hitomi/Comics</code> guardará los archivos en <code>Descargas/Hitomi/Comics/</code>. Si no especificas nada o la reseteas, se guardará en tu carpeta por defecto.
+          💡 <strong>Notas:</strong><br>
+          • Los archivos se guardan <em>dentro</em> de tu carpeta de Descargas del navegador (limitación de seguridad de Chromium/Firefox).<br>
+          • Especificar <code>Hitomi/Comics</code> guarda en <code>Descargas/Hitomi/Comics/</code>.<br>
+          • Las rutas absolutas de Windows (<code>E:\\Vault\\Dōjin\\「Updates」</code>) se aceptan: la letra de unidad (<code>E:</code>) se elimina automáticamente.<br>
+          • Se admiten caracteres Unicode: <code>ō</code>, <code>「」</code>, <code>【】</code>, <code>ñ</code>, etc.<br>
+          • Deja el campo en blanco o presiona "Resetear" para usar la carpeta por defecto.
         </p>
       </div>
 
@@ -889,7 +898,33 @@ export function mostrarModalRutaDescarga(callbackGuardar) {
   interfaz.appendChild(backdropRuta);
 
   const inputRuta = backdropRuta.querySelector("#hitomi-input-ruta-custom");
+  const previewBox = backdropRuta.querySelector("#hitomi-ruta-preview-box");
+  const previewText = backdropRuta.querySelector("#hitomi-ruta-preview-text");
   const cerrar = () => backdropRuta.remove();
+
+  // Actualizar preview en tiempo real al escribir
+  function actualizarPreview() {
+    if (!inputRuta || !previewBox || !previewText) return;
+    const saneada = sanearRutaSubcarpeta(inputRuta.value);
+    if (saneada) {
+      previewText.textContent = saneada + "/";
+      previewBox.style.display = "block";
+    } else {
+      previewText.textContent = "—";
+      previewBox.style.display = inputRuta.value.trim() ? "block" : "none";
+    }
+  }
+
+  if (inputRuta) {
+    inputRuta.addEventListener("input", actualizarPreview);
+    inputRuta.addEventListener("paste", () => setTimeout(actualizarPreview, 10));
+    inputRuta.addEventListener("keydown", ev => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        backdropRuta.querySelector("#hitomi-ruta-btn-guardar").click();
+      }
+    });
+  }
 
   backdropRuta.querySelector("#hitomi-ruta-btn-cerrar").addEventListener("click", cerrar);
   backdropRuta.querySelector("#hitomi-ruta-btn-cancelar").addEventListener("click", cerrar);
@@ -900,15 +935,6 @@ export function mostrarModalRutaDescarga(callbackGuardar) {
     cerrar();
     if (typeof callbackGuardar === "function") callbackGuardar("");
   });
-
-  if (inputRuta) {
-    inputRuta.addEventListener("keydown", ev => {
-      if (ev.key === "Enter") {
-        ev.preventDefault();
-        backdropRuta.querySelector("#hitomi-ruta-btn-guardar").click();
-      }
-    });
-  }
 
   backdropRuta.querySelector("#hitomi-ruta-btn-guardar").addEventListener("click", () => {
     const valorIngresado = inputRuta ? inputRuta.value : "";
