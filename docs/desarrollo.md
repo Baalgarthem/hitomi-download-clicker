@@ -2,6 +2,13 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 1.7.1 (Auditoría de Sintaxis y Cierre de Mantenimiento)
+- **Verificación Rigurosa de Código y Sintaxis**:
+  - Auditoría exhaustiva de apertura y cierre de corchetes, comillas, paréntesis y terminadores de instrucción (puntos y comas).
+  - Verificación de la compilación e integridad del paquete final (`dist/hitomi-download-clicker.user.js`).
+- **Finalización de Mantenimiento**:
+  - Publicación de parche `v1.7.1` y sincronización con el repositorio remoto.
+
 ## Versión 1.7.0 (Arquitectura de 3 Componentes y Fallback Autor "Unknown")
 - **Estructura Desacoplada en 3 Componentes (`src/core/tags.js`)**:
   - `[Autor]` (Prefijo: `「Autor」` o `「Unknown」` si es N/A).
