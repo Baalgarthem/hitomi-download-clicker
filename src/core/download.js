@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────
 
 import { CONFIGURACION, ESTADO, CLAVES, ID_PESTANA } from '../config/constants.js';
-import { elementoVisible, esperar, obtenerHora, leerValorGM, sanearRutaSubcarpeta } from '../utils/dom.js';
+import { elementoVisible, esperar, obtenerHora, leerValorGM } from '../utils/dom.js';
 
 
 import { obtenerEstadoPaginaProcesada, guardarPaginaProcesada } from './memory.js';
@@ -460,67 +460,6 @@ export function confirmarYEjecutarClic(boton, esForzado = false, tagsSeleccionad
         el.setAttribute("download", nombreLimpioConExt);
         if ("download" in el) el.download = nombreLimpioConExt;
       });
-
-      // ═══════════════════════════════════════════════════════════════════════
-      // RUTA PERSONALIZADA (GM_download) — DESHABILITADO TEMPORALMENTE
-      // La funcionalidad de ruta personalizada vía GM_download está en revisión.
-      // Se encontraron incompatibilidades con el flujo de descarga nativo que causaban:
-      //   - La ruta siendo usada como prefijo en el nombre del archivo
-      //   - Doble compresión en archivos .cbz (zip dentro de zip)
-      //   - Interferencia entre GM_download y el clic nativo simultáneo
-      // Se habilitará únicamente cuando el usuario lo confirme expresamente.
-      // Para re-habilitar: cambiar la constante a !!rutaLimpia y descomentar el bloque.
-      // ═══════════════════════════════════════════════════════════════════════
-      const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
-      const rutaLimpia = sanearRutaSubcarpeta(rutaCustom);
-      const tieneRutaPersonalizada = false; // DESHABILITADO — ver comentario de arriba
-
-      /* BLOQUE GM_DOWNLOAD — DESHABILITADO (descomentar solo cuando se re-habilite la funcionalidad):
-      if (tieneRutaPersonalizada && typeof GM_download === "function") {
-        const nombreConRuta = `${rutaLimpia}/${nombreLimpioConExt}`;
-        let hrefRaw = (
-          boton.getAttribute("href") ||
-          boton.href ||
-          (boton.closest && boton.closest("a") ? (boton.closest("a").getAttribute("href") || boton.closest("a").href) : "") ||
-          ""
-        ).trim();
-        let downloadUrl = "";
-        if (hrefRaw) {
-          try { downloadUrl = new URL(hrefRaw, location.href).href; } catch { downloadUrl = hrefRaw; }
-        }
-        if (downloadUrl && (downloadUrl.startsWith("http") || downloadUrl.startsWith("blob"))) {
-          let ejecucionExitosaGM = false;
-          try {
-            GM_download({
-              url: downloadUrl,
-              name: nombreConRuta,
-              saveAs: false,
-              onload: () => console.log(obtenerHora(), "GM_download OK:", nombreConRuta),
-              onerror: (error) => {
-                console.warn(obtenerHora(), "GM_download falló, clic nativo:", error);
-                ESTADO.permitirClicForzado = true;
-                if (typeof boton.click === "function") boton.click();
-                ESTADO.permitirClicForzado = false;
-              }
-            });
-            ejecucionExitosaGM = true;
-            fueClickeadoConExito = true;
-          } catch (errGM) {
-            console.warn("Excepción GM_download:", errGM);
-          }
-          if (ejecucionExitosaGM) {
-            ESTADO.permitirClicForzado = false;
-            if (esForzado) {
-              if (teniaProcesado) boton.setAttribute("data-hitomi-procesado", teniaProcesado);
-              boton.style.pointerEvents = estiloPointerPrevio;
-              if ("disabled" in boton) boton.disabled = deshabilitadoPrevio;
-            }
-            return true;
-          }
-        }
-      }
-      */
-      void rutaLimpia; // Silenciar warning de variable no usada mientras está deshabilitado
     }
 
     ESTADO.permitirClicForzado = true;

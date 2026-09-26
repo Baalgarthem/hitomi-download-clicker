@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.10.1
+// @version      2.11.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz, sufijo de serie 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -14,7 +14,6 @@
 // @grant        GM_addValueChangeListener
 // @grant        GM_listValues
 // @grant        GM_deleteValue
-// @grant        GM_download
 // @run-at       document-idle
 // @noframes
 // @license      MIT

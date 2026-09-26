@@ -6,7 +6,7 @@ import { CONFIGURACION, ESTADO, CLAVES } from '../config/constants.js';
 import { obtenerInformacionPestanas, publicarEstadoPestana, solicitarSincronizacionGlobalPestanas, recorrerPestanasDescarga, cerrarPestanasProcesadas } from '../core/presence.js';
 import { limpiarMemoriaProcesadas } from '../core/memory.js';
 import { resetearEstadoBotonDescarga, actualizarEstadoVisualBotonNativo } from './badge.js';
-import { obtenerOCrearAnfitrionUI, escapeHtml, inyectarEstilos, leerValorGM, guardarValorGM, eliminarValorGM, sanearRutaSubcarpeta } from '../utils/dom.js';
+import { obtenerOCrearAnfitrionUI, escapeHtml, inyectarEstilos, leerValorGM, guardarValorGM, eliminarValorGM } from '../utils/dom.js';
 
 import { capitalizarNombre } from '../core/author.js';
 import { limpiarNombreTag } from '../core/tags.js';
@@ -847,135 +847,6 @@ export function mostrarModalSeleccionTags(pestanaId, tituloPestana, tagsDisponib
   });
 }
 
-/**
- * Muestra el sub-modal de configuración para la ruta de descarga personalizada.
- */
-export function mostrarModalRutaDescarga(callbackGuardar) {
-  const interfaz = obtenerOCrearAnfitrionUI(CONFIGURACION.ids.anfitrion);
-  const backdropRuta = document.createElement("div");
-  backdropRuta.className = "hitomi-tag-modal-backdrop";
-
-  const rutaActualBruta = leerValorGM(CLAVES.rutaDescarga, "");
-  const rutaActualSaneada = sanearRutaSubcarpeta(rutaActualBruta);
-
-  backdropRuta.innerHTML = `
-    <div class="hitomi-tag-modal-contenedor" style="max-width: 520px;">
-      <div class="hitomi-modal-header">
-        <h3 class="hitomi-modal-titulo">
-          <img src="${CONFIGURACION.urlIcono}" class="hitomi-logo-img" style="width:20px;height:20px;border-radius:4px;object-fit:contain;" alt="Hitomi Logo" />
-          <span>📂 Ruta Personalizada de Descargas</span>
-        </h3>
-        <button class="hitomi-modal-cerrar" id="hitomi-ruta-btn-cerrar" title="Cerrar esta ventana">✕</button>
-      </div>
-
-      <div class="hitomi-modal-body">
-        <div style="margin-bottom: 14px; padding: 10px 12px; background: #192028; border: 1px solid #2d3748; border-radius: 8px;">
-          <div style="font-size: 11px; font-weight: 700; color: #b580b5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
-            📍 Estado de la Ruta Actual:
-          </div>
-          <div id="hitomi-ruta-estado-label" style="font-size: 13px; font-weight: 600; color: ${rutaActualSaneada ? '#3fb950' : '#9ab0c7'}; display: flex; align-items: center; gap: 6px;">
-            ${
-              rutaActualSaneada
-                ? `<span>📁 Subcarpeta: <strong>${escapeHtml(rutaActualSaneada)}/</strong></span>`
-                : `<span>📥 Predeterminada (Carpeta Descargas de tu navegador)</span>`
-            }
-          </div>
-        </div>
-
-        <div class="hitomi-custom-tags-contenedor" style="margin-bottom: 12px;">
-          <label for="hitomi-input-ruta-custom" style="display: block; font-size: 12px; font-weight: 600; color: #c9d1d9; margin-bottom: 6px;">
-            ✍️ Subcarpeta de Descargas (relativa a la carpeta Descargas):
-          </label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" id="hitomi-input-ruta-custom" value="${escapeHtml(rutaActualSaneada)}" placeholder="Ej. Hitomi/Comics o E:\\Vault\\Dōjin\\「Updates」..." class="hitomi-input-custom-tag-field" title="Ingresa la subcarpeta de destino. Puedes escribir rutas absolutas de Windows (ej. E:\\Vault\\Dōjin) — la letra de unidad se ignorará automáticamente. Se aceptan caracteres Unicode como ō, 「, 】, ñ." />
-          </div>
-          <div id="hitomi-ruta-preview-box" style="margin-top: 8px; display: ${rutaActualSaneada ? 'block' : 'none'};">
-            <div style="font-size: 11px; color: #768390; margin-bottom: 3px; font-weight: 600;">📋 Vista previa de la ruta efectiva:</div>
-            <code id="hitomi-ruta-preview-text" style="font-size: 12px; color: #3fb950; background: #0f141a; padding: 4px 8px; border-radius: 4px; border: 1px solid #2d3748; display: block; word-break: break-all;">${escapeHtml(rutaActualSaneada) || "—"}</code>
-          </div>
-        </div>
-
-        <p class="hitomi-modal-instruccion" style="margin-bottom: 0;">
-          💡 <strong>Notas:</strong><br>
-          • Los archivos se guardan <em>dentro</em> de tu carpeta de Descargas del navegador (limitación de seguridad de Chromium/Firefox).<br>
-          • Especificar <code>Hitomi/Comics</code> guarda en <code>Descargas/Hitomi/Comics/</code>.<br>
-          • Las rutas absolutas de Windows (<code>E:\\Vault\\Dōjin\\「Updates」</code>) se aceptan: la letra de unidad (<code>E:</code>) se elimina automáticamente.<br>
-          • Se admiten caracteres Unicode: <code>ō</code>, <code>「」</code>, <code>【】</code>, <code>ñ</code>, etc.<br>
-          • Deja el campo en blanco o presiona "Resetear" para usar la carpeta por defecto.
-        </p>
-      </div>
-
-      <div class="hitomi-modal-footer">
-        <div class="hitomi-modal-acciones-secundarias">
-          <button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-ruta-btn-reset" title="Restaurar la ruta al estado por defecto (carpeta Descargas predeterminada)">
-            🔄 Resetear a Predeterminado
-          </button>
-        </div>
-        <div class="hitomi-modal-acciones-principales">
-          <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-ruta-btn-cancelar" title="Cancelar sin guardar cambios">Cancelar</button>
-          <button class="hitomi-btn hitomi-btn-primario" id="hitomi-ruta-btn-guardar" title="Guardar esta ruta de descarga">Guardar Ruta</button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  interfaz.appendChild(backdropRuta);
-
-  const inputRuta = backdropRuta.querySelector("#hitomi-input-ruta-custom");
-  const previewBox = backdropRuta.querySelector("#hitomi-ruta-preview-box");
-  const previewText = backdropRuta.querySelector("#hitomi-ruta-preview-text");
-  const cerrar = () => backdropRuta.remove();
-
-  // Actualizar preview en tiempo real al escribir
-  function actualizarPreview() {
-    if (!inputRuta || !previewBox || !previewText) return;
-    const saneada = sanearRutaSubcarpeta(inputRuta.value);
-    if (saneada) {
-      previewText.textContent = saneada + "/";
-      previewBox.style.display = "block";
-    } else {
-      previewText.textContent = "—";
-      previewBox.style.display = inputRuta.value.trim() ? "block" : "none";
-    }
-  }
-
-  if (inputRuta) {
-    inputRuta.addEventListener("input", actualizarPreview);
-    inputRuta.addEventListener("paste", () => setTimeout(actualizarPreview, 10));
-    inputRuta.addEventListener("keydown", ev => {
-      if (ev.key === "Enter") {
-        ev.preventDefault();
-        backdropRuta.querySelector("#hitomi-ruta-btn-guardar").click();
-      }
-    });
-  }
-
-  backdropRuta.querySelector("#hitomi-ruta-btn-cerrar").addEventListener("click", cerrar);
-  backdropRuta.querySelector("#hitomi-ruta-btn-cancelar").addEventListener("click", cerrar);
-
-  backdropRuta.querySelector("#hitomi-ruta-btn-reset").addEventListener("click", () => {
-    eliminarValorGM(CLAVES.rutaDescarga);
-    if (inputRuta) inputRuta.value = "";
-    cerrar();
-    if (typeof callbackGuardar === "function") callbackGuardar("");
-  });
-
-  backdropRuta.querySelector("#hitomi-ruta-btn-guardar").addEventListener("click", () => {
-    const valorIngresado = inputRuta ? inputRuta.value : "";
-    const rutaFinal = sanearRutaSubcarpeta(valorIngresado);
-
-    if (rutaFinal) {
-      guardarValorGM(CLAVES.rutaDescarga, rutaFinal);
-    } else {
-      eliminarValorGM(CLAVES.rutaDescarga);
-    }
-
-    cerrar();
-    if (typeof callbackGuardar === "function") callbackGuardar(rutaFinal);
-  });
-}
-
-
 export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
 
   let modoForzado = modoForzadoInicial !== null ? modoForzadoInicial : leerValorGM(CLAVES.modoForzado, false);
@@ -999,9 +870,6 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
     const usarCbz = leerValorGM(CLAVES.usarCbz, false);
     const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
     const bloquearBotonNativo = leerValorGM(CLAVES.bloquearBotonNativo, false);
-    const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
-    const rutaSaneada = sanearRutaSubcarpeta(rutaCustom);
-    const rutaFormateada = rutaSaneada ? escapeHtml(rutaSaneada) : "Predeterminada";
 
     // Inicializar la selección por defecto solo la primera vez que se abre la ventana
     if (!pestanasInicializadas) {
@@ -1040,7 +908,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                    <p>No se encontraron pestañas de Hitomi ${modoForzado ? 'disponibles' : 'pendientes'}.</p>
                  </div>`
               : `
-                 <!-- SECCIÓN DE OPCIONES Y CONFIGURACIÓN (CHECKBOXES Y RUTAS) -->
+                 <!-- SECCIÓN DE OPCIONES Y CONFIGURACIÓN -->
                  <div class="hitomi-seccion-opciones" style="margin-bottom: 12px; padding: 10px 14px; background: #192028; border: 1px solid #2d3748; border-radius: 10px;">
                    <div style="font-size: 11px; font-weight: 700; color: #b580b5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                      ⚙️ OPCIONES DE DESCARGA
@@ -1069,16 +937,6 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                      </div>
 
                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <button
-                          class="hitomi-btn hitomi-btn-secundario"
-                          id="hitomi-btn-abrir-ruta"
-                          title="⚙️ Pendiente de implementar — La ruta personalizada estará disponible en una próxima versión cuando esté completamente verificada"
-                          style="opacity: 0.45; cursor: not-allowed; pointer-events: auto; position: relative;"
-                          tabindex="-1"
-                        >
-                          📂 Ruta: <strong>Por defecto</strong>
-                          <span style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); border-radius: 4px; padding: 1px 5px; margin-left: 5px; font-weight: 700; letter-spacing: 0.3px; vertical-align: middle;">WIP</span>
-                        </button>
 
                        ${
                          !modoForzado
@@ -1340,17 +1198,6 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
       await solicitarSincronizacionGlobalPestanas(modoForzado);
       renderizarContenidoModal();
     });
-
-    const btnAbrirRuta = backdrop.querySelector("#hitomi-btn-abrir-ruta");
-    if (btnAbrirRuta) {
-      // FUNCIONALIDAD PENDIENTE DE IMPLEMENTAR — el botón está deshabilitado visualmente.
-      // El listener bloquea cualquier interacción mientras la ruta personalizada está en revisión.
-      btnAbrirRuta.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        // No abrir el modal de ruta — funcionalidad WIP
-      });
-    }
 
     const btnForzado = backdrop.querySelector("#hitomi-btn-modo-forzado");
 

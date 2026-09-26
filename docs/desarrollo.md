@@ -2,6 +2,23 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.11.0 (Eliminación Definitiva de Rutas Personalizadas y Arquitectura de Inyección de Dependencias)
+- **Eliminación Definitiva de Funcionalidad de Rutas Personalizadas**:
+  - Eliminado todo código muerto, botones temporales y modales asociados a rutas personalizadas tras confirmar las limitaciones de seguridad del navegador (sandboxing en descargas de userscripts).
+  - Eliminada la directiva `// @grant GM_download` de `src/index.js`: el userscript descarga exclusivamente a través de los mecanismos nativos en la carpeta predeterminada del navegador, garantizando máxima fiabilidad y compatibilidad sin romper nombres ni dobles compresiones.
+  - Eliminado el modal `mostrarModalRutaDescarga()`, el botón `#hitomi-btn-abrir-ruta` y sus event listeners en `src/ui/modal.js`.
+  - Eliminada la clave `rutaDescarga` en `src/config/constants.js`.
+  - Eliminada la función obsoleta `sanearRutaSubcarpeta` en `src/utils/dom.js`.
+  - Limpieza de código muerto en `src/core/download.js`, eliminando referencias y comentarios de `GM_download`.
+- **Arquitectura de Inyección de Dependencias (DI) para Almacenamiento (`src/core/storage.js`)**:
+  - Creado el servicio `StorageService` con diseño extensible basado en contratos abstractos:
+    - `GMStorageService`: Maneja persistencia mediante `GM_getValue`, `GM_setValue`, `GM_deleteValue` y listeners de cambios con fallback transparente a `localStorage`.
+    - `InMemoryStorageService`: Mock desacoplado en memoria útil para suites de pruebas unitarias o entornos sin privilegios de userscript.
+    - Exportada la instancia por defecto `defaultStorage`.
+  - Refactorizado `src/utils/dom.js` para delegar `leerValorGM`, `guardarValorGM` y `eliminarValorGM` en `defaultStorage`, permitiendo inyección de dependencias para futuras pruebas o migración de backend.
+- **Incremento de Versión Semántica**:
+  - Actualizado `src/index.js`, `package.json` y recompilación del bundle `dist/hitomi-download-clicker.user.js` a versión `2.11.0`.
+
 ## Versión 2.10.1 (Auditoría de Cierre de Procesadas, Diagnóstico y Protocolo de Auto-Actualización)
 - **Protocolo de Versiones y Despliegue en `AGENTS.md`**:
   - Incorporado el punto 3 en los Protocolos Obligatorios: incremento semántico continuo e inteligente (`major`/`minor`/`patch`) en cada ciclo de trabajo para habilitar la auto-actualización automática en Tampermonkey/Violentmonkey.

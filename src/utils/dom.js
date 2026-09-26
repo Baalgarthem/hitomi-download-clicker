@@ -2,6 +2,8 @@
 // Utilidades generales y manipulación DOM
 // ─────────────────────────────────────────────
 
+import { defaultStorage } from '../core/storage.js';
+
 export const esperar = milisegundos => new Promise(resolver => setTimeout(resolver, milisegundos));
 
 export const obtenerHora = () => `[${new Date().toTimeString().slice(0, 8)}]`;
@@ -140,100 +142,30 @@ export function sanearNombreArchivoFileSystem(nombre = "") {
 }
 
 /**
- * Lee un valor del almacenamiento persistente de Tampermonkey/Violentmonkey (GM_getValue)
- * con fallback automático a localStorage para compatibilidad multiplataforma.
+ * Lee un valor del almacenamiento persistente mediante el StorageService inyectado.
  * @param {string} clave - Clave de almacenamiento.
  * @param {any} valorDefecto - Valor predeterminado en caso de no existir la clave.
  * @returns {any} Valor guardado o valor por defecto.
  */
 export function leerValorGM(clave, valorDefecto = null) {
-  try {
-    if (typeof GM_getValue !== "undefined") {
-      const valor = GM_getValue(clave, valorDefecto);
-      if (valor !== undefined && valor !== null) return valor;
-    }
-    if (typeof localStorage !== "undefined") {
-      const item = localStorage.getItem(clave);
-      if (item !== null) {
-        try {
-          return JSON.parse(item);
-        } catch {
-          return item;
-        }
-      }
-    }
-  } catch { }
-  return valorDefecto;
+  return defaultStorage.get(clave, valorDefecto);
 }
 
 /**
- * Guarda un valor en el almacenamiento persistente de Tampermonkey/Violentmonkey (GM_setValue)
- * con fallback a localStorage para compatibilidad multiplataforma.
+ * Guarda un valor en el almacenamiento persistente mediante el StorageService inyectado.
  * @param {string} clave - Clave de almacenamiento.
  * @param {any} valor - Valor a guardar.
  */
 export function guardarValorGM(clave, valor) {
-  try {
-    if (typeof GM_setValue !== "undefined") {
-      GM_setValue(clave, valor);
-    }
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(clave, typeof valor === "string" ? valor : JSON.stringify(valor));
-    }
-  } catch (e) {
-    console.error(`Error al guardar clave persistente ${clave}:`, e);
-  }
+  defaultStorage.set(clave, valor);
 }
 
 /**
- * Elimina una clave del almacenamiento persistente de Tampermonkey/Violentmonkey (GM_deleteValue)
- * con fallback a localStorage para compatibilidad multiplataforma.
+ * Elimina una clave del almacenamiento persistente mediante el StorageService inyectado.
  * @param {string} clave - Clave de almacenamiento.
  */
 export function eliminarValorGM(clave) {
-  try {
-    if (typeof GM_deleteValue !== "undefined") {
-      GM_deleteValue(clave);
-    }
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem(clave);
-    }
-  } catch (e) {
-    console.error(`Error al eliminar clave persistente ${clave}:`, e);
-  }
-}
-
-/**
- * Sanea y valida una subcarpeta de descarga personalizada para garantizar que sea una ruta relativa limpia
- * compatible con las políticas de descarga del navegador (Chromium/Firefox) y libre de path traversal.
- * Soporta rutas absolutas de Windows (ej. "E:\Vault\Dōjin\「Updates」") convirtiéndolas en
- * rutas relativas (ej. "Vault/Dōjin/「Updates」"). Los caracteres Unicode como ō, 「, 】 están permitidos.
- * @param {string} ruta - Ruta ingresada por el usuario (ej. "Comics\Hitomi" o "E:\Vault\Dōjin\「Updates」").
- * @returns {string} Subcarpeta relativa limpia (ej. "Vault/Dōjin/「Updates」") o vacía "".
- */
-export function sanearRutaSubcarpeta(ruta = "") {
-  if (!ruta || typeof ruta !== "string") return "";
-
-  let saneada = ruta.trim();
-  // 1. Reemplazar barras invertidas \ por /
-  saneada = saneada.replace(/\\/g, "/");
-  // 2. Eliminar prefijo de ruta larga de Windows (\\?\ o \\.\)
-  saneada = saneada.replace(/^\/\/[?.]\//, "");
-  // 3. Eliminar rutas UNC completas (//servidor/recurso/... → se elimina //servidor/recurso/ dejando solo la ruta de carpeta)
-  saneada = saneada.replace(/^\/\/[^/]+\/[^/]*\/?/, "");
-  // 4. Eliminar letra de unidad Windows al inicio (ej. C:/, E:, C:\)
-  saneada = saneada.replace(/^[a-zA-Z]:/, "");
-  // 5. Eliminar caracteres ilegales en nombres de carpeta de Windows/Linux/macOS.
-  //    Se conservan deliberadamente caracteres Unicode (ō, 「, 】, ñ, etc.) ya que
-  //    NTFS, ext4 y los gestores de descarga de Chromium/Firefox los soportan.
-  saneada = saneada.replace(/[\x00-\x1F\*\?"<>|:]/g, "");
-  // 6. Dividir por / y filtrar partes vacías o navegaciones relativas (., ..)
-  const partes = saneada
-    .split("/")
-    .map(p => p.trim())
-    .filter(p => p && p !== "." && p !== "..");
-
-  return partes.join("/");
+  defaultStorage.delete(clave);
 }
 
 

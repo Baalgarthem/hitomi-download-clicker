@@ -112,7 +112,6 @@ export const CLAVES = {
   usarCbz: "hitomi_usar_extension_cbz",
   cerrarPestana: "hitomi_cerrar_pestana_al_descargar",
   modoForzado: "hitomi_modo_forzado",
-  rutaDescarga: "hitomi_ruta_descarga_personalizada",
   bloquearBotonNativo: "hitomi_bloquear_boton_nativo",
   incluirSerie: "hitomi_incluir_serie_sufijo",
   ordenCerrarPestanas: "hitomi_orden_cerrar_pestanas"

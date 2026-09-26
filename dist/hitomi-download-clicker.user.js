@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.10.1
+// @version      2.11.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz, sufijo de serie 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -14,7 +14,6 @@
 // @grant        GM_addValueChangeListener
 // @grant        GM_listValues
 // @grant        GM_deleteValue
-// @grant        GM_download
 // @run-at       document-idle
 // @noframes
 // @license      MIT
@@ -156,7 +155,6 @@
         usarCbz: "hitomi_usar_extension_cbz",
         cerrarPestana: "hitomi_cerrar_pestana_al_descargar",
         modoForzado: "hitomi_modo_forzado",
-        rutaDescarga: "hitomi_ruta_descarga_personalizada",
         bloquearBotonNativo: "hitomi_bloquear_boton_nativo",
         incluirSerie: "hitomi_incluir_serie_sufijo",
         ordenCerrarPestanas: "hitomi_orden_cerrar_pestanas"
@@ -173,6 +171,109 @@
         autoresEditadosPorPestana: /* @__PURE__ */ new Map(),
         ultimoNombreFinal: null
       };
+    }
+  });
+
+/* ════════════════════════════════════════════════════════════ */
+/*                MÓDULO: src/core/storage.js                 */
+/* ════════════════════════════════════════════════════════════ */
+  var StorageService, GMStorageService, defaultStorage;
+  var init_storage = __esm({
+    "src/core/storage.js"() {
+      StorageService = class {
+        /**
+         * Obtiene un valor almacenado.
+         * @param {string} clave - Clave de almacenamiento.
+         * @param {any} valorDefecto - Valor predeterminado si no existe.
+         * @returns {any}
+         */
+        get(clave, valorDefecto = null) {
+          throw new Error("M\xE9todo 'get' no implementado");
+        }
+        /**
+         * Guarda un valor en el almacenamiento.
+         * @param {string} clave - Clave de almacenamiento.
+         * @param {any} valor - Valor a almacenar.
+         */
+        set(clave, valor) {
+          throw new Error("M\xE9todo 'set' no implementado");
+        }
+        /**
+         * Elimina un valor del almacenamiento.
+         * @param {string} clave - Clave a eliminar.
+         */
+        delete(clave) {
+          throw new Error("M\xE9todo 'delete' no implementado");
+        }
+        /**
+         * Retorna una lista con todas las claves disponibles.
+         * @returns {string[]}
+         */
+        listKeys() {
+          throw new Error("M\xE9todo 'listKeys' no implementado");
+        }
+      };
+      GMStorageService = class extends StorageService {
+        get(clave, valorDefecto = null) {
+          try {
+            if (typeof GM_getValue !== "undefined") {
+              const valor = GM_getValue(clave, valorDefecto);
+              if (valor !== void 0 && valor !== null) return valor;
+            }
+            if (typeof localStorage !== "undefined") {
+              const item = localStorage.getItem(clave);
+              if (item !== null) {
+                try {
+                  return JSON.parse(item);
+                } catch {
+                  return item;
+                }
+              }
+            }
+          } catch (e) {
+            console.error(`[GMStorageService] Error al leer clave ${clave}:`, e);
+          }
+          return valorDefecto;
+        }
+        set(clave, valor) {
+          try {
+            if (typeof GM_setValue !== "undefined") {
+              GM_setValue(clave, valor);
+            }
+            if (typeof localStorage !== "undefined") {
+              localStorage.setItem(clave, typeof valor === "string" ? valor : JSON.stringify(valor));
+            }
+          } catch (e) {
+            console.error(`[GMStorageService] Error al guardar clave ${clave}:`, e);
+          }
+        }
+        delete(clave) {
+          try {
+            if (typeof GM_deleteValue !== "undefined") {
+              GM_deleteValue(clave);
+            }
+            if (typeof localStorage !== "undefined") {
+              localStorage.removeItem(clave);
+            }
+          } catch (e) {
+            console.error(`[GMStorageService] Error al eliminar clave ${clave}:`, e);
+          }
+        }
+        listKeys() {
+          try {
+            if (typeof GM_listValues !== "undefined") {
+              return GM_listValues();
+            }
+            if (typeof localStorage !== "undefined") {
+              return Object.keys(localStorage);
+            }
+          } catch (e) {
+            console.error("[GMStorageService] Error al listar claves:", e);
+          }
+          return [];
+        }
+      };
+      defaultStorage = new GMStorageService();
     }
   });
 
@@ -253,63 +354,18 @@
     return saneado;
   }
   function leerValorGM(clave, valorDefecto = null) {
-    try {
-      if (typeof GM_getValue !== "undefined") {
-        const valor = GM_getValue(clave, valorDefecto);
-        if (valor !== void 0 && valor !== null) return valor;
-      }
-      if (typeof localStorage !== "undefined") {
-        const item = localStorage.getItem(clave);
-        if (item !== null) {
-          try {
-            return JSON.parse(item);
-          } catch {
-            return item;
-          }
-        }
-      }
-    } catch {
-    }
-    return valorDefecto;
+    return defaultStorage.get(clave, valorDefecto);
   }
   function guardarValorGM(clave, valor) {
-    try {
-      if (typeof GM_setValue !== "undefined") {
-        GM_setValue(clave, valor);
-      }
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem(clave, typeof valor === "string" ? valor : JSON.stringify(valor));
-      }
-    } catch (e) {
-      console.error(`Error al guardar clave persistente ${clave}:`, e);
-    }
+    defaultStorage.set(clave, valor);
   }
   function eliminarValorGM(clave) {
-    try {
-      if (typeof GM_deleteValue !== "undefined") {
-        GM_deleteValue(clave);
-      }
-      if (typeof localStorage !== "undefined") {
-        localStorage.removeItem(clave);
-      }
-    } catch (e) {
-      console.error(`Error al eliminar clave persistente ${clave}:`, e);
-    }
-  }
-  function sanearRutaSubcarpeta(ruta = "") {
-    if (!ruta || typeof ruta !== "string") return "";
-    let saneada = ruta.trim();
-    saneada = saneada.replace(/\\/g, "/");
-    saneada = saneada.replace(/^\/\/[?.]\//, "");
-    saneada = saneada.replace(/^\/\/[^/]+\/[^/]*\/?/, "");
-    saneada = saneada.replace(/^[a-zA-Z]:/, "");
-    saneada = saneada.replace(/[\x00-\x1F\*\?"<>|:]/g, "");
-    const partes = saneada.split("/").map((p) => p.trim()).filter((p) => p && p !== "." && p !== "..");
-    return partes.join("/");
+    defaultStorage.delete(clave);
   }
   var esperar, obtenerHora, esPaginaHitomi;
   var init_dom = __esm({
     "src/utils/dom.js"() {
+      init_storage();
       esperar = (milisegundos) => new Promise((resolver) => setTimeout(resolver, milisegundos));
       obtenerHora = () => `[${(/* @__PURE__ */ new Date()).toTimeString().slice(0, 8)}]`;
       esPaginaHitomi = () => /^https?:\/\/(?:www\.)?hitomi\.la\//i.test(location.href);
@@ -1123,10 +1179,6 @@
           el.setAttribute("download", nombreLimpioConExt);
           if ("download" in el) el.download = nombreLimpioConExt;
         });
-        const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
-        const rutaLimpia = sanearRutaSubcarpeta(rutaCustom);
-        const tieneRutaPersonalizada = false;
-        void rutaLimpia;
       }
       ESTADO.permitirClicForzado = true;
       boton.removeAttribute("data-hitomi-procesado");
@@ -2029,9 +2081,6 @@
       const usarCbz = leerValorGM(CLAVES.usarCbz, false);
       const cerrarPestana = leerValorGM(CLAVES.cerrarPestana, false);
       const bloquearBotonNativo = leerValorGM(CLAVES.bloquearBotonNativo, false);
-      const rutaCustom = leerValorGM(CLAVES.rutaDescarga, "");
-      const rutaSaneada = sanearRutaSubcarpeta(rutaCustom);
-      const rutaFormateada = rutaSaneada ? escapeHtml(rutaSaneada) : "Predeterminada";
       if (!pestanasInicializadas) {
         pestanasInfo.forEach((p) => pestanasMarcadasSet.add(p.id));
         pestanasInicializadas = true;
@@ -2059,7 +2108,7 @@
           ${totalPestanas === 0 ? `<div class="hitomi-modal-vacio">
                    <p>No se encontraron pesta\xF1as de Hitomi ${modoForzado ? "disponibles" : "pendientes"}.</p>
                  </div>` : `
-                 <!-- SECCI\xD3N DE OPCIONES Y CONFIGURACI\xD3N (CHECKBOXES Y RUTAS) -->
+                 <!-- SECCI\xD3N DE OPCIONES Y CONFIGURACI\xD3N -->
                  <div class="hitomi-seccion-opciones" style="margin-bottom: 12px; padding: 10px 14px; background: #192028; border: 1px solid #2d3748; border-radius: 10px;">
                    <div style="font-size: 11px; font-weight: 700; color: #b580b5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                      \u2699\uFE0F OPCIONES DE DESCARGA
@@ -2088,16 +2137,6 @@
                      </div>
 
                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <button
-                          class="hitomi-btn hitomi-btn-secundario"
-                          id="hitomi-btn-abrir-ruta"
-                          title="\u2699\uFE0F Pendiente de implementar \u2014 La ruta personalizada estar\xE1 disponible en una pr\xF3xima versi\xF3n cuando est\xE9 completamente verificada"
-                          style="opacity: 0.45; cursor: not-allowed; pointer-events: auto; position: relative;"
-                          tabindex="-1"
-                        >
-                          \u{1F4C2} Ruta: <strong>Por defecto</strong>
-                          <span style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); border-radius: 4px; padding: 1px 5px; margin-left: 5px; font-weight: 700; letter-spacing: 0.3px; vertical-align: middle;">WIP</span>
-                        </button>
 
                        ${!modoForzado ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Permitir volver a descargar c\xF3mics que ya hab\xEDas guardado anteriormente">
                                 \u26A1 Activar Modo Forzado
@@ -2315,13 +2354,6 @@
         await solicitarSincronizacionGlobalPestanas(modoForzado);
         renderizarContenidoModal();
       });
-      const btnAbrirRuta = backdrop.querySelector("#hitomi-btn-abrir-ruta");
-      if (btnAbrirRuta) {
-        btnAbrirRuta.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        });
-      }
       const btnForzado = backdrop.querySelector("#hitomi-btn-modo-forzado");
       if (btnForzado) {
         btnForzado.addEventListener("click", () => {
