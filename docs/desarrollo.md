@@ -2,6 +2,15 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.11.1 (Depuración Integral de Residuos de Rutas y Operación Nativa Transparente)
+- **Eliminación Total de Código Fantasma y Residuos Documentales de Rutas**:
+  - Eliminada completamente la sección de "Subcarpeta de Descargas Personalizada" de `README.md` y renumeradas las características principales.
+  - Retirada la referencia a `sanearRutaSubcarpeta` en `docs/funciones.md`.
+  - Retirada la clave `hitomi_ruta_descarga_personalizada` de la tabla en `docs/guia-persistencia-configuracion.md`.
+  - Ratificada la operación intrínseca e inherente con la carpeta de descargas por defecto del navegador, sin controles visuales, botones bloqueados ni opciones innecesarias para el usuario.
+- **Incremento de Versión Semántica**:
+  - Actualización a versión `2.11.1` en `src/index.js`, `package.json` y compilación limpia del bundle distribuible.
+
 ## Versión 2.11.0 (Eliminación Definitiva de Rutas Personalizadas y Arquitectura de Inyección de Dependencias)
 - **Eliminación Definitiva de Funcionalidad de Rutas Personalizadas**:
   - Eliminado todo código muerto, botones temporales y modales asociados a rutas personalizadas tras confirmar las limitaciones de seguridad del navegador (sandboxing en descargas de userscripts).
