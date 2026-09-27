@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.11.1
+// @version      2.12.0
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz, sufijo de serie 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -1392,10 +1392,10 @@
       background: rgba(176, 0, 32, 0.18);
       color: #f87171;
       border: 1px solid rgba(239, 68, 68, 0.4);
-      padding: 6px 10px;
-      font-size: 13px;
+      padding: 4px 8px;
+      font-size: 12px;
       font-weight: 700;
-      border-radius: 6px;
+      border-radius: 5px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -1670,39 +1670,40 @@
     }
 
     .hitomi-modal-footer {
-      padding: 12px 20px;
+      padding: 10px 16px;
       border-top: 1px solid #2d3748;
       background: #161c24;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
     }
 
     .hitomi-modal-acciones-secundarias {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       flex-wrap: wrap;
     }
 
     .hitomi-modal-acciones-principales {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
 
     .hitomi-btn {
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 11.5px;
       font-weight: 600;
       cursor: pointer;
       border: 1px solid transparent;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
+      line-height: 1.25;
       transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
       user-select: none;
     }
@@ -2113,7 +2114,7 @@
                    <div style="font-size: 11px; font-weight: 700; color: #b580b5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                      \u2699\uFE0F OPCIONES DE DESCARGA
                    </div>
-                   <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; user-select: none;">
+                   <div style="display: flex; align-items: center; justify-content: flex-start; gap: 14px; flex-wrap: wrap; user-select: none;">
                      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #f0f6fc; cursor: pointer;" title="Marcar o desmarcar todos los c\xF3mics de la lista de una sola vez">
                          <input type="checkbox" id="hitomi-check-master-pestanas" ${todosMarcadosInicial ? "checked" : ""} style="width: 15px; height: 15px; accent-color: #ec4899; cursor: pointer;" title="Marcar o desmarcar todo" />
@@ -2136,16 +2137,8 @@
                        </label>
                      </div>
 
-                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-
-                       ${!modoForzado ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Permitir volver a descargar c\xF3mics que ya hab\xEDas guardado anteriormente">
-                                \u26A1 Activar Modo Forzado
-                              </button>` : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Desactivar modo forzado y descargar \xFAnicamente los c\xF3mics que est\xE9n pendientes">
-                                \u2713 Volver a Modo Normal
-                              </button>`}
                      </div>
-                   </div>
-                 </div>
+                  </div>
 
 
                  <!-- SECCI\xD3N DE C\xD3MICS DETECTADOS -->
@@ -2198,18 +2191,20 @@
         <div class="hitomi-modal-footer">
           <div class="hitomi-modal-acciones-secundarias">
             <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-reescanear" title="Volver a buscar las pesta\xF1as de Hitomi abiertas en el navegador y actualizar la lista">
-              \u{1F504} Escanear Pesta\xF1as
+              \u{1F504} Re-escanear
             </button>
             <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar el registro de descargas realizadas para volver a empezar desde cero">
               \u{1F5D1}\uFE0F Limpiar Memoria
             </button>
             ${totalPestanas === 0 ? `<button class="hitomi-btn-cerrar-procesadas-icono" id="hitomi-btn-cerrar-procesadas-icono" title="Cerrar todas aquellas pesta\xF1as que tengan la etiqueta de descargadas o re-descargadas">\u2715</button>` : ""}
+            ${!modoForzado ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Permitir volver a descargar c\xF3mics que ya hab\xEDas guardado anteriormente">
+                     \u26A1 Re-descargar
+                   </button>` : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Desactivar modo forzado y descargar \xFAnicamente los c\xF3mics que est\xE9n pendientes">
+                     \u2713 Modo Normal
+                   </button>`}
           </div>
 
           <div class="hitomi-modal-acciones-principales">
-            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-cancelar" title="Cerrar este panel sin realizar ninguna descarga">
-              Cancelar
-            </button>
             <button class="hitomi-btn ${modoForzado ? "hitomi-btn-forzado-confirmar" : "hitomi-btn-primario"}" id="hitomi-btn-confirmar" ${marcadosInicialCount === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ""} title="Enviar la orden de descarga a todos los c\xF3mics marcados con la casilla rosada">
               ${modoForzado ? `\u26A1 Re-descargar Forzado (${marcadosInicialCount})` : `\u25B6 Iniciar Descarga (${marcadosInicialCount})`}
             </button>
@@ -2318,7 +2313,6 @@
         });
       }
       backdrop.querySelector("#hitomi-btn-cerrar-modal").addEventListener("click", cerrarModal);
-      backdrop.querySelector("#hitomi-btn-cancelar").addEventListener("click", cerrarModal);
       const ejecutarCierreProcesadas = () => {
         const cantidad = cerrarPestanasProcesadas();
         cerrarModal();
@@ -2338,7 +2332,7 @@
         if (btnReescanear) {
           btnReescanear.disabled = true;
           btnReescanear.style.opacity = "0.7";
-          btnReescanear.innerHTML = "\u{1F504} Escaneando...";
+          btnReescanear.innerHTML = "\u{1F504} Re-escaneando...";
         }
         await solicitarSincronizacionGlobalPestanas(modoForzado);
         renderizarContenidoModal();

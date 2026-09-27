@@ -108,10 +108,10 @@ export function aplicarEstilosModal() {
       background: rgba(176, 0, 32, 0.18);
       color: #f87171;
       border: 1px solid rgba(239, 68, 68, 0.4);
-      padding: 6px 10px;
-      font-size: 13px;
+      padding: 4px 8px;
+      font-size: 12px;
       font-weight: 700;
-      border-radius: 6px;
+      border-radius: 5px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -386,39 +386,40 @@ export function aplicarEstilosModal() {
     }
 
     .hitomi-modal-footer {
-      padding: 12px 20px;
+      padding: 10px 16px;
       border-top: 1px solid #2d3748;
       background: #161c24;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
     }
 
     .hitomi-modal-acciones-secundarias {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       flex-wrap: wrap;
     }
 
     .hitomi-modal-acciones-principales {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
 
     .hitomi-btn {
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 11.5px;
       font-weight: 600;
       cursor: pointer;
       border: 1px solid transparent;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
+      line-height: 1.25;
       transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
       user-select: none;
     }
@@ -913,7 +914,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                    <div style="font-size: 11px; font-weight: 700; color: #b580b5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                      ⚙️ OPCIONES DE DESCARGA
                    </div>
-                   <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; user-select: none;">
+                   <div style="display: flex; align-items: center; justify-content: flex-start; gap: 14px; flex-wrap: wrap; user-select: none;">
                      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #f0f6fc; cursor: pointer;" title="Marcar o desmarcar todos los cómics de la lista de una sola vez">
                          <input type="checkbox" id="hitomi-check-master-pestanas" ${todosMarcadosInicial ? 'checked' : ''} style="width: 15px; height: 15px; accent-color: #ec4899; cursor: pointer;" title="Marcar o desmarcar todo" />
@@ -936,20 +937,8 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                        </label>
                      </div>
 
-                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-
-                       ${
-                         !modoForzado
-                           ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Permitir volver a descargar cómics que ya habías guardado anteriormente">
-                                ⚡ Activar Modo Forzado
-                              </button>`
-                           : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Desactivar modo forzado y descargar únicamente los cómics que estén pendientes">
-                                ✓ Volver a Modo Normal
-                              </button>`
-                       }
                      </div>
-                   </div>
-                 </div>
+                  </div>
 
 
                  <!-- SECCIÓN DE CÓMICS DETECTADOS -->
@@ -1011,7 +1000,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
         <div class="hitomi-modal-footer">
           <div class="hitomi-modal-acciones-secundarias">
             <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-reescanear" title="Volver a buscar las pestañas de Hitomi abiertas en el navegador y actualizar la lista">
-              🔄 Escanear Pestañas
+              🔄 Re-escanear
             </button>
             <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar el registro de descargas realizadas para volver a empezar desde cero">
               🗑️ Limpiar Memoria
@@ -1021,12 +1010,18 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                 ? `<button class="hitomi-btn-cerrar-procesadas-icono" id="hitomi-btn-cerrar-procesadas-icono" title="Cerrar todas aquellas pestañas que tengan la etiqueta de descargadas o re-descargadas">✕</button>`
                 : ''
             }
+            ${
+              !modoForzado
+                ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Permitir volver a descargar cómics que ya habías guardado anteriormente">
+                     ⚡ Re-descargar
+                   </button>`
+                : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Desactivar modo forzado y descargar únicamente los cómics que estén pendientes">
+                     ✓ Modo Normal
+                   </button>`
+            }
           </div>
 
           <div class="hitomi-modal-acciones-principales">
-            <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-cancelar" title="Cerrar este panel sin realizar ninguna descarga">
-              Cancelar
-            </button>
             <button class="hitomi-btn ${modoForzado ? 'hitomi-btn-forzado-confirmar' : 'hitomi-btn-primario'}" id="hitomi-btn-confirmar" ${marcadosInicialCount === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''} title="Enviar la orden de descarga a todos los cómics marcados con la casilla rosada">
               ${modoForzado ? `⚡ Re-descargar Forzado (${marcadosInicialCount})` : `▶ Iniciar Descarga (${marcadosInicialCount})`}
             </button>
@@ -1158,7 +1153,6 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
     }
 
     backdrop.querySelector("#hitomi-btn-cerrar-modal").addEventListener("click", cerrarModal);
-    backdrop.querySelector("#hitomi-btn-cancelar").addEventListener("click", cerrarModal);
 
     const ejecutarCierreProcesadas = () => {
       const cantidad = cerrarPestanasProcesadas();
@@ -1180,7 +1174,7 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
       if (btnReescanear) {
         btnReescanear.disabled = true;
         btnReescanear.style.opacity = "0.7";
-        btnReescanear.innerHTML = "🔄 Escaneando...";
+        btnReescanear.innerHTML = "🔄 Re-escaneando...";
       }
 
       await solicitarSincronizacionGlobalPestanas(modoForzado);

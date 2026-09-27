@@ -2,6 +2,18 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.12.0 (Reorganización de Acciones, Botón Re-descargar en Footer y Botones Compactos)
+- **Reorganización y Renombrado de Botones en Modal (`src/ui/modal.js`)**:
+  - Renombrado el botón `🔄 Escanear Pestañas` a `🔄 Re-escanear` (y estado dinámico a `🔄 Re-escaneando...`).
+  - Movido el botón de modo forzado desde la sección superior de opciones hacia el footer inferior de acciones secundarias, renombrado a `⚡ Re-descargar` (y `✓ Modo Normal` al alternar).
+  - Eliminado el botón redundante `Cancelar` del pie del modal, aprovechando el botón de cierre nativo `✕` del encabezado.
+- **Compactación Visual de Botones y Footer**:
+  - Reducido el padding y espaciado de `.hitomi-btn` (`5px 10px`, `font-size: 11.5px`, `gap: 4px`, `border-radius: 5px`).
+  - Compactado el botón de ícono de cierre de procesadas `.hitomi-btn-cerrar-procesadas-icono` (`4px 8px`, `font-size: 12px`).
+  - Optimizado el padding del pie de modal (`10px 16px`, `gap: 8px`).
+- **Incremento de Versión Semántica**:
+  - Versión actualizada a `2.12.0` en `src/index.js`, `package.json` y bundle compilado en `dist/`.
+
 ## Versión 2.11.1 (Depuración Integral de Residuos de Rutas y Operación Nativa Transparente)
 - **Eliminación Total de Código Fantasma y Residuos Documentales de Rutas**:
   - Eliminada completamente la sección de "Subcarpeta de Descargas Personalizada" de `README.md` y renumeradas las características principales.
