@@ -1002,14 +1002,6 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
             <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-reescanear" title="Volver a buscar las pestañas de Hitomi abiertas en el navegador y actualizar la lista">
               🔄 Re-escanear
             </button>
-            <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar el registro de descargas realizadas para volver a empezar desde cero">
-              🗑️ Limpiar Memoria
-            </button>
-            ${
-              totalPestanas === 0
-                ? `<button class="hitomi-btn-cerrar-procesadas-icono" id="hitomi-btn-cerrar-procesadas-icono" title="Cerrar todas aquellas pestañas que tengan la etiqueta de descargadas o re-descargadas">✕</button>`
-                : ''
-            }
             ${
               !modoForzado
                 ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Permitir volver a descargar cómics que ya habías guardado anteriormente">
@@ -1018,6 +1010,14 @@ export function mostrarPopupConfirmacion(pastilla, modoForzadoInicial = null) {
                 : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Desactivar modo forzado y descargar únicamente los cómics que estén pendientes">
                      ✓ Modo Normal
                    </button>`
+            }
+            <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar el registro de descargas realizadas para volver a empezar desde cero">
+              🗑️ Limpiar Memoria
+            </button>
+            ${
+              totalPestanas === 0
+                ? `<button class="hitomi-btn-cerrar-procesadas-icono" id="hitomi-btn-cerrar-procesadas-icono" title="Cerrar todas aquellas pestañas que tengan la etiqueta de descargadas o re-descargadas">✕</button>`
+                : ''
             }
           </div>
 

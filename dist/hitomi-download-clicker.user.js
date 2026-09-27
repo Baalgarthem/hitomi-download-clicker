@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hitomi Clicker
 // @namespace    https://github.com/Baalgarthem/
-// @version      2.12.0
+// @version      2.12.1
 // @description  Recorre pestañas abiertas de Hitomi y ejecuta descargas automáticas organizando archivos en 3 componentes: 「Autor/Grupo」 Título ┃ tags. Incluye edición de autor y título por ítem, fallback automático a grupo o Unknown en N/A, selección de delimitadores, extensión .cbz, sufijo de serie 【Serie】 y personajes 【Personaje1 Personaje2】, y menú modal de confirmación con IPC.
 // @author       Baalgarthem
 // @icon         https://raw.githubusercontent.com/Baalgarthem/hitomi-download-clicker/principal/media/hitomi-logo.ico
@@ -2193,15 +2193,15 @@
             <button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-reescanear" title="Volver a buscar las pesta\xF1as de Hitomi abiertas en el navegador y actualizar la lista">
               \u{1F504} Re-escanear
             </button>
-            <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar el registro de descargas realizadas para volver a empezar desde cero">
-              \u{1F5D1}\uFE0F Limpiar Memoria
-            </button>
-            ${totalPestanas === 0 ? `<button class="hitomi-btn-cerrar-procesadas-icono" id="hitomi-btn-cerrar-procesadas-icono" title="Cerrar todas aquellas pesta\xF1as que tengan la etiqueta de descargadas o re-descargadas">\u2715</button>` : ""}
             ${!modoForzado ? `<button class="hitomi-btn hitomi-btn-advertencia" id="hitomi-btn-modo-forzado" title="Permitir volver a descargar c\xF3mics que ya hab\xEDas guardado anteriormente">
                      \u26A1 Re-descargar
                    </button>` : `<button class="hitomi-btn hitomi-btn-secundario" id="hitomi-btn-modo-normal" title="Desactivar modo forzado y descargar \xFAnicamente los c\xF3mics que est\xE9n pendientes">
                      \u2713 Modo Normal
                    </button>`}
+            <button class="hitomi-btn hitomi-btn-peligro" id="hitomi-btn-limpiar-memoria" title="Borrar el registro de descargas realizadas para volver a empezar desde cero">
+              \u{1F5D1}\uFE0F Limpiar Memoria
+            </button>
+            ${totalPestanas === 0 ? `<button class="hitomi-btn-cerrar-procesadas-icono" id="hitomi-btn-cerrar-procesadas-icono" title="Cerrar todas aquellas pesta\xF1as que tengan la etiqueta de descargadas o re-descargadas">\u2715</button>` : ""}
           </div>
 
           <div class="hitomi-modal-acciones-principales">

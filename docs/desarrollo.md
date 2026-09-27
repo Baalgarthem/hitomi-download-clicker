@@ -2,6 +2,16 @@
 
 Este documento registra los cambios introducidos en el código, documentando la justificación de las decisiones y cómo los módulos interactúan entre sí. Siguiendo las directrices del archivo `AGENTS.md`, cada vez que se modifique o añada un módulo, se debe registrar aquí.
 
+## Versión 2.12.1 (Ajuste de Secuencia Ergonómica de Botones en Pie de Modal)
+- **Reordenamiento Ergonómico en Footer (`src/ui/modal.js`)**:
+  - Establecida la secuencia exacta de botones en el pie del modal:
+    1. `🔄 Re-escanear`
+    2. `⚡ Re-descargar` / `✓ Modo Normal`
+    3. `🗑️ Limpiar Memoria` (junto al botón de cierre masivo `✕` cuando las pestañas detectadas sean 0)
+    4. `▶ Iniciar Descarga` (en el bloque de ejecución principal a la derecha)
+- **Incremento de Versión Semántica**:
+  - Actualización a versión `2.12.1` en `src/index.js`, `package.json` y compilación del bundle.
+
 ## Versión 2.12.0 (Reorganización de Acciones, Botón Re-descargar en Footer y Botones Compactos)
 - **Reorganización y Renombrado de Botones en Modal (`src/ui/modal.js`)**:
   - Renombrado el botón `🔄 Escanear Pestañas` a `🔄 Re-escanear` (y estado dinámico a `🔄 Re-escaneando...`).
